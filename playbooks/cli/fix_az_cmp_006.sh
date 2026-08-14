@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
-# AZ-CMP-005: Associate an NSG with a VM Scale Set's network interface configuration
-# Usage: ./fix_az_cmp_005.sh <resource-group> <vmss-name> <nic-config-index> <nsg-resource-id>
+# AZ-CMP-006: Associate an NSG with a VM Scale Set's network interface configuration
+# Usage: ./fix_az_cmp_006.sh <resource-group> <vmss-name> <nic-config-index> <nsg-resource-id>
 #
 # Find <nic-config-index> (0-based) with:
 #   az vmss show --resource-group <rg> --name <vmss-name> \
