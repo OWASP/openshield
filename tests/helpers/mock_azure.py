@@ -50,6 +50,7 @@ class MockAzureClient:
         self._network_security_groups: List[Any] = []
         self._express_route_ports: Optional[List[Any]] = []
         self._virtual_machines: List[Any] = []
+        self._virtual_machine_scale_sets: List[Any] = []
         self._key_vaults: List[Any] = []
         self._sql_servers: List[Any] = []
         self._service_principals: List[Any] = []
@@ -199,6 +200,10 @@ class MockAzureClient:
         self._virtual_machines = vms
         return self
 
+    def set_virtual_machine_scale_sets(self, scale_sets: List[Any]) -> "MockAzureClient":
+        self._virtual_machine_scale_sets = scale_sets
+        return self
+
     def set_key_vaults(self, vaults: List[Any]) -> "MockAzureClient":
         self._key_vaults = vaults
         return self
@@ -225,6 +230,9 @@ class MockAzureClient:
 
     def get_virtual_machines(self) -> List[Any]:
         return self._virtual_machines
+
+    def get_virtual_machine_scale_sets(self) -> List[Any]:
+        return self._virtual_machine_scale_sets
 
     def get_key_vaults(self) -> List[Any]:
         return self._key_vaults

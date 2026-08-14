@@ -671,6 +671,15 @@ class AzureClient:
             logger.error("get_virtual_machines failed: %s", exc)
             return []
 
+    def get_virtual_machine_scale_sets(self) -> List[Any]:
+        """List all VM Scale Sets across all resource groups in the subscription."""
+        try:
+            client = ComputeManagementClient(self.credential, self.subscription_id)
+            return list(client.virtual_machine_scale_sets.list_all())
+        except Exception as exc:
+            logger.error("get_virtual_machine_scale_sets failed: %s", exc)
+            return []
+
     def get_web_apps(self) -> List[Any]:
         """List all App Services in the subscription."""
         try:
