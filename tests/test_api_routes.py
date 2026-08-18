@@ -189,6 +189,61 @@ class TestDriftRoute:
         for key in ("total", "added", "removed", "modified"):
             assert key in summary
 
+    def test_drift_with_two_scans_classifies_added_removed(self, client, auth_headers):
+        """Two scans with differing findings exercises ADDED/REMOVED classification."""
+        import datetime
+
+        scan1_id = "aaa00000-0000-0000-0000-000000000001"
+        scan2_id = "bbb00000-0000-0000-0000-000000000002"
+        scans = [
+            {"scan_id": scan2_id, "started_at": datetime.datetime(2024, 1, 2)},
+            {"scan_id": scan1_id, "started_at": datetime.datetime(2024, 1, 1)},
+        ]
+        # findings in latest but not previous -> ADDED
+        # findings in previous but not latest -> REMOVED
+        latest_rows = [
+            {
+                "rule_id": "AZ-NET-001",
+                "resource_id": "/sub/res1",
+                "resource_name": "res1",
+                "resource_type": "NSG",
+                "category": "Network",
+                "severity": "HIGH",
+                "scan_id": scan2_id,
+            },
+        ]
+        previous_rows = [
+            {
+                "rule_id": "AZ-DB-001",
+                "resource_id": "/sub/res2",
+                "resource_name": "res2",
+                "resource_type": "DB",
+                "category": "Database",
+                "severity": "MEDIUM",
+                "scan_id": scan1_id,
+            },
+        ]
+        db = MagicMock()
+        mock_conn = MagicMock()
+        # cursor 1: fetchall returns scans list
+        c1 = MagicMock()
+        c1.__enter__ = MagicMock(return_value=c1)
+        c1.__exit__ = MagicMock(return_value=False)
+        c1.fetchall.return_value = scans
+        # cursor 2: fetchall returns combined latest+previous rows for diff query
+        c2 = MagicMock()
+        c2.__enter__ = MagicMock(return_value=c2)
+        c2.__exit__ = MagicMock(return_value=False)
+        c2.fetchall.return_value = latest_rows + previous_rows
+        mock_conn.cursor.side_effect = [c1, c2]
+        db._get_conn.return_value = mock_conn
+
+        with patch("api.routes.drift._get_db", return_value=db):
+            resp = client.get("/api/drift", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["summary"]["total"] > 0
+
     def test_drift_returns_500_on_db_error(self, client, auth_headers):
         with patch("api.routes.drift._get_db", side_effect=RuntimeError("DB error")):
             resp = client.get("/api/drift", headers=auth_headers)
@@ -238,6 +293,53 @@ class TestResourcesRoute:
             mock_get_db.return_value = self._make_resources_db(fetchone=None)
             resp = client.get("/api/resources", headers=auth_headers)
         assert resp.get_json()["resources"] == []
+
+    def test_resources_with_mixed_severity_rows(self, client, auth_headers):
+        """Rows with different risk_rank values exercise risk mapping and by_risk_level counts."""
+        import datetime
+
+        rows = [
+            {
+                "resource_id": "/subscriptions/s/resourceGroups/rg/providers/res1",
+                "resource_name": "res1",
+                "resource_type": "NSG",
+                "category": "Network",
+                "risk_rank": 3,
+                "discovered_at": datetime.datetime(2024, 1, 1),
+            },
+            {
+                "resource_id": "/subscriptions/s/resourceGroups/rg/providers/res2",
+                "resource_name": "res2",
+                "resource_type": "DB",
+                "category": "Database",
+                "risk_rank": 2,
+                "discovered_at": datetime.datetime(2024, 1, 1),
+            },
+            {
+                "resource_id": "/subscriptions/s/resourceGroups/rg/providers/res3",
+                "resource_name": "res3",
+                "resource_type": "Storage",
+                "category": "Storage",
+                "risk_rank": 1,
+                "discovered_at": datetime.datetime(2024, 1, 1),
+            },
+        ]
+        with patch("api.routes.resources._get_db") as mock_get_db:
+            mock_get_db.return_value = self._make_resources_db(
+                fetchone={"scan_id": "s-1", "started_at": datetime.datetime(2024, 1, 1)},
+                rows=rows,
+            )
+            resp = client.get("/api/resources", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert len(data["resources"]) == 3
+        risk_levels = {r["risk"] for r in data["resources"]}
+        assert "HIGH" in risk_levels
+        assert "MEDIUM" in risk_levels
+        assert "LOW" in risk_levels
+        assert data["summary"]["by_risk_level"]["HIGH"] == 1
+        assert data["summary"]["by_risk_level"]["MEDIUM"] == 1
+        assert data["summary"]["by_risk_level"]["LOW"] == 1
 
     def test_resources_returns_500_on_db_error(self, client, auth_headers):
         with patch("api.routes.resources._get_db", side_effect=RuntimeError("DB error")):

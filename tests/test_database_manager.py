@@ -1,6 +1,6 @@
 """Unit tests for DatabaseManager — connection, CRUD, and scoring logic."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -10,19 +10,6 @@ from api.models.finding import DatabaseManager, Finding, SEVERITY_WEIGHTS
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _make_db(dsn="postgresql://test:test@localhost/test"):
-    """Return a DatabaseManager with a mocked psycopg2 connection."""
-    with patch("api.models.finding.psycopg2.connect") as mock_connect:
-        db = DatabaseManager(dsn=dsn)
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
-        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
-        mock_connect.return_value = mock_conn
-        db.conn = mock_conn
-    return db, mock_conn, mock_cursor
 
 
 def _make_finding(**kwargs):

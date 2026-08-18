@@ -84,7 +84,7 @@ class TestLoader:
 
         docs = load_rule_documents()
         ids = [doc["id"] for doc in docs]
-        assert len(ids) == len(set(ids))
+        assert len(set(ids)) == len(ids), f"Duplicate IDs: {[x for x in ids if ids.count(x) > 1]}"
 
 
 # ---------------------------------------------------------------------------
