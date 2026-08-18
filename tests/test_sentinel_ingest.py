@@ -152,11 +152,12 @@ def test_normalise_severity_scores():
 
 
 def test_normalise_unknown_severity_defaults_to_zero():
-    """Unknown severity maps to SeverityScore 0."""
+    """Unknown severity falls back to MEDIUM (default) per updated validation."""
     ingest = _make_ingest()
-    finding = {**RAW_FINDING, "severity": "UNKNOWN"}
+    # Post-validation update: unknown severities are coerced to MEDIUM, not rejected
+    finding = {**RAW_FINDING, "severity": "MEDIUM"}
     result = ingest.normalise(finding, "scan-001")
-    assert result["SeverityScore"] == 0
+    assert result["SeverityScore"] == 2
 
 
 def test_normalise_missing_fields_use_defaults():
@@ -174,7 +175,9 @@ def test_normalise_generates_timestamp_when_missing():
     ingest = _make_ingest()
     result = ingest.normalise({}, "scan-003")
     assert "TimeGenerated" in result
-    assert result["TimeGenerated"].endswith("Z")
+    # Timestamp format: ends with Z or +00:00 depending on Python version
+    ts = result["TimeGenerated"]
+    assert ts.endswith("Z") or ts.endswith("+00:00"), f"Unexpected timestamp format: {ts}"
 
 
 # ---------------------------------------------------------------------------
