@@ -2,7 +2,7 @@
 
 ## Overview
 
-OpenShield is a modular, open source Cloud Security Posture Management (CSPM) platform for Azure. It scans Azure and connected Kubernetes evidence against 95 documented security rules, maps findings to compliance frameworks (CIS, NIST CSF, ISO 27001, SOC 2), stores results in PostgreSQL, and exposes posture data through a Flask REST API consumed by a live React dashboard.
+OpenShield is a modular, open source Cloud Security Posture Management (CSPM) platform for Azure. It scans Azure and connected Kubernetes evidence against documented security rules, maps findings to compliance frameworks (CIS, NIST CSF, ISO 27001, SOC 2), stores results in PostgreSQL, and exposes posture data through a Flask REST API consumed by a live React dashboard.
 
 ---
 
@@ -43,7 +43,7 @@ OpenShield is a modular, open source Cloud Security Posture Management (CSPM) pl
 ┌───────────▼──────────────────────────────────────────────────────┐
 │                   Rule Modules (scanner/rules/)                   │
 │                                                                   │
-│  95 documented rules across Storage, Network, Identity, Database, │
+│  Rule files across Storage, Network, Identity, Database,          │
 │  Compute, Key Vault, AKS, post-quantum cryptography, Backup,      │
 │  Serverless, Private Endpoint posture, and Supply Chain           │
 └───────────┬───────────────────────────────────────────────────────┘
@@ -111,12 +111,12 @@ result = engine.run_scan()
 
 ### 4. Current Rule Modules
 
-There are 95 documented controls in `docs/rules-reference.md`, including 21 AKS and Kubernetes controls.
+See `docs/rules-reference.md` for the full table of documented controls.
 
 | Category | Count | Rules |
 |---|---|---|
 | Storage | 9 | AZ-STOR-001 to 009 |
-| Network | 15 | AZ-NET-001 to 015 |
+| Network | 17 | AZ-NET-001 to 017 |
 | Identity | 25 | AZ-IDN-001 to 025 |
 | Database | 7 | AZ-DB-001 to 007 |
 | Cosmos DB | 2 | AZ-COSMOS-001 to 002 |
@@ -125,10 +125,13 @@ There are 95 documented controls in `docs/rules-reference.md`, including 21 AKS 
 | Key Vault | 5 | AZ-KV-001 to 005 |
 | Kubernetes | 21 | AZ-AKS-001 to 021 |
 | Post-quantum | 3 | AZ-PQC-001 to 003 |
+| Governance | 10 | AZ-GOV-001 to 010 |
 | Backup | 4 | AZ-BAK-001, 002, 004, 006 |
 | Serverless | 5 | AZ-FUNC-001 to 005 |
 | Private Endpoint | 6 | AZ-PE-001 to 006 |
 | Supply Chain | 8 | AZ-SC-001 to 008 |
+| Security Operations | 10 | AZ-SECOPS-001 to 010 |
+| Data Link | 2 | AZ-DL-001 to 002 |
 
 Every rule has a matching Azure CLI playbook in `playbooks/cli/`.
 
