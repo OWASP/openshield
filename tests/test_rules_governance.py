@@ -177,15 +177,31 @@ def test_gov_010_drift_sla_boundary(run):
     assert run(az_gov_010, {"policy_states": [state(recent)]}) == []
 
 
+def test_gov_003_missing_definitions_evidence_is_unknown(run):
+    assignment = {
+        "id": f"{SCOPE}/providers/Microsoft.Authorization/policyAssignments/deny",
+        "properties": {"policyDefinitionId": "/definitions/deny-public", "parameters": {}},
+    }
+    assert run(az_gov_003, {"policy_assignments": [assignment], "policy_definitions": None}) == []
+
+
+def test_gov_005_missing_locks_evidence_is_unknown(run):
+    resource = {"id": RESOURCE, "type": "Microsoft.Storage/storageAccounts", "tags": {"Environment": "Prod"}}
+    assert run(az_gov_005, {"resources": [resource], "locks": None}) == []
+
+
 @pytest.mark.parametrize(
     "module,source",
     [
         (az_gov_001, "hierarchy"),
         (az_gov_002, "policy_assignments"),
+        (az_gov_003, "policy_assignments"),
         (az_gov_004, "policy_exemptions"),
         (az_gov_005, "resources"),
         (az_gov_006, "role_assignments"),
+        (az_gov_007, "role_assignments"),
         (az_gov_008, "providers"),
+        (az_gov_009, "resources"),
         (az_gov_010, "policy_states"),
     ],
 )
