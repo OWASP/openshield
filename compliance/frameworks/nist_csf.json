@@ -570,55 +570,25 @@
       "control_name": "Incidents are reported consistent with established criteria",
       "description": "No monitored destination exists for security alerts or Sentinel incidents. RS.CO-2 requires incidents to be reported consistent with established criteria; an alert with no notified recipient is never reported to anyone who can act on it."
     },
-    "AZ-NET-018": {
-      "control_id": "PR.AC-3",
-      "control_name": "Remote access is managed",
-      "description": "Disabling unnecessary public access ensures the Private Endpoint is the managed remote access path."
+    "AZ-CI-001": {
+      "control_id": "PR.AC-1",
+      "control_name": "CI/CD Workflow Uses Long-Lived Azure Credentials",
+      "description": "CI/CD workflows should use workload identity federation (OIDC) instead of long-lived client secrets or storage keys stored as repository secrets."
     },
-    "AZ-NET-019": {
-      "control_id": "PR.AC-5",
-      "control_name": "Network integrity is protected",
-      "description": "Approved Private Endpoint connections preserve the intended private network boundary."
+    "AZ-CI-002": {
+      "control_id": "PR.AC-4",
+      "control_name": "CI/CD Workflow Has Unnecessarily Broad Token Permissions",
+      "description": "Workflow GITHUB_TOKEN permissions should follow least privilege with an explicit permissions block granting only required scopes."
     },
-    "AZ-NET-020": {
-      "control_id": "PR.AC-5",
-      "control_name": "Network integrity is protected",
-      "description": "Private DNS zone association directs service names through the intended private endpoint path."
+    "AZ-CI-003": {
+      "control_id": "PR.IP-1",
+      "control_name": "Third-Party Workflow Action Not Pinned to Immutable Commit SHA",
+      "description": "Third-party GitHub Actions must be pinned to a full 40-character commit SHA to prevent supply-chain attacks via mutable tags."
     },
-    "AZ-NET-021": {
-      "control_id": "PR.AC-5",
-      "control_name": "Network integrity is protected",
-      "description": "Private address resolution provides evidence that service traffic follows the private network boundary."
-    },
-    "AZ-NET-022": {
-      "control_id": "PR.AC-3",
-      "control_name": "Remote access is managed",
-      "description": "Critical PaaS public access is disabled unless an explicit approved exception exists."
-    },
-    "AZ-NET-023": {
-      "control_id": "DE.CM-1",
-      "control_name": "The network is monitored",
-      "description": "Azure Firewall threat intelligence alerts on and denies traffic involving known malicious infrastructure."
-    },
-    "AZ-NET-024": {
-      "control_id": "PR.PT-4",
-      "control_name": "Communications and control networks are protected",
-      "description": "Application Gateway WAF Prevention mode actively blocks matching application attacks."
-    },
-    "AZ-NET-025": {
-      "control_id": "DE.CM-1",
-      "control_name": "The network is monitored",
-      "description": "Application Gateway access, performance, and firewall logs provide perimeter monitoring evidence."
-    },
-    "AZ-NET-026": {
-      "control_id": "PR.PT-4",
-      "control_name": "Communications and control networks are protected",
-      "description": "Current base and bot managed rules protect the web application perimeter."
-    },
-    "AZ-NET-027": {
-      "control_id": "PR.PT-4",
-      "control_name": "Communications and control networks are protected",
-      "description": "Rate-limit rules protect internet-facing applications from abusive request volume."
+    "AZ-CI-004": {
+      "control_id": "PR.AC-4",
+      "control_name": "Untrusted Pull-Request Input Reaches Privileged Workflow Context",
+      "description": "Workflows triggered by pull_request_target or workflow_run must not check out or execute untrusted PR code in a context with secret access."
     }
   }
 }

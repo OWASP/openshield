@@ -227,7 +227,7 @@
     "AZ-DB-004": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "Enabling 'Allow access to Azure services' on a SQL Server firewall creates a rule that permits any Azure-hosted resource — including services from other tenants — to connect to the database. CC6.6 requires that access from outside the network boundary is restricted to authorised sources. Disabling this setting and replacing it with explicit firewall rules or private endpoints enforces the network boundary and ensures only known and trusted systems can reach the SQL Server."
+      "description": "Enabling 'Allow access to Azure services' on a SQL Server firewall creates a rule that permits any Azure-hosted resource \u2014 including services from other tenants \u2014 to connect to the database. CC6.6 requires that access from outside the network boundary is restricted to authorised sources. Disabling this setting and replacing it with explicit firewall rules or private endpoints enforces the network boundary and ensures only known and trusted systems can reach the SQL Server."
     },
     "AZ-IDN-004": {
       "control_id": "CC6.3",
@@ -570,55 +570,25 @@
       "control_name": "Incident Response",
       "description": "No monitored destination exists for security alerts or Sentinel incidents. CC7.4 requires the entity to respond to identified security incidents; an alert nobody is notified of cannot trigger the incident-response process CC7.4 requires."
     },
-    "AZ-NET-018": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Private Link targets restrict unnecessary public network access."
+    "AZ-CI-001": {
+      "control_id": "CC6.1",
+      "control_name": "CI/CD Workflow Uses Long-Lived Azure Credentials",
+      "description": "CI/CD workflows should use workload identity federation (OIDC) instead of long-lived client secrets or storage keys stored as repository secrets."
     },
-    "AZ-NET-019": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Private Endpoint connections are approved and operational before they are relied upon as an access boundary."
+    "AZ-CI-002": {
+      "control_id": "CC6.3",
+      "control_name": "CI/CD Workflow Has Unnecessarily Broad Token Permissions",
+      "description": "Workflow GITHUB_TOKEN permissions should follow least privilege with an explicit permissions block granting only required scopes."
     },
-    "AZ-NET-020": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Private DNS association preserves the approved private access path."
+    "AZ-CI-003": {
+      "control_id": "CC7.1",
+      "control_name": "Third-Party Workflow Action Not Pinned to Immutable Commit SHA",
+      "description": "Third-party GitHub Actions must be pinned to a full 40-character commit SHA to prevent supply-chain attacks via mutable tags."
     },
-    "AZ-NET-021": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Private Endpoint service names resolve to private addresses within the approved access boundary."
-    },
-    "AZ-NET-022": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Critical PaaS resources restrict public access unless an approved exception exists."
-    },
-    "AZ-NET-023": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Azure Firewall denies traffic involving infrastructure identified by threat intelligence."
-    },
-    "AZ-NET-024": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Application Gateway WAF Prevention mode blocks matching malicious requests."
-    },
-    "AZ-NET-025": {
-      "control_id": "CC7.2",
-      "control_name": "System monitoring",
-      "description": "Application Gateway access, performance, and firewall logs support anomaly monitoring."
-    },
-    "AZ-NET-026": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Current application and bot managed rules protect the logical access boundary."
-    },
-    "AZ-NET-027": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Rate-limit rules protect public application access from abusive request volume."
+    "AZ-CI-004": {
+      "control_id": "CC8.1",
+      "control_name": "Untrusted Pull-Request Input Reaches Privileged Workflow Context",
+      "description": "Workflows triggered by pull_request_target or workflow_run must not check out or execute untrusted PR code in a context with secret access."
     }
   }
 }
