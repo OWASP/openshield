@@ -32,11 +32,15 @@ logger = logging.getLogger(__name__)
 _NVD_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 _REQUEST_DELAY_SECONDS = 7.0  # Stay under 5 req/30 sec limit
 _MAX_RETRIES = 3
-_RESULTS_PER_PAGE = 5  # Top 5 CVEs per finding is enough for display
+_RESULTS_PER_PAGE = 2000  # NVD's documented maximum; fetch every matching page.
 
 # In-memory cache. Keyed by "keyword:results_per_page".
 # Resets each process - intentional, NVD data changes slowly.
 _cache: dict[str, list[dict]] = {}
+
+
+class NvdRequestError(RuntimeError):
+    """Raised by the durable worker when an NVD page cannot be retrieved."""
 
 
 class _RateLimiter:
@@ -128,6 +132,70 @@ def _parse_cve_item(item: dict) -> Optional[dict]:
         return None
 
 
+def _fetch_nvd_page(keyword: str, start_index: int, results_per_page: int) -> dict:
+    """Fetch one NVD page, raising only after bounded retries are exhausted."""
+    params = urllib.parse.urlencode(
+        {
+            "keywordSearch": keyword,
+            "startIndex": start_index,
+            "resultsPerPage": results_per_page,
+        }
+    )
+    url = f"{_NVD_BASE_URL}?{params}"
+    parsed_url = urllib.parse.urlsplit(url)
+    if (
+        parsed_url.scheme != "https"
+        or parsed_url.hostname != "services.nvd.nist.gov"
+        or parsed_url.port not in (None, 443)
+    ):
+        raise NvdRequestError("Refusing request to an untrusted NVD endpoint")
+
+    last_error: Optional[Exception] = None
+    for attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            _wait_for_rate_limit()
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "OpenShield/0.1 (github.com/openshield-org/openshield)"},
+            )
+            with NVD_REQUEST_LATENCY_SECONDS.time():
+                with urllib.request.urlopen(  # nosec B310  # noqa: E501
+                    req, timeout=10
+                ) as resp:
+                    return json.loads(resp.read())
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            if exc.code != 429:
+                break
+            time.sleep(30 * attempt)
+        except Exception as exc:
+            last_error = exc
+            if attempt < _MAX_RETRIES:
+                time.sleep(2**attempt)
+    raise NvdRequestError(f"NVD request failed for {keyword!r}: {last_error}")
+
+
+def query_nvd_strict(keyword: str, results_per_page: int = _RESULTS_PER_PAGE) -> list[dict]:
+    """Return every NVD result, propagating terminal retrieval failure to the job queue."""
+    cache_key = f"strict:{keyword}:{results_per_page}"
+    if cache_key in _cache:
+        return _cache[cache_key]
+
+    start_index = 0
+    total_results: Optional[int] = None
+    results: list[dict] = []
+    while total_results is None or start_index < total_results:
+        page = _fetch_nvd_page(keyword, start_index, results_per_page)
+        vulnerabilities = page.get("vulnerabilities", [])
+        results.extend(parsed for item in vulnerabilities if (parsed := _parse_cve_item(item)) is not None)
+        total_results = int(page.get("totalResults", len(vulnerabilities)))
+        if not vulnerabilities:
+            break
+        start_index += len(vulnerabilities)
+    _cache[cache_key] = results
+    return results
+
+
 def query_nvd(keyword: str, results_per_page: int = _RESULTS_PER_PAGE) -> list[dict]:
     """
     Query NVD for CVEs matching a keyword.
@@ -144,71 +212,10 @@ def query_nvd(keyword: str, results_per_page: int = _RESULTS_PER_PAGE) -> list[d
         logger.debug("NVD cache hit for: %s", keyword)
         return _cache[cache_key]
 
-    params = urllib.parse.urlencode(
-        {
-            "keywordSearch": keyword,
-            "resultsPerPage": results_per_page,
-        }
-    )
-    url = f"{_NVD_BASE_URL}?{params}"
-    parsed_url = urllib.parse.urlsplit(url)
-    if (
-        parsed_url.scheme != "https"
-        or parsed_url.hostname != "services.nvd.nist.gov"
-        or parsed_url.port not in (None, 443)
-    ):
-        logger.error("Refusing request to an untrusted NVD endpoint")
-        return []
-
-    for attempt in range(1, _MAX_RETRIES + 1):
-        try:
-            _wait_for_rate_limit()
-            logger.debug("NVD query (attempt %d): %s", attempt, keyword)
-
-            req = urllib.request.Request(
-                url,
-                headers={"User-Agent": "OpenShield/0.1 (github.com/openshield-org/openshield)"},
-            )
-            # URL host is the hardcoded NVD API base, not user-controlled
-            with NVD_REQUEST_LATENCY_SECONDS.time():
-                # The URL is built from the fixed HTTPS NVD endpoint; only its query string varies.
-                with urllib.request.urlopen(  # nosec B310  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected  # noqa: E501
-                    req, timeout=10
-                ) as resp:
-                    data = json.loads(resp.read())
-
-            vulnerabilities = data.get("vulnerabilities", [])
-            results = [parsed for item in vulnerabilities if (parsed := _parse_cve_item(item)) is not None]
-
-            _cache[cache_key] = results
-            logger.info("NVD returned %d CVEs for: %s", len(results), keyword)
-            return results
-
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                wait = 30 * attempt  # Back off harder each retry
-                logger.warning(
-                    "NVD rate limited (429). Waiting %ds before retry %d/%d",
-                    wait,
-                    attempt,
-                    _MAX_RETRIES,
-                )
-                time.sleep(wait)
-            else:
-                logger.warning("NVD HTTP %d for keyword '%s': %s", e.code, keyword, e)
-                break  # Non-rate-limit HTTP errors won't improve on retry
-
-        except Exception as e:
-            logger.warning(
-                "NVD query failed (attempt %d/%d) for '%s': %s",
-                attempt,
-                _MAX_RETRIES,
-                keyword,
-                e,
-            )
-            if attempt < _MAX_RETRIES:
-                time.sleep(2**attempt)
-
-    logger.warning("NVD lookup failed for '%s' - returning empty list", keyword)
-    _cache[cache_key] = []  # Cache the failure to avoid hammering NVD
-    return []
+    try:
+        results = query_nvd_strict(keyword, results_per_page)
+    except NvdRequestError as exc:
+        logger.warning("NVD lookup failed for '%s': %s", keyword, exc)
+        results = []
+    _cache[cache_key] = results
+    return results
