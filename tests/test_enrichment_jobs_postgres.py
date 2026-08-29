@@ -50,7 +50,8 @@ def enrichment_scan():
             ],
         }
         db.save_scan(result, "seed", claim["fencing_token"])
-        job, _ = db.enqueue_enrichment_job(scan_id)
+        job, created = db.enqueue_enrichment_job(scan_id)
+        assert created is False
         yield dsn, scan_id, job
     finally:
         db.close()

@@ -13,7 +13,7 @@ In the legacy synchronous model, POST /api/scans/trigger would block the HTTP re
 OpenShield now employs a decoupled, database backed worker architecture. This is the industry standard for long running security tasks where reliability and state persistence are critical.
 
 ### 1. The API (Flask)
-When a scan is triggered, the API performs minimal work. It validates the subscription_id, creates a record in the scans table with status set to pending, and returns 202 Accepted and the scan_id immediately.
+When a scan is triggered, the API validates the subscription and creates a durable pending record. PostgreSQL permits at most one `pending` or `running` scan per subscription. `Idempotency-Key` replays return the same logical scan when the request fingerprint matches; reuse with different semantics returns a conflict. The optional `OPENSHIELD_MAX_SCANS_PER_SUBSCRIPTION_PER_HOUR` policy enables an explicit time-window quota. A zero/unset value preserves the current no-business-limit policy while the one-active-scan concurrency quota remains enforced.
 
 ### 2. The Queue (PostgreSQL)
 The scans table acts as a persistent task queue. This avoids the need for additional infrastructure like Redis or RabbitMQ while providing ACID compliance, visibility, and auditability. Scan states are never lost during crashes, status polling is a simple SQL query, and every scan has a persistent record of its error state.
@@ -30,8 +30,22 @@ worker cannot persist completion, failure, or findings after it loses ownership.
 Once a scan reaches the maximum attempt count, it is marked `failed` so bad
 credentials or persistent Azure errors cannot retry forever.
 
+Findings use a stable database-enforced identity (`scan`, rule, canonical
+resource scope, and an optional rule-specific discriminator). Result retries
+use PostgreSQL upserts, so mutable text or severity is updated rather than
+creating a second authoritative finding. Rule evaluations use the same
+database-first uniqueness model.
+
 ### 3. The Worker (Python)
-The scanner/worker.py process runs independently of the web server. Its lifecycle involves several steps. It atomically claims a pending scan, starts a dedicated lease-heartbeat connection, and invokes `ScanEngine.run_scan(scan_id)`. Completion and failure are fenced database transactions: they only succeed when the current worker still owns the same unexpired token. On success, it persists findings and marks the scan complete atomically. On failure, it records a sanitized error only while it still owns the lease.
+The scanner/worker.py process runs independently of the web server. It atomically claims a pending scan, starts a dedicated lease-heartbeat connection, and invokes `ScanEngine.run_scan(scan_id)`. Completion and failure are fenced database transactions: they only succeed when the current worker still owns the same unexpired token. On success, it persists findings, evaluations, and one durable enrichment job atomically. On failure, it records a sanitized error only while it still owns the lease.
+
+### Durable CVE enrichment
+
+`POST /api/scans/<scan_id>/enrich` enqueues (or returns) the one durable PostgreSQL enrichment job for the scan; it never starts a request-owned daemon thread. The scan worker claims those jobs with the same owner/expiry/fencing model, checkpoints after each finding, and retries transient failures with bounded exponential backoff. An expired job is recovered or terminally failed after its attempt limit. NVD retrieval follows every `totalResults` page; replaying a checkpoint updates the existing finding instead of duplicating CVE data.
+
+### Operational signals
+
+`/metrics` derives bounded-cardinality operational gauges from PostgreSQL: worker heartbeat age, oldest queue age, oldest active lease age, aggregate retry attempts, and the last successful scan timestamp. Labels are limited to `queue` (`scan` or `enrichment`) and `worker_type`; scan, job, subscription, and worker identifiers are never metric labels.
 
 ## Technical Rationale
 
@@ -40,6 +54,13 @@ While Celery is powerful, it introduces external dependencies and operational co
 
 ### Why not Threading
 Python background threads are ephemeral. If the web server process restarts, all in flight scans are killed instantly and marked as running forever in the DB. A separate worker process ensures that the scan lifecycle is independent of the web server lifecycle.
+
+## Deployment order
+
+This release is not safe for mixed old and new scan workers. Stop or drain old
+workers, apply Alembic migrations, then start the fenced worker version. Legacy
+workers do not carry ownership/fencing state; legacy running scans are retained
+and made recoverable by the lease migration rather than deleted.
 
 ## Testing Suite
 

@@ -478,6 +478,18 @@ class DatabaseManager:
                     )
                 else:
                     cur.execute("DELETE FROM rule_evaluations WHERE scan_id = %s", (scan_result["scan_id"],))
+
+                # Completion creates one durable job in this same fenced
+                # transaction. The scan_id uniqueness constraint makes result
+                # replay harmless and prevents duplicate enrichment delivery.
+                cur.execute(
+                    """
+                    INSERT INTO enrichment_jobs (job_id, scan_id, status, attempt_count, checkpoint)
+                    VALUES (%s, %s, 'pending', 0, 0)
+                    ON CONFLICT (scan_id) DO NOTHING
+                    """,
+                    (str(uuid.uuid4()), scan_result["scan_id"]),
+                )
             conn.commit()
         except Exception:
             # psycopg2 connections remain in an aborted transaction after any
