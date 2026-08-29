@@ -176,15 +176,13 @@ def test_persistence_canonicalizes_alias_and_records_contract_version():
 
     lock_parameters = cursor.execute.call_args_list[0].args[1]
     scan_parameters = cursor.execute.call_args_list[1].args[1]
-    delete_parameters = cursor.execute.call_args_list[2].args[1]
-    finding_parameters = cursor.execute.call_args_list[3].args[1]
+    finding_parameters = cursor.execute.call_args_list[2].args[1]
     assert lock_parameters == (result["scan_id"], "worker-a", 1)
     assert scan_parameters[1] == 1
     assert scan_parameters[2] == 100
     assert scan_parameters[4] == CONTRACT_VERSION
-    assert delete_parameters == (result["scan_id"],)
     assert finding_parameters[0] == result["scan_id"]
-    assert finding_parameters[3] == "INFO"
+    assert finding_parameters[4] == "INFO"
     assert raw_finding["severity"] == "INFORMATIONAL"
     conn.commit.assert_called_once_with()
     conn.rollback.assert_not_called()
@@ -194,7 +192,7 @@ def test_persistence_rolls_back_a_failed_atomic_replacement():
     db = _db()
     cursor = _cursor()
     cursor.fetchone.return_value = {"scan_id": "scan"}
-    cursor.execute.side_effect = [None, None, None, RuntimeError("insert failed")]
+    cursor.execute.side_effect = [None, None, RuntimeError("insert failed")]
     conn = MagicMock()
     conn.closed = 0
     conn.info.transaction_status = 0

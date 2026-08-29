@@ -81,10 +81,31 @@ class ScanRows:
                 cur.execute("SELECT COUNT(*) FROM findings WHERE scan_id = %s", (scan_id,))
                 return cur.fetchone()[0]
 
+    def rearm(self, scan_id: str, owner: str, fencing_token: int) -> None:
+        """Simulate duplicate delivery of the same claimed result for persistence tests."""
+        with psycopg2.connect(self.dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE scans
+                    SET status = 'running', completed_at = NULL, lease_owner = %s,
+                        fencing_token = %s, lease_expires_at = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+                    WHERE scan_id = %s
+                    """,
+                    (owner, fencing_token, scan_id),
+                )
+
+    def evaluation_count(self, scan_id: str) -> int:
+        with psycopg2.connect(self.dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM rule_evaluations WHERE scan_id = %s", (scan_id,))
+                return cur.fetchone()[0]
+
     def cleanup(self) -> None:
         with psycopg2.connect(self.dsn) as conn:
             with conn.cursor() as cur:
                 for scan_id in self.scan_ids:
+                    cur.execute("DELETE FROM rule_evaluations WHERE scan_id = %s", (scan_id,))
                     cur.execute("DELETE FROM findings WHERE scan_id = %s", (scan_id,))
                     cur.execute("DELETE FROM scans WHERE scan_id = %s", (scan_id,))
 
@@ -296,3 +317,58 @@ def test_empty_claim_leaves_no_open_transaction(scan_rows):
         assert db._get_conn().info.transaction_status == extensions.TRANSACTION_STATUS_IDLE
     finally:
         db.close()
+
+
+def test_duplicate_result_delivery_upserts_mutable_fields_and_evaluations(scan_rows):
+    scan_id, subscription_id = scan_rows.create()
+    claim = _claim(scan_rows.dsn, "worker-a")
+    assert claim is not None
+    result = _result(scan_id, subscription_id)
+    result["evaluations"] = [
+        {
+            "rule_id": "AZ-LEASE-001",
+            "resource_id": result["findings"][0]["resource_id"],
+            "resource_type": "Test/resource",
+            "status": "FAIL",
+            "evidence": {"version": 1},
+        }
+    ]
+
+    db = DatabaseManager(scan_rows.dsn)
+    try:
+        db.save_scan(result, "worker-a", claim["fencing_token"])
+        first_id = db.get_findings({"scan_id": scan_id})[0]["id"]
+        scan_rows.rearm(scan_id, "worker-a", claim["fencing_token"])
+        result["findings"][0]["description"] = "Updated presentation text"
+        result["findings"][0]["severity"] = "CRITICAL"
+        result["evaluations"][0]["evidence"] = {"version": 2}
+        db.save_scan(result, "worker-a", claim["fencing_token"])
+        persisted = db.get_findings({"scan_id": scan_id})
+    finally:
+        db.close()
+
+    assert len(persisted) == 1
+    assert persisted[0]["id"] == first_id
+    assert persisted[0]["description"] == "Updated presentation text"
+    assert persisted[0]["severity"] == "CRITICAL"
+    assert scan_rows.evaluation_count(scan_id) == 1
+
+
+def test_distinct_finding_discriminators_preserve_multiple_violations(scan_rows):
+    scan_id, subscription_id = scan_rows.create()
+    claim = _claim(scan_rows.dsn, "worker-a")
+    assert claim is not None
+    result = _result(scan_id, subscription_id)
+    duplicate_scope = dict(result["findings"][0])
+    result["findings"][0]["finding_discriminator"] = "network-rule-a"
+    duplicate_scope["finding_discriminator"] = "network-rule-b"
+    duplicate_scope["description"] = "A second violation on the same resource"
+    result["findings"].append(duplicate_scope)
+
+    db = DatabaseManager(scan_rows.dsn)
+    try:
+        db.save_scan(result, "worker-a", claim["fencing_token"])
+    finally:
+        db.close()
+
+    assert scan_rows.finding_count(scan_id) == 2
