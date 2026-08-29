@@ -7,7 +7,9 @@ process restarts.
 
 from unittest.mock import MagicMock, patch
 
-from api.models.finding import DatabaseManager
+import pytest
+
+from api.models.finding import DatabaseManager, LostLease
 
 
 class _Cursor:
@@ -105,18 +107,77 @@ def test_claim_next_pending_scan_increments_attempt_count():
     """Claiming a pending scan should record a durable execution attempt."""
     db = DatabaseManager.__new__(DatabaseManager)
     scan_id = "44444444-4444-4444-4444-444444444444"
-    cursor = _Cursor(rows=[{"scan_id": scan_id, "attempt_count": 1}])
+    cursor = _Cursor(rows=[{"scan_id": scan_id, "attempt_count": 1, "fencing_token": 1}])
     conn = MagicMock()
     conn.cursor.return_value = cursor
 
     with patch.object(db, "_get_conn", return_value=conn):
-        scan = db.claim_next_pending_scan()
+        scan = db.claim_next_pending_scan("worker-a", 900)
 
     executed_sql = cursor.calls[0][0]
     assert "attempt_count = COALESCE(attempt_count, 0) + 1" in executed_sql
+    assert "lease_owner = %s" in executed_sql
+    assert "lease_expires_at = CURRENT_TIMESTAMP" in executed_sql
+    assert "fencing_token = COALESCE(fencing_token, 0) + 1" in executed_sql
     assert "error_message = NULL" in executed_sql
     assert scan["scan_id"] == scan_id
     conn.commit.assert_called_once()
+
+
+def test_empty_claim_commits_before_the_worker_can_sleep():
+    """A no-work poll must not leave the long-lived worker transaction open."""
+    db = DatabaseManager.__new__(DatabaseManager)
+    cursor = _Cursor(rows=[])
+    conn = MagicMock()
+    conn.cursor.return_value = cursor
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        assert db.claim_next_pending_scan("worker-a", 900) is None
+
+    conn.commit.assert_called_once()
+
+
+def test_heartbeat_requires_current_owner_token_and_unexpired_lease():
+    db = DatabaseManager.__new__(DatabaseManager)
+    cursor = _Cursor(rows=[])
+    conn = MagicMock()
+    conn.closed = 0
+    conn.info.transaction_status = 0
+    conn.cursor.return_value = cursor
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        with pytest.raises(LostLease):
+            db.heartbeat_scan("scan-1", "worker-a", 3, 900)
+
+    sql = cursor.calls[0][0]
+    assert "lease_owner = %s" in sql
+    assert "fencing_token = %s" in sql
+    assert "lease_expires_at > CURRENT_TIMESTAMP" in sql
+    conn.rollback.assert_called_once()
+
+
+def test_fenced_failure_rejects_a_stale_owner():
+    db = DatabaseManager.__new__(DatabaseManager)
+    cursor = _Cursor(rows=[])
+    conn = MagicMock()
+    conn.closed = 0
+    conn.info.transaction_status = 0
+    conn.cursor.return_value = cursor
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        with pytest.raises(LostLease):
+            db.update_scan_status(
+                "scan-1",
+                "failed",
+                "failure",
+                lease_owner="worker-a",
+                fencing_token=3,
+            )
+
+    sql = cursor.calls[0][0]
+    assert "lease_owner = %s" in sql
+    assert "fencing_token = %s" in sql
+    assert "lease_expires_at > CURRENT_TIMESTAMP" in sql
 
 
 def test_recover_stale_scans_retries_before_max_attempts():
@@ -127,15 +188,17 @@ def test_recover_stale_scans_retries_before_max_attempts():
     conn.cursor.return_value = cursor
 
     with patch.object(db, "_get_conn", return_value=conn):
-        recovered = db.recover_stale_scans(timeout_minutes=15, max_attempts=3)
+        recovered = db.recover_stale_scans(max_attempts=3)
 
     failed_sql, failed_params = cursor.calls[0]
     retry_sql, retry_params = cursor.calls[1]
     assert "status = 'failed'" in failed_sql
-    assert failed_params == (3, 15)
+    assert failed_params == (3,)
+    assert "lease_expires_at < CURRENT_TIMESTAMP" in failed_sql
     assert "status = 'pending'" in retry_sql
     assert "claimed_at = NULL" in retry_sql
-    assert retry_params == (3, 15)
+    assert "lease_owner = NULL" in retry_sql
+    assert retry_params == (3,)
     assert recovered == 1
     conn.commit.assert_called_once()
 
@@ -148,13 +211,13 @@ def test_recover_stale_scans_fails_after_max_attempts():
     conn.cursor.return_value = cursor
 
     with patch.object(db, "_get_conn", return_value=conn):
-        recovered = db.recover_stale_scans(timeout_minutes=60, max_attempts=3)
+        recovered = db.recover_stale_scans(max_attempts=3)
 
     failed_sql, failed_params = cursor.calls[0]
     retry_sql, retry_params = cursor.calls[1]
     assert "COALESCE(attempt_count, 1) >= %s" in failed_sql
-    assert failed_params == (3, 60)
+    assert failed_params == (3,)
     assert "COALESCE(attempt_count, 0) < %s" in retry_sql
-    assert retry_params == (3, 60)
+    assert retry_params == (3,)
     assert recovered == 1
     conn.commit.assert_called_once()

@@ -8,7 +8,7 @@ using mocks. No live database or Azure calls are made.
 """
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 from scanner.worker import run_worker, POLL_INTERVAL_SECONDS
 import uuid
 
@@ -29,7 +29,10 @@ class TestWorker(unittest.TestCase):
     @patch("scanner.worker.ScanEngine")
     @patch("scanner.worker.os.environ.get")
     @patch("scanner.worker.time.sleep")
-    def test_worker_processes_pending_scan_successfully(self, mock_sleep, mock_env, mock_engine_class, mock_db_class):
+    @patch("scanner.worker.LeaseHeartbeat")
+    def test_worker_processes_pending_scan_successfully(
+        self, mock_heartbeat_class, mock_sleep, mock_env, mock_engine_class, mock_db_class
+    ):
         """
         Verify the happy path:
         1. Worker claims a pending scan atomically.
@@ -54,9 +57,10 @@ class TestWorker(unittest.TestCase):
         # We need to stop the infinite loop. We'll raise StopWorker on the second call to recover_stale_scans.
         mock_db.recover_stale_scans.side_effect = [None, StopWorker()]
         mock_db.claim_next_pending_scan.side_effect = [
-            {"scan_id": self.scan_id, "subscription_id": self.subscription_id},
+            {"scan_id": self.scan_id, "subscription_id": self.subscription_id, "fencing_token": 1},
             None,
         ]
+        mock_heartbeat_class.return_value.lost.is_set.return_value = False
 
         with self.assertRaises(StopWorker):
             run_worker()
@@ -71,12 +75,16 @@ class TestWorker(unittest.TestCase):
         saved_result = mock_db.save_scan.call_args[0][0]
         self.assertEqual(saved_result["status"], "completed")
         self.assertIn("completed_at", saved_result)
+        self.assertEqual(mock_db.save_scan.call_args[0][2], 1)
 
     @patch("scanner.worker.DatabaseManager")
     @patch("scanner.worker.ScanEngine")
     @patch("scanner.worker.os.environ.get")
     @patch("scanner.worker.time.sleep")
-    def test_worker_handles_scan_failure_gracefully(self, mock_sleep, mock_env, mock_engine_class, mock_db_class):
+    @patch("scanner.worker.LeaseHeartbeat")
+    def test_worker_handles_scan_failure_gracefully(
+        self, mock_heartbeat_class, mock_sleep, mock_env, mock_engine_class, mock_db_class
+    ):
         """
         Verify the error path:
         1. Worker claims a pending scan.
@@ -88,9 +96,10 @@ class TestWorker(unittest.TestCase):
 
         mock_db.recover_stale_scans.side_effect = [None, StopWorker()]
         mock_db.claim_next_pending_scan.side_effect = [
-            {"scan_id": self.scan_id, "subscription_id": self.subscription_id},
+            {"scan_id": self.scan_id, "subscription_id": self.subscription_id, "fencing_token": 1},
             None,
         ]
+        mock_heartbeat_class.return_value.lost.is_set.return_value = False
 
         # Mock Engine to fail
         mock_engine = mock_engine_class.return_value
@@ -101,7 +110,11 @@ class TestWorker(unittest.TestCase):
 
         # Verify status was updated to failed with sanitized message
         mock_db.update_scan_status.assert_any_call(
-            self.scan_id, "failed", error_message="An internal error occurred during the scan. Please check the logs."
+            self.scan_id,
+            "failed",
+            error_message="An internal error occurred during the scan. Please check the logs.",
+            lease_owner=ANY,
+            fencing_token=1,
         )
         # Ensure findings were NOT saved on failure
         mock_db.save_scan.assert_not_called()
