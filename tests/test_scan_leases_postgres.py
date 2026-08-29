@@ -105,6 +105,7 @@ class ScanRows:
         with psycopg2.connect(self.dsn) as conn:
             with conn.cursor() as cur:
                 for scan_id in self.scan_ids:
+                    cur.execute("DELETE FROM enrichment_jobs WHERE scan_id = %s", (scan_id,))
                     cur.execute("DELETE FROM rule_evaluations WHERE scan_id = %s", (scan_id,))
                     cur.execute("DELETE FROM findings WHERE scan_id = %s", (scan_id,))
                     cur.execute("DELETE FROM scans WHERE scan_id = %s", (scan_id,))

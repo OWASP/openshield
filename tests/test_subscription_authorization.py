@@ -14,7 +14,12 @@ UNAUTHORIZED = "22222222-2222-2222-2222-222222222222"
 
 def _trigger(client, auth_headers, subscription_id, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql://ci:ci@localhost/ci_db")
-    with patch("api.routes.scans.DatabaseManager", return_value=MagicMock()):
+    database = MagicMock()
+    database.admit_scan.return_value = (
+        {"scan_id": "test-scan", "status": "pending"},
+        True,
+    )
+    with patch("api.routes.scans.DatabaseManager", return_value=database):
         return client.post(
             "/api/scans/trigger",
             json={"subscription_id": subscription_id},
