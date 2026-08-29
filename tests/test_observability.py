@@ -188,6 +188,7 @@ def test_worker_records_scan_metrics_on_success(monkeypatch):
 
     mock_db = MagicMock()
     mock_db.recover_stale_scans.side_effect = [None, _Stop()]
+    mock_db.claim_next_enrichment_job.return_value = None
     mock_db.claim_next_pending_scan.side_effect = [
         {"scan_id": scan_id, "subscription_id": sub_id, "fencing_token": 1},
         None,

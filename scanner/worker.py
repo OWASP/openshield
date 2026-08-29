@@ -143,6 +143,10 @@ def run_worker():
 
     while True:
         try:
+            db.record_worker_heartbeat(worker_id, "scan")
+            # This process executes both durable queue types; record both
+            # liveness signals without exporting the worker UUID as a label.
+            db.record_worker_heartbeat(worker_id, "enrichment")
             # 1. Cleanup stale scans from previous crashes
             db.recover_stale_scans()
             db.recover_stale_enrichment_jobs()
