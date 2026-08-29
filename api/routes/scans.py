@@ -2,11 +2,13 @@
 
 import logging
 import os
+import hashlib
+import json
 import threading
 import uuid
 from flask import Blueprint, g, jsonify, request
 
-from api.models.finding import DatabaseManager
+from api.models.finding import DatabaseManager, ScanAdmissionConflict, ScanQuotaExceeded
 from api.validation import (
     VALIDATION_ERROR_MESSAGE,
     ValidationError,
@@ -20,6 +22,7 @@ scans_bp = Blueprint("scans", __name__)
 logger = logging.getLogger(__name__)
 
 _AUTHORIZED_SUBSCRIPTIONS_ENV = "OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS"
+_MAX_SCANS_PER_HOUR_ENV = "OPENSHIELD_MAX_SCANS_PER_SUBSCRIPTION_PER_HOUR"
 
 
 def _subscription_is_authorized(subscription_id: str) -> bool:
@@ -51,6 +54,17 @@ def _get_db() -> DatabaseManager:
         g.db = DatabaseManager(db_url)
         g.db.connect()
     return g.db
+
+
+def _configured_hourly_quota() -> int:
+    """Return an optional policy quota; zero preserves existing no-limit policy."""
+    raw_value = os.environ.get(_MAX_SCANS_PER_HOUR_ENV, "0")
+    try:
+        quota = int(raw_value)
+    except ValueError:
+        logger.warning("Invalid %s=%r; disabling hourly quota", _MAX_SCANS_PER_HOUR_ENV, raw_value)
+        return 0
+    return max(0, quota)
 
 
 @scans_bp.get("/api/scans")
@@ -105,18 +119,49 @@ def trigger_scan():
             logger.warning("Scan trigger rejected: subscription %s is not on the authorized allowlist", subscription_id)
             return jsonify({"error": "Subscription is not authorized for this deployment"}), 403
 
+        idempotency_key = request.headers.get("Idempotency-Key")
+        if idempotency_key is not None:
+            idempotency_key = idempotency_key.strip()
+            if not idempotency_key or len(idempotency_key) > 200:
+                return jsonify({"error": "Idempotency-Key must be between 1 and 200 characters"}), 400
+        request_fingerprint = hashlib.sha256(
+            json.dumps({"subscription_id": subscription_id}, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
         scan_id = str(uuid.uuid4())
-        logger.info("Async scan triggered for subscription %s (id: %s)", subscription_id, scan_id)
 
         try:
             db = _get_db()
-            db.create_pending_scan(scan_id, subscription_id)
+            admitted, created = db.admit_scan(
+                scan_id,
+                subscription_id,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                max_scans_per_hour=_configured_hourly_quota(),
+            )
+        except ScanAdmissionConflict as exc:
+            return jsonify({"error": str(exc)}), 409
+        except ScanQuotaExceeded as exc:
+            return jsonify({"error": str(exc)}), 429
         except Exception as exc:
             logger.error("Failed to create pending scan: %s", exc, exc_info=True)
             return jsonify({"error": "Database error"}), 500
 
+        response_scan_id = str(admitted["scan_id"])
+        if not created:
+            return jsonify(
+                {
+                    "scan_id": response_scan_id,
+                    "status": admitted["status"],
+                    "message": "Existing logical scan returned.",
+                }
+            ), 200
+        logger.info("Async scan admitted for subscription %s (id: %s)", subscription_id, response_scan_id)
         return jsonify(
-            {"scan_id": scan_id, "status": "pending", "message": "Scan has been queued and will start shortly."}
+            {
+                "scan_id": response_scan_id,
+                "status": "pending",
+                "message": "Scan has been queued and will start shortly.",
+            }
         ), 202
 
     except ValidationError:

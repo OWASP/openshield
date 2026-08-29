@@ -30,6 +30,14 @@ class LostLease(RuntimeError):
     """Raised when a worker no longer owns the scan it is trying to update."""
 
 
+class ScanAdmissionConflict(RuntimeError):
+    """Raised when an idempotency key is reused for different scan semantics."""
+
+
+class ScanQuotaExceeded(RuntimeError):
+    """Raised when an explicitly configured subscription scan quota is exhausted."""
+
+
 FRAMEWORKS_DIR = Path(__file__).parent.parent.parent / "compliance" / "frameworks"
 
 # One pool per DSN, shared across all DatabaseManager instances in this
@@ -579,22 +587,101 @@ class DatabaseManager:
         conn.commit()
         logger.info("Updated scan %s enrichment status to %s", scan_id, status)
 
-    def create_pending_scan(self, scan_id: str, subscription_id: str) -> None:
-        """Create a scan record in the 'pending' state."""
-        conn = self._get_conn()
-        from datetime import datetime, timezone
+    def admit_scan(
+        self,
+        scan_id: str,
+        subscription_id: str,
+        *,
+        idempotency_key: Optional[str] = None,
+        request_fingerprint: Optional[str] = None,
+        max_scans_per_hour: int = 0,
+    ) -> tuple[Dict[str, Any], bool]:
+        """Atomically admit one scan or return its durable logical predecessor.
 
-        started_at = datetime.now(timezone.utc).isoformat()
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO scans (scan_id, subscription_id, started_at, status, attempt_count)
-                VALUES (%s, %s, %s, 'pending', 0)
-                """,
-                (scan_id, subscription_id, started_at),
-            )
-        conn.commit()
-        logger.info("Created pending scan %s for %s", scan_id, subscription_id)
+        The PostgreSQL advisory transaction lock serializes admission decisions
+        for one subscription.  The partial unique index added by the migration
+        remains the final database enforcement of the one-active-scan rule.
+        """
+        if max_scans_per_hour < 0:
+            raise ValueError("max_scans_per_hour must not be negative")
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (subscription_id,))
+                if idempotency_key:
+                    cur.execute(
+                        """
+                        SELECT * FROM scans
+                        WHERE subscription_id = %s AND idempotency_key = %s
+                        """,
+                        (subscription_id, idempotency_key),
+                    )
+                    existing = cur.fetchone()
+                    if existing:
+                        existing = dict(existing)
+                        if existing.get("request_fingerprint") != request_fingerprint:
+                            raise ScanAdmissionConflict("Idempotency-Key was reused with different request semantics")
+                        conn.commit()
+                        return existing, False
+
+                cur.execute(
+                    """
+                    SELECT * FROM scans
+                    WHERE subscription_id = %s AND status IN ('pending', 'running')
+                    ORDER BY started_at ASC
+                    LIMIT 1
+                    """,
+                    (subscription_id,),
+                )
+                active_scan = cur.fetchone()
+                if active_scan:
+                    conn.commit()
+                    return dict(active_scan), False
+
+                if max_scans_per_hour:
+                    cur.execute(
+                        """
+                        SELECT COUNT(*) FROM scans
+                        WHERE subscription_id = %s
+                          AND started_at >= CURRENT_TIMESTAMP - INTERVAL '1 hour'
+                        """,
+                        (subscription_id,),
+                    )
+                    quota_row = cur.fetchone()
+                    scan_count = quota_row["count"] if isinstance(quota_row, dict) else quota_row[0]
+                    if scan_count >= max_scans_per_hour:
+                        raise ScanQuotaExceeded("Configured hourly scan quota has been reached")
+
+                from datetime import datetime, timezone
+
+                cur.execute(
+                    """
+                    INSERT INTO scans (
+                        scan_id, subscription_id, started_at, status, attempt_count,
+                        idempotency_key, request_fingerprint
+                    )
+                    VALUES (%s, %s, %s, 'pending', 0, %s, %s)
+                    RETURNING *
+                    """,
+                    (
+                        scan_id,
+                        subscription_id,
+                        datetime.now(timezone.utc).isoformat(),
+                        idempotency_key,
+                        request_fingerprint,
+                    ),
+                )
+                admitted = dict(cur.fetchone())
+            conn.commit()
+            logger.info("Admitted pending scan %s for %s", scan_id, subscription_id)
+            return admitted, True
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def create_pending_scan(self, scan_id: str, subscription_id: str) -> None:
+        """Create a pending scan for older internal callers without a key."""
+        self.admit_scan(scan_id, subscription_id)
 
     def update_scan_status(
         self,

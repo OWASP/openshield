@@ -42,6 +42,7 @@ def test_trigger_scan_persists_pending_scan_to_database(client, auth_headers, mo
     scan_id = "11111111-1111-1111-1111-111111111111"
     subscription_id = "00000000-0000-0000-0000-000000000000"
     mock_db = MagicMock()
+    mock_db.admit_scan.return_value = ({"scan_id": scan_id, "status": "pending"}, True)
 
     with patch("api.routes.scans.DatabaseManager", return_value=mock_db) as db_class:
         with patch("api.routes.scans.uuid.uuid4", return_value=scan_id):
@@ -59,7 +60,8 @@ def test_trigger_scan_persists_pending_scan_to_database(client, auth_headers, mo
     }
     db_class.assert_called_once_with("postgresql://ci:ci@localhost/ci_db")
     mock_db.connect.assert_called_once()
-    mock_db.create_pending_scan.assert_called_once_with(scan_id, subscription_id)
+    mock_db.admit_scan.assert_called_once()
+    assert mock_db.admit_scan.call_args.args[:2] == (scan_id, subscription_id)
 
 
 def test_get_scan_status_reads_from_database(client, auth_headers, monkeypatch):
