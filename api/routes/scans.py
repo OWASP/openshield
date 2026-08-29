@@ -136,10 +136,10 @@ def trigger_scan():
                 request_fingerprint=request_fingerprint,
                 max_scans_per_hour=_configured_hourly_quota(),
             )
-        except ScanAdmissionConflict as exc:
-            return jsonify({"error": str(exc)}), 409
-        except ScanQuotaExceeded as exc:
-            return jsonify({"error": str(exc)}), 429
+        except ScanAdmissionConflict:
+            return jsonify({"error": "Idempotency-Key is already associated with a different request."}), 409
+        except ScanQuotaExceeded:
+            return jsonify({"error": "Scan quota exceeded for this subscription."}), 429
         except Exception as exc:
             logger.error("Failed to create pending scan: %s", exc, exc_info=True)
             return jsonify({"error": "Database error"}), 500
