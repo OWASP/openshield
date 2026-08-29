@@ -189,7 +189,7 @@ def test_worker_records_scan_metrics_on_success(monkeypatch):
     mock_db = MagicMock()
     mock_db.recover_stale_scans.side_effect = [None, _Stop()]
     mock_db.claim_next_pending_scan.side_effect = [
-        {"scan_id": scan_id, "subscription_id": sub_id},
+        {"scan_id": scan_id, "subscription_id": sub_id, "fencing_token": 1},
         None,
     ]
     mock_engine = MagicMock()
@@ -203,6 +203,9 @@ def test_worker_records_scan_metrics_on_success(monkeypatch):
 
     monkeypatch.setattr(worker, "DatabaseManager", MagicMock(return_value=mock_db))
     monkeypatch.setattr(worker, "ScanEngine", MagicMock(return_value=mock_engine))
+    heartbeat = MagicMock()
+    heartbeat.lost.is_set.return_value = False
+    monkeypatch.setattr(worker, "LeaseHeartbeat", MagicMock(return_value=heartbeat))
     monkeypatch.setattr(worker.os.environ, "get", lambda *a, **k: "postgresql://x")
     monkeypatch.setattr(worker.time, "sleep", lambda *a, **k: None)
 

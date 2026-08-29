@@ -21,10 +21,17 @@ The scans table acts as a persistent task queue. This avoids the need for additi
 ### Render restart behavior
 Scan state is not stored in Flask memory. `POST /api/scans/trigger` inserts a `pending` row into PostgreSQL, and `GET /api/scans/<scan_id>` reads that same row back from PostgreSQL. If the Render web process restarts, queued scan state remains in the database and the dashboard can continue polling by `scan_id` after the app process comes back.
 
-If the worker process restarts while a scan is marked `running`, `scanner/worker.py` calls `recover_stale_scans()` on each loop. Stale running scans are moved back to `pending` while retry attempts remain, so a Render restart can resume queued work instead of losing it. Once a scan reaches the maximum attempt count, it is marked `failed` so bad credentials or persistent Azure errors cannot retry forever.
+Each claim is a renewable lease. The worker records a process-lifetime owner ID,
+an expiry time, and a monotonically increasing fencing token, then renews the
+lease while Azure work is running. `recover_stale_scans()` only requeues work
+after its lease expires; a healthy worker is never reclaimed solely because its
+original claim is old. A reclaimed scan receives a new token, so the previous
+worker cannot persist completion, failure, or findings after it loses ownership.
+Once a scan reaches the maximum attempt count, it is marked `failed` so bad
+credentials or persistent Azure errors cannot retry forever.
 
 ### 3. The Worker (Python)
-The scanner/worker.py process runs independently of the web server. Its lifecycle involves several steps. It queries the DB for scans where status is pending. It updates the status to running to prevent other workers from picking it up. It invokes ScanEngine.run_scan(scan_id). On success, it saves findings and sets status to completed. On failure, it captures the traceback and sets status to failed with the error_message.
+The scanner/worker.py process runs independently of the web server. Its lifecycle involves several steps. It atomically claims a pending scan, starts a dedicated lease-heartbeat connection, and invokes `ScanEngine.run_scan(scan_id)`. Completion and failure are fenced database transactions: they only succeed when the current worker still owns the same unexpired token. On success, it persists findings and marks the scan complete atomically. On failure, it records a sanitized error only while it still owns the lease.
 
 ## Technical Rationale
 

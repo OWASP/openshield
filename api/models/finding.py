@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 import psycopg2
 import psycopg2.extras
 import psycopg2.pool
+from psycopg2 import extensions
 
 from openshield.severity import (
     CONTRACT_VERSION,
@@ -22,6 +23,11 @@ from openshield.severity import (
 from scanner.evaluation import EvaluationStatus, aggregate_status
 
 logger = logging.getLogger(__name__)
+
+
+class LostLease(RuntimeError):
+    """Raised when a worker no longer owns the scan it is trying to update."""
+
 
 FRAMEWORKS_DIR = Path(__file__).parent.parent.parent / "compliance" / "frameworks"
 
@@ -158,26 +164,59 @@ class DatabaseManager:
 
     def connect(self) -> None:
         """Acquire a connection from this DSN's shared pool."""
+        if self.conn is not None:
+            self._return_connection(close=bool(self.conn.closed))
         self.conn = _get_pool(self.dsn).getconn()
         self.conn.autocommit = False
         logger.debug("Database connection acquired from pool")
 
     def _get_conn(self) -> Any:
-        if self.conn is None or self.conn.closed:
+        if self.conn is not None and self.conn.closed:
+            self._return_connection(close=True)
+        if self.conn is None:
             self.connect()
         return self.conn
+
+    def _return_connection(self, close: bool = False, conn: Optional[Any] = None) -> None:
+        """Return the checked-out connection, discarding it when requested."""
+        conn = conn or self.conn
+        if conn is None:
+            return
+        try:
+            _get_pool(self.dsn).putconn(conn, close=close or bool(conn.closed))
+            logger.debug("Database connection returned to pool")
+        except Exception as exc:
+            logger.error("Error returning connection to pool: %s", exc)
+            try:
+                conn.close()
+            except Exception:
+                pass
+        finally:
+            if self.conn is conn:
+                self.conn = None
+
+    def rollback(self, conn: Optional[Any] = None) -> None:
+        """End a failed transaction, discarding a connection the server lost."""
+        conn = conn or self.conn
+        if conn is None:
+            return
+        try:
+            if conn.closed or conn.info.transaction_status == extensions.TRANSACTION_STATUS_UNKNOWN:
+                self._return_connection(close=True, conn=conn)
+                return
+            conn.rollback()
+        except Exception as exc:
+            logger.warning("Database rollback failed; discarding connection: %s", exc)
+            self._return_connection(close=True, conn=conn)
 
     def close(self) -> None:
         """Return the connection to its pool (or discard it if broken)."""
         if self.conn is None:
             return
         try:
-            _get_pool(self.dsn).putconn(self.conn, close=bool(self.conn.closed))
-            logger.debug("Database connection returned to pool")
-        except Exception as exc:
-            logger.error("Error returning connection to pool: %s", exc)
+            self.rollback()
         finally:
-            self.conn = None
+            self._return_connection()
 
     def ping(self) -> bool:
         """Execute a trivial query to confirm database connectivity.
@@ -202,8 +241,13 @@ class DatabaseManager:
     # Write                                                                 #
     # ------------------------------------------------------------------ #
 
-    def save_scan(self, scan_result: Dict[str, Any]) -> None:
-        """Persist a full scan result (scan header + all findings)."""
+    def save_scan(self, scan_result: Dict[str, Any], lease_owner: str, fencing_token: int) -> None:
+        """Persist a completed scan only while its worker still owns the lease.
+
+        The ownership check and all authoritative result writes share one
+        transaction.  A worker whose lease was reclaimed therefore cannot
+        delete or insert child findings after it has become stale.
+        """
         from datetime import datetime, timezone
 
         # Validate and canonicalize the entire batch before issuing SQL. A bad
@@ -220,32 +264,40 @@ class DatabaseManager:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO scans (
-                        scan_id, subscription_id, started_at, completed_at,
-                        total_findings, score, cve_enrichment_status, status,
-                        attempt_count, error_message, severity_contract_version
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (scan_id) DO UPDATE SET
-                        completed_at = EXCLUDED.completed_at,
-                        total_findings = EXCLUDED.total_findings,
-                        score = EXCLUDED.score,
-                        status = EXCLUDED.status,
-                        error_message = EXCLUDED.error_message,
-                        severity_contract_version = EXCLUDED.severity_contract_version
+                    SELECT scan_id
+                    FROM scans
+                    WHERE scan_id = %s
+                      AND status = 'running'
+                      AND lease_owner = %s
+                      AND fencing_token = %s
+                      AND lease_expires_at > CURRENT_TIMESTAMP
+                    FOR UPDATE
+                    """,
+                    (scan_result["scan_id"], lease_owner, fencing_token),
+                )
+                if cur.fetchone() is None:
+                    raise LostLease(f"Scan {scan_result['scan_id']} is no longer owned by this worker")
+                cur.execute(
+                    """
+                    UPDATE scans
+                    SET completed_at = %s,
+                        total_findings = %s,
+                        score = %s,
+                        cve_enrichment_status = %s,
+                        status = 'completed',
+                        error_message = NULL,
+                        severity_contract_version = %s,
+                        lease_owner = NULL,
+                        lease_expires_at = NULL
+                    WHERE scan_id = %s
                     """,
                     (
-                        scan_result["scan_id"],
-                        scan_result["subscription_id"],
-                        scan_result["started_at"],
                         completed_at,
                         len(findings),
                         score_findings(findings),
                         scan_result.get("cve_enrichment_status", "PENDING"),
-                        scan_result.get("status", "completed"),
-                        scan_result.get("attempt_count", 0),
-                        scan_result.get("error_message"),
                         CONTRACT_VERSION,
+                        scan_result["scan_id"],
                     ),
                 )
                 # A worker retry replaces the previous result atomically. This
@@ -360,7 +412,7 @@ class DatabaseManager:
             # psycopg2 connections remain in an aborted transaction after any
             # SQL error. Roll back here so the worker can record failure and
             # safely process subsequent scans on the same pooled connection.
-            conn.rollback()
+            self.rollback(conn)
             raise
         logger.info(
             "Saved scan %s with %d findings",
@@ -482,94 +534,158 @@ class DatabaseManager:
         conn.commit()
         logger.info("Created pending scan %s for %s", scan_id, subscription_id)
 
-    def update_scan_status(self, scan_id: str, status: str, error_message: Optional[str] = None) -> None:
-        """Update the status of a scan (running, completed, failed)."""
+    def update_scan_status(
+        self,
+        scan_id: str,
+        status: str,
+        error_message: Optional[str],
+        *,
+        lease_owner: str,
+        fencing_token: int,
+    ) -> None:
+        """Record a terminal failure while the caller still owns the lease."""
+        if status != "failed":
+            raise ValueError("Fenced status updates only support terminal failures")
         conn = self._get_conn()
-        from datetime import datetime, timezone
-
-        with conn.cursor() as cur:
-            if status == "completed":
-                completed_at = datetime.now(timezone.utc).isoformat()
+        try:
+            with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE scans SET status = %s, completed_at = %s, error_message = NULL WHERE scan_id = %s",
-                    (status, completed_at, scan_id),
+                    """
+                    UPDATE scans
+                    SET status = 'failed',
+                        error_message = %s,
+                        lease_owner = NULL,
+                        lease_expires_at = NULL
+                    WHERE scan_id = %s
+                      AND status = 'running'
+                      AND lease_owner = %s
+                      AND fencing_token = %s
+                      AND lease_expires_at > CURRENT_TIMESTAMP
+                    """,
+                    (error_message, scan_id, lease_owner, fencing_token),
                 )
-            else:
-                cur.execute(
-                    "UPDATE scans SET status = %s, error_message = %s WHERE scan_id = %s",
-                    (status, error_message, scan_id),
-                )
-        conn.commit()
+                if cur.rowcount != 1:
+                    raise LostLease(f"Scan {scan_id} is no longer owned by this worker")
+            conn.commit()
+        except Exception:
+            self.rollback(conn)
+            raise
         logger.info("Updated scan %s status to %s", scan_id, status)
 
-    def claim_next_pending_scan(self) -> Optional[Dict[str, Any]]:
-        """Atomically claim the next pending scan using SKIP LOCKED."""
+    def claim_next_pending_scan(self, lease_owner: str, lease_seconds: int) -> Optional[Dict[str, Any]]:
+        """Atomically claim one pending scan and establish its renewable lease."""
+        if lease_seconds <= 0:
+            raise ValueError("lease_seconds must be positive")
         conn = self._get_conn()
-        from datetime import datetime, timezone
-
-        claimed_at = datetime.now(timezone.utc).isoformat()
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """
-                UPDATE scans
-                SET status = 'running',
-                    claimed_at = %s,
-                    attempt_count = COALESCE(attempt_count, 0) + 1,
-                    error_message = NULL
-                WHERE scan_id = (
-                    SELECT scan_id
-                    FROM scans
-                    WHERE status = 'pending'
-                    ORDER BY started_at ASC
-                    FOR UPDATE SKIP LOCKED
-                    LIMIT 1
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    UPDATE scans
+                    SET status = 'running',
+                        claimed_at = CURRENT_TIMESTAMP,
+                        lease_owner = %s,
+                        lease_expires_at = CURRENT_TIMESTAMP + (%s * INTERVAL '1 second'),
+                        last_heartbeat_at = CURRENT_TIMESTAMP,
+                        fencing_token = COALESCE(fencing_token, 0) + 1,
+                        attempt_count = COALESCE(attempt_count, 0) + 1,
+                        error_message = NULL
+                    WHERE scan_id = (
+                        SELECT scan_id
+                        FROM scans
+                        WHERE status = 'pending'
+                        ORDER BY started_at ASC
+                        FOR UPDATE SKIP LOCKED
+                        LIMIT 1
+                    )
+                    RETURNING *
+                    """,
+                    (lease_owner, lease_seconds),
                 )
-                RETURNING *
-                """,
-                (claimed_at,),
-            )
-            row = cur.fetchone()
-            if row:
-                conn.commit()
-                return dict(row)
-            return None
+                row = cur.fetchone()
+            conn.commit()
+            return dict(row) if row else None
+        except Exception:
+            self.rollback(conn)
+            raise
 
-    def recover_stale_scans(self, timeout_minutes: int = 60, max_attempts: int = 3) -> int:
-        """Recover scans left running after a worker crash or restart.
+    def heartbeat_scan(self, scan_id: str, lease_owner: str, fencing_token: int, lease_seconds: int) -> Dict[str, Any]:
+        """Renew a still-valid lease, or raise :class:`LostLease`."""
+        if lease_seconds <= 0:
+            raise ValueError("lease_seconds must be positive")
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    UPDATE scans
+                    SET lease_expires_at = CURRENT_TIMESTAMP + (%s * INTERVAL '1 second'),
+                        last_heartbeat_at = CURRENT_TIMESTAMP
+                    WHERE scan_id = %s
+                      AND status = 'running'
+                      AND lease_owner = %s
+                      AND fencing_token = %s
+                      AND lease_expires_at > CURRENT_TIMESTAMP
+                    RETURNING *
+                    """,
+                    (lease_seconds, scan_id, lease_owner, fencing_token),
+                )
+                row = cur.fetchone()
+            if row is None:
+                self.rollback(conn)
+                raise LostLease(f"Scan {scan_id} lease was lost before heartbeat")
+            conn.commit()
+            return dict(row)
+        except LostLease:
+            raise
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def recover_stale_scans(self, max_attempts: int = 3) -> int:
+        """Recover scans only after their renewable leases have expired.
 
         Stale scans are returned to pending while retry attempts remain. Once a
         scan has reached max_attempts, it is marked failed so it cannot loop
         forever on bad credentials or persistent Azure errors.
         """
         conn = self._get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                UPDATE scans
-                SET status = 'failed',
-                    error_message = 'Scan exceeded maximum retry attempts after worker interruption.'
-                WHERE status = 'running'
-                  AND COALESCE(attempt_count, 1) >= %s
-                  AND claimed_at < (CURRENT_TIMESTAMP - (%s * INTERVAL '1 minute'))
-                """,
-                (max_attempts, timeout_minutes),
-            )
-            failed_count = cur.rowcount
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE scans
+                    SET status = 'failed',
+                        lease_owner = NULL,
+                        lease_expires_at = NULL,
+                        error_message = 'Scan exceeded maximum retry attempts after worker interruption.'
+                    WHERE status = 'running'
+                      AND COALESCE(attempt_count, 1) >= %s
+                      AND lease_expires_at < CURRENT_TIMESTAMP
+                    """,
+                    (max_attempts,),
+                )
+                failed_count = cur.rowcount
 
-            cur.execute(
-                """
-                UPDATE scans
-                SET status = 'pending',
-                    claimed_at = NULL,
-                    error_message = 'Scan worker interrupted before completion. Queued for retry.'
-                WHERE status = 'running'
-                  AND COALESCE(attempt_count, 0) < %s
-                  AND claimed_at < (CURRENT_TIMESTAMP - (%s * INTERVAL '1 minute'))
-                """,
-                (max_attempts, timeout_minutes),
-            )
-            retry_count = cur.rowcount
-        conn.commit()
+                cur.execute(
+                    """
+                    UPDATE scans
+                    SET status = 'pending',
+                        claimed_at = NULL,
+                        lease_owner = NULL,
+                        lease_expires_at = NULL,
+                        error_message = 'Scan worker interrupted before completion. Queued for retry.'
+                    WHERE status = 'running'
+                      AND COALESCE(attempt_count, 0) < %s
+                      AND lease_expires_at < CURRENT_TIMESTAMP
+                    """,
+                    (max_attempts,),
+                )
+                retry_count = cur.rowcount
+            conn.commit()
+        except Exception:
+            self.rollback(conn)
+            raise
         total_count = failed_count + retry_count
         if total_count > 0:
             logger.info(
