@@ -1135,6 +1135,90 @@ class DatabaseManager:
             cur.execute("SELECT * FROM scans ORDER BY started_at DESC LIMIT 100")
             return [dict(row) for row in cur.fetchall()]
 
+    def record_worker_heartbeat(self, worker_id: str, worker_type: str) -> None:
+        """Persist liveness without using worker IDs as metric labels."""
+        if worker_type not in {"scan", "enrichment"}:
+            raise ValueError("unsupported worker type")
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO worker_heartbeats (worker_id, worker_type, last_seen_at)
+                    VALUES (%s, %s, CURRENT_TIMESTAMP)
+                    ON CONFLICT (worker_id, worker_type) DO UPDATE SET
+                        last_seen_at = EXCLUDED.last_seen_at
+                    """,
+                    (worker_id, worker_type),
+                )
+            conn.commit()
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def get_operational_metrics(self) -> Dict[str, Any]:
+        """Return bounded aggregates used by the public Prometheus endpoint."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT COALESCE(EXTRACT(EPOCH FROM CURRENT_TIMESTAMP - MIN(started_at)), 0) AS value
+                    FROM scans WHERE status = 'pending'
+                    """
+                )
+                scan_queue_age = cur.fetchone()["value"]
+                cur.execute(
+                    """
+                    SELECT COALESCE(EXTRACT(EPOCH FROM CURRENT_TIMESTAMP - MIN(created_at)), 0) AS value
+                    FROM enrichment_jobs WHERE status = 'pending'
+                    """
+                )
+                enrichment_queue_age = cur.fetchone()["value"]
+                cur.execute(
+                    """
+                    SELECT COALESCE(EXTRACT(EPOCH FROM CURRENT_TIMESTAMP - MIN(claimed_at)), 0) AS value
+                    FROM scans WHERE status = 'running'
+                    """
+                )
+                scan_lease_age = cur.fetchone()["value"]
+                cur.execute(
+                    """
+                    SELECT COALESCE(EXTRACT(EPOCH FROM CURRENT_TIMESTAMP - MIN(last_heartbeat_at)), 0) AS value
+                    FROM enrichment_jobs WHERE status = 'running'
+                    """
+                )
+                enrichment_lease_age = cur.fetchone()["value"]
+                cur.execute("SELECT COALESCE(SUM(GREATEST(attempt_count - 1, 0)), 0) AS value FROM scans")
+                scan_retries = cur.fetchone()["value"]
+                cur.execute("SELECT COALESCE(SUM(GREATEST(attempt_count - 1, 0)), 0) AS value FROM enrichment_jobs")
+                enrichment_retries = cur.fetchone()["value"]
+                cur.execute(
+                    """
+                    SELECT worker_type, EXTRACT(EPOCH FROM CURRENT_TIMESTAMP - MAX(last_seen_at)) AS age
+                    FROM worker_heartbeats GROUP BY worker_type
+                    """
+                )
+                heartbeat_age = {row["worker_type"]: float(row["age"]) for row in cur.fetchall()}
+                cur.execute(
+                    """
+                    SELECT COALESCE(EXTRACT(EPOCH FROM MAX(completed_at)), 0) AS value
+                    FROM scans WHERE status = 'completed'
+                    """
+                )
+                last_success = cur.fetchone()["value"]
+            conn.commit()
+            return {
+                "oldest_queue_age": {"scan": float(scan_queue_age), "enrichment": float(enrichment_queue_age)},
+                "oldest_lease_age": {"scan": float(scan_lease_age), "enrichment": float(enrichment_lease_age)},
+                "retry_attempts": {"scan": float(scan_retries), "enrichment": float(enrichment_retries)},
+                "worker_heartbeat_age": heartbeat_age,
+                "last_successful_scan_timestamp": float(last_success),
+            }
+        except Exception:
+            self.rollback(conn)
+            raise
+
     # ------------------------------------------------------------------ #
     # Scoring                                                               #
     # ------------------------------------------------------------------ #

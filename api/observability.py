@@ -72,6 +72,30 @@ PENDING_SCANS = Gauge(
     "openshield_pending_scans",
     "Number of scans currently waiting in the pending queue.",
 )
+WORKER_HEARTBEAT_AGE_SECONDS = Gauge(
+    "openshield_worker_heartbeat_age_seconds",
+    "Seconds since the most recent durable worker heartbeat.",
+    ["worker_type"],
+)
+OLDEST_QUEUE_AGE_SECONDS = Gauge(
+    "openshield_oldest_queue_age_seconds",
+    "Age in seconds of the oldest pending durable work item.",
+    ["queue"],
+)
+OLDEST_ACTIVE_LEASE_AGE_SECONDS = Gauge(
+    "openshield_oldest_active_lease_age_seconds",
+    "Age in seconds of the oldest active durable lease.",
+    ["queue"],
+)
+RETRY_ATTEMPTS = Gauge(
+    "openshield_retry_attempts",
+    "Aggregate retry attempts currently recorded for durable work.",
+    ["queue"],
+)
+LAST_SUCCESSFUL_SCAN_TIMESTAMP = Gauge(
+    "openshield_last_successful_scan_timestamp_seconds",
+    "Unix timestamp of the most recently completed scan, or zero when none exist.",
+)
 RULE_ERRORS_TOTAL = Counter(
     "openshield_rule_errors_total",
     "Total number of times a scanner rule raised an exception.",
@@ -387,4 +411,27 @@ def init_app(app: Flask) -> None:
     @probe_rate_limit(_METRICS_MAX_REQUESTS_PER_WINDOW)
     def metrics() -> Response:
         _refresh_pool_metrics()
+        # Metrics are derived from durable state so the API can expose worker
+        # liveness even when scan workers run in separate processes.
+        db_url = os.environ.get("DATABASE_URL")
+        if db_url:
+            try:
+                from api.models.finding import DatabaseManager
+
+                db = DatabaseManager(db_url)
+                try:
+                    snapshot = db.get_operational_metrics()
+                finally:
+                    db.close()
+                for queue in ("scan", "enrichment"):
+                    OLDEST_QUEUE_AGE_SECONDS.labels(queue=queue).set(snapshot["oldest_queue_age"].get(queue, 0))
+                    OLDEST_ACTIVE_LEASE_AGE_SECONDS.labels(queue=queue).set(snapshot["oldest_lease_age"].get(queue, 0))
+                    RETRY_ATTEMPTS.labels(queue=queue).set(snapshot["retry_attempts"].get(queue, 0))
+                for worker_type in ("scan", "enrichment"):
+                    WORKER_HEARTBEAT_AGE_SECONDS.labels(worker_type=worker_type).set(
+                        snapshot["worker_heartbeat_age"].get(worker_type, 0)
+                    )
+                LAST_SUCCESSFUL_SCAN_TIMESTAMP.set(snapshot["last_successful_scan_timestamp"])
+            except Exception as exc:
+                logger.warning("Unable to refresh durable operational metrics: %s", exc)
         return Response(generate_latest(), content_type=CONTENT_TYPE_LATEST)
