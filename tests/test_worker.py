@@ -9,7 +9,8 @@ using mocks. No live database or Azure calls are made.
 
 import unittest
 from unittest.mock import ANY, patch
-from scanner.worker import run_worker, POLL_INTERVAL_SECONDS
+from api.models.finding import LostLease
+from scanner.worker import LeaseHeartbeat, POLL_INTERVAL_SECONDS, run_worker
 import uuid
 
 
@@ -17,6 +18,20 @@ class StopWorker(BaseException):
     """Custom exception to break the infinite worker loop during tests."""
 
     pass
+
+
+class OneHeartbeatThenStop:
+    """Deterministically run one heartbeat loop iteration without sleeping."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def wait(self, _seconds):
+        self.calls += 1
+        return self.calls > 1
+
+    def set(self):
+        pass
 
 
 class TestWorker(unittest.TestCase):
@@ -76,6 +91,7 @@ class TestWorker(unittest.TestCase):
         self.assertEqual(saved_result["status"], "completed")
         self.assertIn("completed_at", saved_result)
         self.assertEqual(mock_db.save_scan.call_args[0][2], 1)
+        self.assertGreaterEqual(mock_heartbeat_class.return_value.stop.call_count, 1)
 
     @patch("scanner.worker.DatabaseManager")
     @patch("scanner.worker.ScanEngine")
@@ -118,6 +134,61 @@ class TestWorker(unittest.TestCase):
         )
         # Ensure findings were NOT saved on failure
         mock_db.save_scan.assert_not_called()
+        self.assertGreaterEqual(mock_heartbeat_class.return_value.stop.call_count, 1)
+
+    @patch("scanner.worker.DatabaseManager")
+    @patch("scanner.worker.ScanEngine")
+    @patch("scanner.worker.os.environ.get")
+    @patch("scanner.worker.time.sleep")
+    @patch("scanner.worker.LeaseHeartbeat")
+    def test_worker_does_not_persist_after_heartbeat_reports_lost_lease(
+        self, mock_heartbeat_class, mock_sleep, mock_env, mock_engine_class, mock_db_class
+    ):
+        mock_env.return_value = self.mock_db_url
+        mock_db = mock_db_class.return_value
+        mock_db.recover_stale_scans.side_effect = [None, StopWorker()]
+        mock_db.claim_next_pending_scan.return_value = {
+            "scan_id": self.scan_id,
+            "subscription_id": self.subscription_id,
+            "fencing_token": 1,
+        }
+        mock_engine_class.return_value.run_scan.return_value = {
+            "scan_id": self.scan_id,
+            "subscription_id": self.subscription_id,
+            "findings": [],
+        }
+        mock_heartbeat_class.return_value.lost.is_set.return_value = True
+
+        with self.assertRaises(StopWorker):
+            run_worker()
+
+        mock_db.save_scan.assert_not_called()
+        mock_db.update_scan_status.assert_not_called()
+
+
+@patch("scanner.worker.DatabaseManager")
+def test_heartbeat_uses_and_closes_a_dedicated_database_manager(mock_db_class):
+    heartbeat = LeaseHeartbeat("postgresql://heartbeat-test/db", "scan-1", "worker-a", 7, 120, 1)
+    heartbeat._stop = OneHeartbeatThenStop()
+
+    heartbeat._run()
+
+    mock_db_class.assert_called_once_with("postgresql://heartbeat-test/db")
+    mock_db_class.return_value.heartbeat_scan.assert_called_once_with("scan-1", "worker-a", 7, 120)
+    mock_db_class.return_value.close.assert_called_once()
+    assert not heartbeat.lost.is_set()
+
+
+@patch("scanner.worker.DatabaseManager")
+def test_heartbeat_surfaces_lost_lease_and_closes_its_connection(mock_db_class):
+    mock_db_class.return_value.heartbeat_scan.side_effect = LostLease("stale")
+    heartbeat = LeaseHeartbeat("postgresql://heartbeat-test/db", "scan-1", "worker-a", 7, 120, 1)
+    heartbeat._stop = OneHeartbeatThenStop()
+
+    heartbeat._run()
+
+    assert heartbeat.lost.is_set()
+    mock_db_class.return_value.close.assert_called_once()
 
     @patch("scanner.worker.DatabaseManager")
     @patch("scanner.worker.os.environ.get")

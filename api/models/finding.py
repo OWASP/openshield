@@ -165,7 +165,13 @@ class DatabaseManager:
     def connect(self) -> None:
         """Acquire a connection from this DSN's shared pool."""
         if self.conn is not None:
-            self._return_connection(close=bool(self.conn.closed))
+            previous_conn = self.conn
+            self.rollback(previous_conn)
+            # rollback() discards a dead connection and clears self.conn. A
+            # healthy connection still needs exactly one pool return before a
+            # replacement is borrowed.
+            if self.conn is previous_conn:
+                self._return_connection(close=bool(previous_conn.closed), conn=previous_conn)
         self.conn = _get_pool(self.dsn).getconn()
         self.conn.autocommit = False
         logger.debug("Database connection acquired from pool")
