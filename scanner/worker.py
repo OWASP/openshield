@@ -22,6 +22,7 @@ from api.observability import (
     init_sentry,
 )
 from scanner.engine import ScanEngine
+from scanner.enrichment_worker import process_enrichment_job
 
 configure_logging()
 logger = logging.getLogger("scanner.worker")
@@ -144,11 +145,18 @@ def run_worker():
         try:
             # 1. Cleanup stale scans from previous crashes
             db.recover_stale_scans()
+            db.recover_stale_enrichment_jobs()
 
             # 2. Publish current queue depth
             PENDING_SCANS.set(len(db.get_pending_scans()))
 
-            # 3. Atomic claim
+            # 3. Run one durable enrichment job before taking another scan.
+            enrichment_job = db.claim_next_enrichment_job(worker_id, lease_seconds)
+            if enrichment_job:
+                process_enrichment_job(db, enrichment_job, worker_id, lease_seconds)
+                continue
+
+            # 4. Atomic scan claim
             scan = db.claim_next_pending_scan(worker_id, lease_seconds)
             if not scan:
                 time.sleep(POLL_INTERVAL_SECONDS)

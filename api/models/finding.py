@@ -5,6 +5,7 @@ import hashlib
 import logging
 import os
 import threading
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -586,6 +587,273 @@ class DatabaseManager:
             )
         conn.commit()
         logger.info("Updated scan %s enrichment status to %s", scan_id, status)
+
+    def enqueue_enrichment_job(self, scan_id: str) -> tuple[Dict[str, Any], bool]:
+        """Durably enqueue exactly one CVE enrichment job for a scan."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO enrichment_jobs (job_id, scan_id, status, attempt_count, checkpoint)
+                    VALUES (%s, %s, 'pending', 0, 0)
+                    ON CONFLICT (scan_id) DO NOTHING
+                    RETURNING *
+                    """,
+                    (str(uuid.uuid4()), scan_id),
+                )
+                job = cur.fetchone()
+                if job is None:
+                    cur.execute("SELECT * FROM enrichment_jobs WHERE scan_id = %s", (scan_id,))
+                    existing = cur.fetchone()
+                    if existing is None:
+                        raise RuntimeError("enrichment job conflict did not return an existing job")
+                    conn.commit()
+                    return dict(existing), False
+                cur.execute(
+                    "UPDATE scans SET cve_enrichment_status = 'PENDING' WHERE scan_id = %s",
+                    (scan_id,),
+                )
+            conn.commit()
+            return dict(job), True
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def claim_next_enrichment_job(self, lease_owner: str, lease_seconds: int) -> Optional[Dict[str, Any]]:
+        """Atomically claim the next retry-ready enrichment job."""
+        if lease_seconds <= 0:
+            raise ValueError("lease_seconds must be positive")
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    UPDATE enrichment_jobs
+                    SET status = 'running', lease_owner = %s,
+                        lease_expires_at = CURRENT_TIMESTAMP + (%s * INTERVAL '1 second'),
+                        last_heartbeat_at = CURRENT_TIMESTAMP,
+                        fencing_token = fencing_token + 1,
+                        attempt_count = attempt_count + 1,
+                        error_message = NULL
+                    WHERE job_id = (
+                        SELECT job_id FROM enrichment_jobs
+                        WHERE status = 'pending'
+                          AND next_retry_at <= CURRENT_TIMESTAMP
+                        ORDER BY created_at ASC
+                        FOR UPDATE SKIP LOCKED
+                        LIMIT 1
+                    )
+                    RETURNING *
+                    """,
+                    (lease_owner, lease_seconds),
+                )
+                job = cur.fetchone()
+                if job:
+                    cur.execute(
+                        "UPDATE scans SET cve_enrichment_status = 'ENRICHING' WHERE scan_id = %s", (job["scan_id"],)
+                    )
+            conn.commit()
+            return dict(job) if job else None
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def heartbeat_enrichment_job(self, job_id: str, lease_owner: str, fencing_token: int, lease_seconds: int) -> None:
+        """Renew an enrichment claim or raise LostLease."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE enrichment_jobs
+                    SET lease_expires_at = CURRENT_TIMESTAMP + (%s * INTERVAL '1 second'),
+                        last_heartbeat_at = CURRENT_TIMESTAMP
+                    WHERE job_id = %s AND status = 'running'
+                      AND lease_owner = %s AND fencing_token = %s
+                      AND lease_expires_at > CURRENT_TIMESTAMP
+                    """,
+                    (lease_seconds, job_id, lease_owner, fencing_token),
+                )
+                if cur.rowcount != 1:
+                    raise LostLease(f"Enrichment job {job_id} is no longer owned by this worker")
+            conn.commit()
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def get_enrichment_findings(self, scan_id: str) -> List[Dict[str, Any]]:
+        """Return a deterministic snapshot ordered for checkpointed enrichment."""
+        conn = self._get_conn()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM findings WHERE scan_id = %s ORDER BY id ASC", (scan_id,))
+            return [dict(row) for row in cur.fetchall()]
+
+    def persist_enrichment_progress(
+        self,
+        job_id: str,
+        lease_owner: str,
+        fencing_token: int,
+        finding: Dict[str, Any],
+        checkpoint: int,
+    ) -> None:
+        """Persist one finding and checkpoint it under the current job fence."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT scan_id FROM enrichment_jobs
+                    WHERE job_id = %s AND status = 'running'
+                      AND lease_owner = %s AND fencing_token = %s
+                      AND lease_expires_at > CURRENT_TIMESTAMP
+                    FOR UPDATE
+                    """,
+                    (job_id, lease_owner, fencing_token),
+                )
+                if cur.fetchone() is None:
+                    raise LostLease(f"Enrichment job {job_id} lost its lease before checkpointing")
+                cur.execute(
+                    """
+                    UPDATE findings SET cve_references = %s, cvss_score = %s, exploit_available = %s
+                    WHERE id = %s
+                    """,
+                    (
+                        json.dumps(finding.get("cve_references", [])),
+                        finding.get("cvss_score"),
+                        finding.get("exploit_available", False),
+                        finding["id"],
+                    ),
+                )
+                cur.execute("UPDATE enrichment_jobs SET checkpoint = %s WHERE job_id = %s", (checkpoint, job_id))
+            conn.commit()
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def complete_enrichment_job(self, job_id: str, lease_owner: str, fencing_token: int) -> None:
+        """Atomically complete a fenced job and its scan's enrichment state."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE enrichment_jobs
+                    SET status = 'completed', completed_at = CURRENT_TIMESTAMP,
+                        lease_owner = NULL, lease_expires_at = NULL
+                    WHERE job_id = %s AND status = 'running'
+                      AND lease_owner = %s AND fencing_token = %s
+                      AND lease_expires_at > CURRENT_TIMESTAMP
+                    RETURNING scan_id
+                    """,
+                    (job_id, lease_owner, fencing_token),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise LostLease(f"Enrichment job {job_id} lost its lease before completion")
+                scan_id = row[0]
+                cur.execute("UPDATE scans SET cve_enrichment_status = 'COMPLETED' WHERE scan_id = %s", (scan_id,))
+            conn.commit()
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def fail_enrichment_job(
+        self,
+        job_id: str,
+        lease_owner: str,
+        fencing_token: int,
+        error_message: str,
+        *,
+        max_attempts: int = 3,
+        retry_seconds: int = 30,
+    ) -> str:
+        """Record bounded retry state under the job's current fencing token."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT scan_id, attempt_count FROM enrichment_jobs
+                    WHERE job_id = %s AND status = 'running'
+                      AND lease_owner = %s AND fencing_token = %s
+                      AND lease_expires_at > CURRENT_TIMESTAMP
+                    FOR UPDATE
+                    """,
+                    (job_id, lease_owner, fencing_token),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise LostLease(f"Enrichment job {job_id} is no longer owned by this worker")
+                scan_id, attempt_count = row
+                terminal = attempt_count >= max_attempts
+                if terminal:
+                    cur.execute(
+                        """
+                        UPDATE enrichment_jobs SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
+                            error_message = %s, lease_owner = NULL, lease_expires_at = NULL
+                        WHERE job_id = %s
+                        """,
+                        (error_message, job_id),
+                    )
+                    scan_status = "FAILED"
+                    outcome = "failed"
+                else:
+                    cur.execute(
+                        """
+                        UPDATE enrichment_jobs SET status = 'pending', error_message = %s,
+                            lease_owner = NULL, lease_expires_at = NULL,
+                            next_retry_at = CURRENT_TIMESTAMP + (%s * INTERVAL '1 second')
+                        WHERE job_id = %s
+                        """,
+                        (error_message, retry_seconds, job_id),
+                    )
+                    scan_status = "PENDING"
+                    outcome = "retry"
+                cur.execute("UPDATE scans SET cve_enrichment_status = %s WHERE scan_id = %s", (scan_status, scan_id))
+            conn.commit()
+            return outcome
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def recover_stale_enrichment_jobs(self, max_attempts: int = 3) -> int:
+        """Return expired enrichment claims to pending or terminally fail them."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE enrichment_jobs SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
+                        lease_owner = NULL, lease_expires_at = NULL,
+                        error_message = 'Enrichment exceeded maximum retry attempts after worker interruption.'
+                    WHERE status = 'running' AND attempt_count >= %s
+                      AND lease_expires_at < CURRENT_TIMESTAMP
+                    RETURNING scan_id
+                    """,
+                    (max_attempts,),
+                )
+                failed_scans = [row[0] for row in cur.fetchall()]
+                cur.execute(
+                    """
+                    UPDATE enrichment_jobs SET status = 'pending', lease_owner = NULL, lease_expires_at = NULL,
+                        error_message = 'Enrichment worker interrupted; queued for retry.'
+                    WHERE status = 'running' AND attempt_count < %s
+                      AND lease_expires_at < CURRENT_TIMESTAMP
+                    RETURNING scan_id
+                    """,
+                    (max_attempts,),
+                )
+                retried_scans = [row[0] for row in cur.fetchall()]
+                for scan_id in failed_scans:
+                    cur.execute("UPDATE scans SET cve_enrichment_status = 'FAILED' WHERE scan_id = %s", (scan_id,))
+                for scan_id in retried_scans:
+                    cur.execute("UPDATE scans SET cve_enrichment_status = 'PENDING' WHERE scan_id = %s", (scan_id,))
+            conn.commit()
+            return len(failed_scans) + len(retried_scans)
+        except Exception:
+            self.rollback(conn)
+            raise
 
     def admit_scan(
         self,

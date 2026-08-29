@@ -222,6 +222,18 @@ class TestQueryNvd(unittest.TestCase):
 
     @patch("scanner.nvd_client.urllib.request.urlopen")
     @patch("scanner.nvd_client._wait_for_rate_limit")
+    def test_fetches_every_nvd_page(self, mock_wait, mock_urlopen):
+        first_page = {"totalResults": 2, "vulnerabilities": [_SAMPLE_NVD_RESPONSE["vulnerabilities"][0]]}
+        second_page = {"totalResults": 2, "vulnerabilities": [_SAMPLE_NVD_RESPONSE["vulnerabilities"][1]]}
+        mock_urlopen.side_effect = [_make_mock_urlopen_response(first_page), _make_mock_urlopen_response(second_page)]
+
+        results = query_nvd("Azure Storage Account", results_per_page=1)
+
+        self.assertEqual([item["cve_id"] for item in results], ["CVE-2023-12345", "CVE-2022-99999"])
+        self.assertEqual(mock_urlopen.call_count, 2)
+
+    @patch("scanner.nvd_client.urllib.request.urlopen")
+    @patch("scanner.nvd_client._wait_for_rate_limit")
     def test_returns_empty_list_on_network_error(self, mock_wait, mock_urlopen):
         """A network exception returns [] and does not propagate the error."""
         mock_urlopen.side_effect = Exception("Connection refused")
