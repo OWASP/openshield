@@ -320,11 +320,12 @@ def evaluate(spec: Mapping[str, Any], azure_client: Any, subscription_id: str) -
         if assignments is None:
             return _unknown(rule_id, "role assignment")
         if rule_id == "AZ-GOV-006":
+            # The collector uses atScope() which already returns both direct and
+            # inherited (management-group) assignments effective at this subscription.
+            # Count all of them; filtering to subscription scope would miss the most
+            # common enterprise pattern of an Owner granted at a parent MG.
             owners = [
-                item
-                for item in assignments
-                if normal(properties(item).get("roleDefinitionId")).endswith(OWNER_ROLE_ID)
-                and _assignment_scope(item) == normal(subscription_scope)
+                item for item in assignments if normal(properties(item).get("roleDefinitionId")).endswith(OWNER_ROLE_ID)
             ]
             if len(owners) <= policy.maximum_subscription_owners:
                 return []

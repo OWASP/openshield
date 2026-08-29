@@ -480,7 +480,6 @@ jobs:
         run: pip install pip-audit
 
       # transformers (transitive via sentence-transformers) has no non-breaking fix yet; tracked separately
-      # chromadb CVE-2026-45830/45833: no patched version; removal tracked in PR #317
       - name: Run pip-audit
         run: |
           pip-audit -r requirements.txt \

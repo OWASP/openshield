@@ -128,9 +128,25 @@ def test_gov_006_owner_threshold(run):
             "properties": {"roleDefinitionId": f"{SCOPE}/providers/Microsoft.Authorization/roleDefinitions/{OWNER}"},
         }
 
+    def mg_owner(name):
+        mg_scope = "/providers/Microsoft.Management/managementGroups/root"
+        return {
+            "id": f"{mg_scope}/providers/Microsoft.Authorization/roleAssignments/{name}",
+            "properties": {"roleDefinitionId": f"{mg_scope}/providers/Microsoft.Authorization/roleDefinitions/{OWNER}"},
+        }
+
     assert run(az_gov_006, {"role_assignments": [owner("one")]}) == []
     assert (
         run(az_gov_006, {"role_assignments": [owner("one"), owner("two")]})[0]["metadata"]["evidence"]["owner_count"]
+        == 2
+    )
+    # Inherited management-group Owner must count toward the threshold.
+    # The collector's atScope() returns both direct and MG-inherited assignments;
+    # filtering to subscription scope alone silently misses this common pattern.
+    assert (
+        run(az_gov_006, {"role_assignments": [owner("direct"), mg_owner("inherited")]})[0]["metadata"]["evidence"][
+            "owner_count"
+        ]
         == 2
     )
 
