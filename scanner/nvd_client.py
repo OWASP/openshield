@@ -19,11 +19,9 @@ Design decisions:
 import threading
 import time
 import logging
-import urllib.request
-import urllib.error
-import urllib.parse
-import json
 from typing import Optional
+
+import requests
 
 from api.observability import NVD_REQUEST_LATENCY_SECONDS
 
@@ -134,40 +132,34 @@ def _parse_cve_item(item: dict) -> Optional[dict]:
 
 def _fetch_nvd_page(keyword: str, start_index: int, results_per_page: int) -> dict:
     """Fetch one NVD page, raising only after bounded retries are exhausted."""
-    params = urllib.parse.urlencode(
-        {
-            "keywordSearch": keyword,
-            "startIndex": start_index,
-            "resultsPerPage": results_per_page,
-        }
-    )
-    url = f"{_NVD_BASE_URL}?{params}"
-    parsed_url = urllib.parse.urlsplit(url)
-    if (
-        parsed_url.scheme != "https"
-        or parsed_url.hostname != "services.nvd.nist.gov"
-        or parsed_url.port not in (None, 443)
-    ):
-        raise NvdRequestError("Refusing request to an untrusted NVD endpoint")
+    params = {
+        "keywordSearch": keyword,
+        "startIndex": start_index,
+        "resultsPerPage": results_per_page,
+    }
 
     last_error: Optional[Exception] = None
     for attempt in range(1, _MAX_RETRIES + 1):
         try:
             _wait_for_rate_limit()
-            req = urllib.request.Request(
-                url,
-                headers={"User-Agent": "OpenShield/0.1 (github.com/openshield-org/openshield)"},
-            )
             with NVD_REQUEST_LATENCY_SECONDS.time():
-                with urllib.request.urlopen(  # nosec B310  # noqa: E501
-                    req, timeout=10
-                ) as resp:
-                    return json.loads(resp.read())
-        except urllib.error.HTTPError as exc:
+                response = requests.get(
+                    _NVD_BASE_URL,
+                    params=params,
+                    headers={"User-Agent": "OpenShield/0.1 (github.com/openshield-org/openshield)"},
+                    timeout=10,
+                )
+                response.raise_for_status()
+                return response.json()
+        except requests.HTTPError as exc:
             last_error = exc
-            if exc.code != 429:
+            if exc.response is None or exc.response.status_code != 429:
                 break
             time.sleep(30 * attempt)
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt < _MAX_RETRIES:
+                time.sleep(2**attempt)
         except Exception as exc:
             last_error = exc
             if attempt < _MAX_RETRIES:

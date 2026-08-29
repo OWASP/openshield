@@ -12,12 +12,12 @@ Test classes:
   TestQueryNvd        - query_nvd() HTTP behaviour (mocked urlopen)
 """
 
-import json
 import threading
 import time
 import unittest
-import urllib.error
 from unittest.mock import patch, MagicMock
+
+import requests
 
 # Clear the module cache before import so previous test runs don't bleed in
 from scanner.nvd_client import query_nvd, _parse_cve_item, _cache, _wait_for_rate_limit
@@ -68,21 +68,17 @@ _SAMPLE_NVD_RESPONSE = {
 _EMPTY_NVD_RESPONSE = {"vulnerabilities": []}
 
 
-def _make_mock_urlopen_response(data: dict) -> MagicMock:
+def _make_mock_requests_response(data: dict, status: int = 200) -> MagicMock:
     """
-    Return a MagicMock that behaves like urllib.request.urlopen()'s
-    context manager return value.
+    Return a MagicMock that behaves like a requests NVD response.
 
-    urlopen() is used as:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read())
-
-    So the mock needs __enter__/__exit__ and a .read() method.
+    `raise_for_status()` raises the same requests exception the client handles.
     """
     mock_resp = MagicMock()
-    mock_resp.read.return_value = json.dumps(data).encode("utf-8")
-    mock_resp.__enter__ = lambda s: s
-    mock_resp.__exit__ = MagicMock(return_value=False)
+    mock_resp.json.return_value = data
+    mock_resp.status_code = status
+    if status >= 400:
+        mock_resp.raise_for_status.side_effect = requests.HTTPError(response=mock_resp)
     return mock_resp
 
 
@@ -175,14 +171,14 @@ class TestParseConveItem(unittest.TestCase):
 
 # ---------------------------------------------------------------------------
 # TestQueryNvd
-# Tests for query_nvd() - mocks urllib.request.urlopen to prevent live calls.
+# Tests for query_nvd() - mocks requests.get to prevent live calls.
 # Also mocks _wait_for_rate_limit to keep tests fast.
 # ---------------------------------------------------------------------------
 
 
 class TestQueryNvd(unittest.TestCase):
     """
-    query_nvd() builds a URL, calls urlopen, parses the response, caches it,
+    query_nvd() uses the fixed NVD HTTPS URL, parses the response, caches it,
     and handles errors gracefully. All HTTP is mocked.
     """
 
@@ -190,77 +186,82 @@ class TestQueryNvd(unittest.TestCase):
         """Clear the module-level cache before each test."""
         _cache.clear()
 
-    @patch("scanner.nvd_client.urllib.request.urlopen")
+    @patch("scanner.nvd_client.requests.get")
     @patch("scanner.nvd_client._wait_for_rate_limit")
-    def test_returns_parsed_cves_on_success(self, mock_wait, mock_urlopen):
+    def test_returns_parsed_cves_on_success(self, mock_wait, mock_get):
         """Successful response is parsed into a list of CVE dicts."""
-        mock_urlopen.return_value = _make_mock_urlopen_response(_SAMPLE_NVD_RESPONSE)
+        mock_get.return_value = _make_mock_requests_response(_SAMPLE_NVD_RESPONSE)
         results = query_nvd("Azure Storage Account")
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0]["cve_id"], "CVE-2023-12345")
         self.assertEqual(results[1]["cve_id"], "CVE-2022-99999")
+        mock_get.assert_called_once_with(
+            "https://services.nvd.nist.gov/rest/json/cves/2.0",
+            params={"keywordSearch": "Azure Storage Account", "startIndex": 0, "resultsPerPage": 2000},
+            headers={"User-Agent": "OpenShield/0.1 (github.com/openshield-org/openshield)"},
+            timeout=10,
+        )
 
-    @patch("scanner.nvd_client.urllib.request.urlopen")
+    @patch("scanner.nvd_client.requests.get")
     @patch("scanner.nvd_client._wait_for_rate_limit")
-    def test_returns_empty_list_on_empty_nvd_response(self, mock_wait, mock_urlopen):
+    def test_returns_empty_list_on_empty_nvd_response(self, mock_wait, mock_get):
         """An empty vulnerabilities list returns [] without error."""
-        mock_urlopen.return_value = _make_mock_urlopen_response(_EMPTY_NVD_RESPONSE)
+        mock_get.return_value = _make_mock_requests_response(_EMPTY_NVD_RESPONSE)
         results = query_nvd("nonexistent-resource-xyz")
         self.assertEqual(results, [])
 
-    @patch("scanner.nvd_client.urllib.request.urlopen")
+    @patch("scanner.nvd_client.requests.get")
     @patch("scanner.nvd_client._wait_for_rate_limit")
-    def test_second_call_uses_cache(self, mock_wait, mock_urlopen):
+    def test_second_call_uses_cache(self, mock_wait, mock_get):
         """
-        Calling query_nvd twice with the same keyword only hits urlopen once.
+        Calling query_nvd twice with the same keyword only makes one request.
         The second call must return from cache without a network request.
         """
-        mock_urlopen.return_value = _make_mock_urlopen_response(_SAMPLE_NVD_RESPONSE)
+        mock_get.return_value = _make_mock_requests_response(_SAMPLE_NVD_RESPONSE)
         query_nvd("Azure Storage Account")
         query_nvd("Azure Storage Account")  # Should be served from cache
-        self.assertEqual(mock_urlopen.call_count, 1)
+        self.assertEqual(mock_get.call_count, 1)
 
-    @patch("scanner.nvd_client.urllib.request.urlopen")
+    @patch("scanner.nvd_client.requests.get")
     @patch("scanner.nvd_client._wait_for_rate_limit")
-    def test_fetches_every_nvd_page(self, mock_wait, mock_urlopen):
+    def test_fetches_every_nvd_page(self, mock_wait, mock_get):
         first_page = {"totalResults": 2, "vulnerabilities": [_SAMPLE_NVD_RESPONSE["vulnerabilities"][0]]}
         second_page = {"totalResults": 2, "vulnerabilities": [_SAMPLE_NVD_RESPONSE["vulnerabilities"][1]]}
-        mock_urlopen.side_effect = [_make_mock_urlopen_response(first_page), _make_mock_urlopen_response(second_page)]
+        mock_get.side_effect = [
+            _make_mock_requests_response(first_page),
+            _make_mock_requests_response(second_page),
+        ]
 
         results = query_nvd("Azure Storage Account", results_per_page=1)
 
         self.assertEqual([item["cve_id"] for item in results], ["CVE-2023-12345", "CVE-2022-99999"])
-        self.assertEqual(mock_urlopen.call_count, 2)
+        self.assertEqual(mock_get.call_count, 2)
 
-    @patch("scanner.nvd_client.urllib.request.urlopen")
+    @patch("scanner.nvd_client.requests.get")
     @patch("scanner.nvd_client._wait_for_rate_limit")
-    def test_returns_empty_list_on_network_error(self, mock_wait, mock_urlopen):
+    def test_returns_empty_list_on_network_error(self, mock_wait, mock_get):
         """A network exception returns [] and does not propagate the error."""
-        mock_urlopen.side_effect = Exception("Connection refused")
+        mock_get.side_effect = requests.ConnectionError("Connection refused")
         results = query_nvd("Azure Storage Account")
         self.assertEqual(results, [])
 
-    @patch("scanner.nvd_client.urllib.request.urlopen")
+    @patch("scanner.nvd_client.requests.get")
     @patch("scanner.nvd_client._wait_for_rate_limit")
-    def test_returns_empty_list_on_http_503(self, mock_wait, mock_urlopen):
+    def test_returns_empty_list_on_http_503(self, mock_wait, mock_get):
         """An HTTP 503 returns [] and does not propagate the error."""
-        mock_urlopen.side_effect = urllib.error.HTTPError(
-            url=None, code=503, msg="Service Unavailable", hdrs=None, fp=None
-        )
+        mock_get.return_value = _make_mock_requests_response({}, status=503)
         results = query_nvd("Azure Storage Account")
         self.assertEqual(results, [])
 
     @patch("scanner.nvd_client.time.sleep")
-    @patch("scanner.nvd_client.urllib.request.urlopen")
+    @patch("scanner.nvd_client.requests.get")
     @patch("scanner.nvd_client._wait_for_rate_limit")
-    def test_backs_off_and_retries_on_429(self, mock_wait, mock_urlopen, mock_sleep):
+    def test_backs_off_and_retries_on_429(self, mock_wait, mock_get, mock_sleep):
         """
         A 429 response triggers a sleep and retry.
         After MAX_RETRIES 429s, returns [] gracefully.
         """
-        mock_urlopen.side_effect = urllib.error.HTTPError(
-            url=None, code=429, msg="Too Many Requests", hdrs=None, fp=None
-        )
+        mock_get.return_value = _make_mock_requests_response({}, status=429)
         results = query_nvd("Azure Storage Account")
         self.assertEqual(results, [])
         # time.sleep should have been called (back-off logic)
