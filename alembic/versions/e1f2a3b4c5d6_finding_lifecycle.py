@@ -137,7 +137,9 @@ def upgrade() -> None:
                     'persistent_finding',
                     'cross_resource_recurrence',
                     'reopened_finding'
-                ))
+                )),
+            CONSTRAINT uq_patterns_type_lifecycle_scan
+                UNIQUE (pattern_type, lifecycle_id, scan_id)
         )
         """
     )

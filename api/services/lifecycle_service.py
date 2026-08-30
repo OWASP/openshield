@@ -12,10 +12,6 @@ logger = logging.getLogger(__name__)
 # Statuses that mean "we actively confirmed this rule was clean in the scan."
 _RESOLVING_STATUSES = frozenset({"SUCCESS", "EMPTY_SUCCESS"})
 
-# Statuses that mean "we could not reliably evaluate the rule."
-# Fail-closed: do NOT resolve findings when the scan could not see the resource.
-_BLOCKING_STATUSES = frozenset({"PERMISSION_DENIED", "TIMEOUT", "FAILED"})
-
 
 def _normalize_resource_id(resource_id: str) -> str:
     """Return a stable, lowercased, stripped version of an ARM resource ID."""
@@ -72,7 +68,8 @@ class LifecycleService:
             subscription_id: Azure subscription ID.
             tenant_id: Tenant identifier for isolation.
             rule_outcomes: List of dicts with at minimum keys 'rule_id' and
-                'status' (one of the six allowed status values).
+                'status' (one of the six allowed status values). Also used to
+                populate scan_rule_outcomes for durable audit history.
             findings: List of finding dicts from the scan, each with keys
                 'rule_id', 'resource_id', and optionally 'evidence_key'.
                 Defaults to an empty list when omitted.
@@ -89,10 +86,45 @@ class LifecycleService:
                 logger.info("Scan %s already applied; skipping lifecycle update", scan_id)
                 return
 
+            # --- Write durable per-rule outcome records -------------------
+            # Insert before lifecycle logic so the audit record exists even
+            # if lifecycle processing fails. The UNIQUE(scan_id, rule_id)
+            # constraint prevents duplicates on accidental double-writes.
+            for outcome in rule_outcomes:
+                rule_id_o = outcome.get("rule_id", "")
+                status_o = outcome.get("status", "FAILED")
+                if not rule_id_o:
+                    continue
+                cur.execute(
+                    """
+                    INSERT INTO scan_rule_outcomes (
+                        scan_id, rule_id, status, tenant_id, subscription_id,
+                        inventory_boundary, started_at, completed_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, 'subscription', %s, NOW())
+                    ON CONFLICT (scan_id, rule_id) DO NOTHING
+                    """,
+                    (
+                        scan_id,
+                        rule_id_o,
+                        status_o,
+                        tenant_id,
+                        subscription_id,
+                        outcome.get("started_at"),
+                    ),
+                )
+
             # Build a lookup: rule_id -> outcome status
             outcome_by_rule: Dict[str, str] = {
                 o["rule_id"]: o["status"] for o in rule_outcomes if "rule_id" in o and "status" in o
             }
+
+            # Collect rule IDs that actively confirmed a clean result. Only
+            # these can trigger resolution of absent findings (fail-closed).
+            resolving_rule_ids = [
+                rule_id for rule_id, status in outcome_by_rule.items()
+                if status in _RESOLVING_STATUSES
+            ]
 
             # Build the set of (rule_id, resource_id_normalized) pairs seen in
             # this scan. A fingerprint in this set was actively observed.
@@ -131,6 +163,8 @@ class LifecycleService:
             # --- Upsert fingerprints and lifecycles for seen findings -------
             seen_fingerprint_ids: set = set()
             for fp in fingerprints_in_scan:
+                # ON CONFLICT touches fingerprint_hash to force RETURNING id
+                # even when the row already exists (DO NOTHING returns nothing).
                 cur.execute(
                     """
                     INSERT INTO finding_fingerprints (
@@ -208,7 +242,7 @@ class LifecycleService:
                             (scan_id, lifecycle_id),
                         )
                     elif state in ("RESOLVED", "ACCEPTED", "SUPPRESSED"):
-                        # Reappeared after resolution: reopen.
+                        # Reappeared after resolution: reopen and reset success streak.
                         cur.execute(
                             """
                             UPDATE finding_lifecycles
@@ -216,6 +250,7 @@ class LifecycleService:
                                 last_seen_scan_id = %s,
                                 occurrence_count = occurrence_count + 1,
                                 reopen_count = reopen_count + 1,
+                                consecutive_success_count = 0,
                                 updated_at = NOW(),
                                 row_version = row_version + 1
                             WHERE id = %s
@@ -232,11 +267,13 @@ class LifecycleService:
                         )
 
             # --- Resolve findings NOT seen in this scan ---------------------
-            # Only resolve if the rule's outcome actively confirmed the resource
-            # was clean (SUCCESS / EMPTY_SUCCESS). Fail closed for uncertain outcomes.
-            if seen_fingerprint_ids:
-                # Find fingerprints for this tenant/subscription that are currently
-                # OPEN or REOPENED but were NOT observed in this scan.
+            # Only lock and process rows for rules that had a resolving outcome.
+            # This avoids unnecessary contention on unrelated rules and is more
+            # efficient on subscriptions with many open findings.
+            if not resolving_rule_ids:
+                # No rule produced a clean outcome: nothing can be resolved.
+                pass
+            elif seen_fingerprint_ids:
                 cur.execute(
                     """
                     SELECT fl.id, fl.state, fl.row_version, ff.rule_id
@@ -246,13 +283,14 @@ class LifecycleService:
                       AND ff.subscription_id = %s
                       AND fl.state IN ('OPEN', 'REOPENED')
                       AND fl.fingerprint_id NOT IN %s
+                      AND ff.rule_id = ANY(%s)
                     FOR UPDATE OF fl
                     """,
-                    (tenant_id, subscription_id, tuple(seen_fingerprint_ids)),
+                    (tenant_id, subscription_id, tuple(seen_fingerprint_ids), resolving_rule_ids),
                 )
+                _resolve_absent_rows(cur, scan_id, outcome_by_rule)
             else:
-                # No findings seen at all: resolve all OPEN/REOPENED where rule
-                # had a resolving outcome.
+                # No findings seen at all: resolve for rules with clean outcomes.
                 cur.execute(
                     """
                     SELECT fl.id, fl.state, fl.row_version, ff.rule_id
@@ -261,37 +299,12 @@ class LifecycleService:
                     WHERE ff.tenant_id = %s
                       AND ff.subscription_id = %s
                       AND fl.state IN ('OPEN', 'REOPENED')
+                      AND ff.rule_id = ANY(%s)
                     FOR UPDATE OF fl
                     """,
-                    (tenant_id, subscription_id),
+                    (tenant_id, subscription_id, resolving_rule_ids),
                 )
-
-            absent_rows = cur.fetchall()
-            for lc_id, state, row_version, rule_id in absent_rows:
-                outcome_status = outcome_by_rule.get(rule_id)
-                if outcome_status in _RESOLVING_STATUSES:
-                    cur.execute(
-                        """
-                        UPDATE finding_lifecycles
-                        SET state = 'RESOLVED',
-                            last_seen_scan_id = %s,
-                            consecutive_success_count = consecutive_success_count + 1,
-                            updated_at = NOW(),
-                            row_version = row_version + 1
-                        WHERE id = %s
-                        """,
-                        (scan_id, lc_id),
-                    )
-                    cur.execute(
-                        """
-                        INSERT INTO finding_lifecycle_transitions
-                            (lifecycle_id, from_state, to_state, scan_id, reason)
-                        VALUES (%s, %s, 'RESOLVED', %s,
-                                'Rule confirmed clean; finding absent from scan')
-                        """,
-                        (lc_id, state, scan_id),
-                    )
-                # else: PERMISSION_DENIED / TIMEOUT / FAILED / missing -> fail closed, no change.
+                _resolve_absent_rows(cur, scan_id, outcome_by_rule)
 
             # --- Idempotency sentinel (inserted last) -----------------------
             cur.execute(
@@ -304,3 +317,37 @@ class LifecycleService:
 
         db_conn.commit()
         logger.info("Lifecycle application committed for scan %s", scan_id)
+
+
+def _resolve_absent_rows(
+    cur: Any,
+    scan_id: str,
+    outcome_by_rule: Dict[str, str],
+) -> None:
+    """Transition OPEN/REOPENED lifecycle rows to RESOLVED for clean-outcome rules."""
+    absent_rows = cur.fetchall()
+    for lc_id, state, row_version, rule_id in absent_rows:
+        outcome_status = outcome_by_rule.get(rule_id)
+        if outcome_status in _RESOLVING_STATUSES:
+            cur.execute(
+                """
+                UPDATE finding_lifecycles
+                SET state = 'RESOLVED',
+                    last_seen_scan_id = %s,
+                    consecutive_success_count = consecutive_success_count + 1,
+                    updated_at = NOW(),
+                    row_version = row_version + 1
+                WHERE id = %s
+                """,
+                (scan_id, lc_id),
+            )
+            cur.execute(
+                """
+                INSERT INTO finding_lifecycle_transitions
+                    (lifecycle_id, from_state, to_state, scan_id, reason)
+                VALUES (%s, %s, 'RESOLVED', %s,
+                        'Rule confirmed clean; finding absent from scan')
+                """,
+                (lc_id, state, scan_id),
+            )
+        # else: outcome missing or blocking -> fail closed, no state change.
