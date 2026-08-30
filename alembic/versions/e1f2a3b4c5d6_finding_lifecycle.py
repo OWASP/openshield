@@ -92,7 +92,7 @@ def upgrade() -> None:
             occurrence_count INTEGER NOT NULL DEFAULT 1,
             consecutive_success_count INTEGER NOT NULL DEFAULT 0,
             reopen_count INTEGER NOT NULL DEFAULT 0,
-            row_version INTEGER NOT NULL DEFAULT 0,
+            row_version INTEGER NOT NULL DEFAULT 0,  -- monotonic update counter (FOR UPDATE handles serializability)
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             CONSTRAINT ck_finding_lifecycles_state
@@ -151,13 +151,13 @@ def upgrade() -> None:
     op.execute(
         "CREATE INDEX ix_finding_lifecycle_transitions_lifecycle_id ON finding_lifecycle_transitions (lifecycle_id)"
     )
-    op.execute("CREATE INDEX ix_patterns_sub_created ON patterns (subscription_id, created_at DESC)")
+    op.execute("CREATE INDEX ix_patterns_sub_created ON patterns (tenant_id, subscription_id, created_at DESC)")
 
 
 def downgrade() -> None:
-    op.execute("DROP TABLE IF EXISTS patterns")
-    op.execute("DROP TABLE IF EXISTS finding_lifecycle_transitions")
-    op.execute("DROP TABLE IF EXISTS finding_lifecycles")
-    op.execute("DROP TABLE IF EXISTS finding_fingerprints")
-    op.execute("DROP TABLE IF EXISTS scan_lifecycle_applications")
-    op.execute("DROP TABLE IF EXISTS scan_rule_outcomes")
+    op.execute("DROP TABLE IF EXISTS patterns CASCADE")
+    op.execute("DROP TABLE IF EXISTS finding_lifecycle_transitions CASCADE")
+    op.execute("DROP TABLE IF EXISTS finding_lifecycles CASCADE")
+    op.execute("DROP TABLE IF EXISTS finding_fingerprints CASCADE")
+    op.execute("DROP TABLE IF EXISTS scan_lifecycle_applications CASCADE")
+    op.execute("DROP TABLE IF EXISTS scan_rule_outcomes CASCADE")

@@ -6,6 +6,7 @@ with mocked database queries.
 
 import secrets
 import time
+from collections import deque
 from unittest.mock import MagicMock, patch
 
 import jwt
@@ -48,19 +49,24 @@ def _auth_headers(sub_id: str | None = None) -> dict:
 
 
 class _FakeCursor:
-    def __init__(self, pages: list):
-        # pages: list of values returned by successive fetchone/fetchall calls
-        self._pages = list(pages)
-        self.executed = []
+    """Fake cursor backed by a shared deque so all cursors on one connection share state."""
+
+    def __init__(self, results_deque: deque):
+        self._results = results_deque
+        self.executed: list = []
+        self._current = None
 
     def execute(self, sql, params=None):
         self.executed.append((sql.strip(), params))
+        self._current = self._results.popleft() if self._results else None
 
     def fetchone(self):
-        return self._pages.pop(0) if self._pages else None
+        return self._current
 
     def fetchall(self):
-        return self._pages.pop(0) if self._pages else []
+        if isinstance(self._current, list):
+            return self._current
+        return [] if self._current is None else [self._current]
 
     def __enter__(self):
         return self
@@ -70,17 +76,30 @@ class _FakeCursor:
 
 
 class _FakeConn:
+    """Fake connection whose cursor() calls share one result deque."""
+
     def __init__(self, fetchall_pages: list):
-        self._pages = fetchall_pages
+        self._deque: deque = deque(fetchall_pages)
         self.committed = False
+        self._cursors: list = []
         self._cursor_obj = None
 
     def cursor(self, **_kwargs):
-        self._cursor_obj = _FakeCursor(self._pages)
+        self._cursor_obj = _FakeCursor(self._deque)
+        self._cursors.append(self._cursor_obj)
         return self._cursor_obj
 
     def commit(self):
         self.committed = True
+
+    def rollback(self):
+        pass
+
+    def all_executed(self) -> list:
+        result = []
+        for c in self._cursors:
+            result.extend(c.executed)
+        return result
 
 
 # ---------------------------------------------------------------------------
