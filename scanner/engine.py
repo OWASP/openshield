@@ -10,6 +10,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from api.observability import RULE_ERRORS_TOTAL
 from openshield.severity import CONTRACT_VERSION, SeverityContractError, normalize_severity, score_findings
+
+try:
+    import azure.core.exceptions as _azure_exc
+
+    _AzureHttpResponseError = _azure_exc.HttpResponseError
+except Exception:
+    _AzureHttpResponseError = None  # type: ignore[assignment,misc]
+
 from scanner.azure_client import AzureClient
 from scanner.evaluation import EvaluationStatus, RuleEvaluation, subscription_scope_id
 from scanner.graph.snapshot_bridge import collect_snapshot
