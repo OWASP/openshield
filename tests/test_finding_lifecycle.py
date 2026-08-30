@@ -4,11 +4,7 @@ All tests use in-memory state to simulate the database without requiring a
 live PostgreSQL instance.
 """
 
-import hashlib
-import json
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from collections import deque
 
 from api.services.lifecycle_service import (
     LifecycleService,
@@ -47,8 +43,6 @@ def _make_outcome(rule_id: str, status: str) -> dict:
 # (multiple cursors on one connection see the same transaction state) and
 # avoids the "second cursor re-reads from the start" bug noted in code review.
 # ---------------------------------------------------------------------------
-
-from collections import deque
 
 
 class _FakeCursor:
