@@ -229,7 +229,7 @@ class TestPatternsRouteList:
         with patch("api.routes.patterns._get_db", return_value=mock_db):
             resp = app_client.get(
                 "/api/v1/patterns",
-                headers=_auth_headers(),
+                headers=_auth_headers(sub_id=SUB_ID),
             )
 
         assert resp.status_code == 200
@@ -242,21 +242,37 @@ class TestPatternsRouteList:
     def test_list_invalid_limit_returns_400(self, app_client):
         resp = app_client.get(
             "/api/v1/patterns?limit=999",
-            headers=_auth_headers(),
+            headers=_auth_headers(sub_id=SUB_ID),
         )
         assert resp.status_code == 400
 
     def test_list_invalid_pattern_type_returns_400(self, app_client):
         resp = app_client.get(
             "/api/v1/patterns?pattern_type=not_a_real_type",
-            headers=_auth_headers(),
+            headers=_auth_headers(sub_id=SUB_ID),
         )
         assert resp.status_code == 400
 
     def test_list_unknown_query_param_returns_400(self, app_client):
         resp = app_client.get(
             "/api/v1/patterns?foo=bar",
+            headers=_auth_headers(sub_id=SUB_ID),
+        )
+        assert resp.status_code == 400
+
+    def test_list_without_subscription_returns_400(self, app_client):
+        # JWT with no subscription_id and no query param must be rejected.
+        resp = app_client.get(
+            "/api/v1/patterns",
             headers=_auth_headers(),
+        )
+        assert resp.status_code == 400
+
+    def test_list_cross_subscription_query_param_rejected(self, app_client):
+        # JWT scoped to sub-A must reject a query param asking for sub-B.
+        resp = app_client.get(
+            "/api/v1/patterns?subscription_id=sub-B",
+            headers=_auth_headers(sub_id="sub-A"),
         )
         assert resp.status_code == 400
 
@@ -283,8 +299,7 @@ class TestPatternsRouteList:
 
 
 class TestPatternsRouteGet:
-    def test_get_existing_pattern(self, app_client):
-        row = _sample_pattern_row()
+    def _mock_get_db(self, row):
         mock_db = MagicMock()
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -293,11 +308,16 @@ class TestPatternsRouteGet:
         mock_cursor.fetchone.return_value = row
         mock_conn.cursor.return_value = mock_cursor
         mock_db._get_conn.return_value = mock_conn
+        return mock_db
+
+    def test_get_existing_pattern(self, app_client):
+        row = _sample_pattern_row()
+        mock_db = self._mock_get_db(row)
 
         with patch("api.routes.patterns._get_db", return_value=mock_db):
             resp = app_client.get(
                 "/api/v1/patterns/1",
-                headers=_auth_headers(),
+                headers=_auth_headers(sub_id=SUB_ID),
             )
 
         assert resp.status_code == 200
@@ -308,19 +328,28 @@ class TestPatternsRouteGet:
         assert data["algorithm_version"] == "1"
 
     def test_get_nonexistent_pattern_returns_404(self, app_client):
-        mock_db = MagicMock()
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
-        mock_cursor.__exit__ = MagicMock(return_value=False)
-        mock_cursor.fetchone.return_value = None
-        mock_conn.cursor.return_value = mock_cursor
-        mock_db._get_conn.return_value = mock_conn
+        # DB returns None when id + subscription_id don't match any row.
+        mock_db = self._mock_get_db(None)
 
         with patch("api.routes.patterns._get_db", return_value=mock_db):
             resp = app_client.get(
                 "/api/v1/patterns/99999",
-                headers=_auth_headers(),
+                headers=_auth_headers(sub_id=SUB_ID),
+            )
+
+        assert resp.status_code == 404
+
+    def test_get_cross_subscription_returns_404(self, app_client):
+        # Pattern exists for sub-001 but caller is scoped to sub-other.
+        # The SQL adds subscription_id = %s to the WHERE clause so the DB
+        # returns None, and the caller sees 404 (not 403, to avoid leaking
+        # that the pattern ID exists in another subscription).
+        mock_db = self._mock_get_db(None)
+
+        with patch("api.routes.patterns._get_db", return_value=mock_db):
+            resp = app_client.get(
+                "/api/v1/patterns/1",
+                headers=_auth_headers(sub_id="sub-other"),
             )
 
         assert resp.status_code == 404
