@@ -42,6 +42,16 @@ def _validate_limit(raw: str) -> int:
     return value
 
 
+def _effective_tenant(effective_sub: str) -> str:
+    """Return the tenant scope for this request.
+
+    Uses OPENSHIELD_TENANT_ID env var when set (multi-tenant deployments).
+    Falls back to effective_sub for single-tenant deployments where
+    tenant_id == subscription_id by convention.
+    """
+    return os.environ.get("OPENSHIELD_TENANT_ID", effective_sub)
+
+
 def _effective_subscription(subscription_id_param: str | None) -> str:
     """Return the subscription scope this request is authorized to see.
 
@@ -116,6 +126,7 @@ def list_patterns():
             limit = _validate_limit(request.args["limit"])
 
         effective_sub = _effective_subscription(subscription_id_param)
+        tenant_id = _effective_tenant(effective_sub)
 
         db = _get_db()
         conn = db._get_conn()
@@ -127,12 +138,13 @@ def list_patterns():
                        subscription_id, scan_id, finding_ids, threshold,
                        algorithm_version, created_at, updated_at
                 FROM patterns
-                WHERE subscription_id = %s
+                WHERE tenant_id = %s
+                  AND subscription_id = %s
                   AND (%s IS NULL OR pattern_type = %s)
                 ORDER BY created_at DESC
                 LIMIT %s
                 """,
-                (effective_sub, pattern_type, pattern_type, limit),
+                (tenant_id, effective_sub, pattern_type, pattern_type, limit),
             )
             rows = cur.fetchall()
 
@@ -140,10 +152,11 @@ def list_patterns():
                 """
                 SELECT COUNT(*) AS count
                 FROM patterns
-                WHERE subscription_id = %s
+                WHERE tenant_id = %s
+                  AND subscription_id = %s
                   AND (%s IS NULL OR pattern_type = %s)
                 """,
-                (effective_sub, pattern_type, pattern_type),
+                (tenant_id, effective_sub, pattern_type, pattern_type),
             )
             total_row = cur.fetchone()
             total = total_row["count"] if total_row else 0
@@ -176,6 +189,7 @@ def get_pattern(pattern_id: int):
 
         # Resolve scope first so an unscoped caller cannot enumerate IDs.
         effective_sub = _effective_subscription(None)
+        tenant_id = _effective_tenant(effective_sub)
 
         db = _get_db()
         conn = db._get_conn()
@@ -188,9 +202,10 @@ def get_pattern(pattern_id: int):
                        algorithm_version, created_at, updated_at
                 FROM patterns
                 WHERE id = %s
+                  AND tenant_id = %s
                   AND subscription_id = %s
                 """,
-                (pattern_id, effective_sub),
+                (pattern_id, tenant_id, effective_sub),
             )
             row = cur.fetchone()
 

@@ -94,6 +94,9 @@ class _FakeConn:
     def commit(self):
         self.committed = True
 
+    def rollback(self):
+        pass
+
     def all_executed(self) -> list:
         return self._cursor_obj.executed if self._cursor_obj else []
 
@@ -163,6 +166,9 @@ class TestLifecycleServiceIdempotency:
             def commit(self):
                 nonlocal committed_count
                 committed_count += 1
+
+            def rollback(self):
+                pass
 
         svc = LifecycleService()
         svc.apply_scan(
@@ -286,6 +292,51 @@ class TestLifecycleStateTransitions:
         assert any("REOPENED" in s and "UPDATE" in s.upper() for s in sqls)
         # consecutive_success_count must be reset to 0 on reopen.
         assert any("consecutive_success_count = 0" in s for s in sqls)
+
+    def test_rule_a_success_does_not_resolve_rule_b_finding(self):
+        """Rule-A SUCCESS must not resolve a finding belonging to Rule-B.
+
+        This is the most critical correctness invariant: a clean outcome for one
+        rule can only affect findings that were produced by that same rule.
+        """
+        # Scan has no findings (empty list), two outcomes:
+        #   RULE-001 SUCCESS  -> in resolving_rule_ids
+        #   RULE-002 FAILED   -> NOT in resolving_rule_ids
+        #
+        # Sequence (empty seen_ids branch):
+        # 1. idempotency check -> None
+        # 2. scan_rule_outcomes insert RULE-001 -> None
+        # 3. scan_rule_outcomes insert RULE-002 -> None
+        # 4. absent-findings query (ff.rule_id = ANY(['RULE-001'])) ->
+        #    returns only RULE-001's lifecycle row; RULE-002 is excluded by SQL
+        # 5. UPDATE RESOLVED for RULE-001 row -> None
+        # 6. transition insert -> None
+        # 7. idempotency insert -> None
+        results = [
+            None,                                        # idempotency check
+            None,                                        # scan_rule_outcomes RULE-001
+            None,                                        # scan_rule_outcomes RULE-002
+            [(10, "OPEN", 0, "RULE-001")],               # absent-findings query
+            None,                                        # UPDATE RESOLVED
+            None,                                        # transition insert
+            None,                                        # idempotency insert
+        ]
+        conn = self._run(
+            results,
+            [],
+            [_make_outcome("RULE-001", "SUCCESS"), _make_outcome("RULE-002", "FAILED")],
+        )
+        assert conn.committed
+        # Verify resolving_rule_ids in the SQL params contains only RULE-001.
+        absent_query = next(
+            (item for item in conn.all_executed() if "ff.rule_id = ANY" in item[0]),
+            None,
+        )
+        assert absent_query is not None, "absent-findings query was not issued"
+        _, params = absent_query
+        resolving_ids = params[-1]  # last param is resolving_rule_ids list
+        assert "RULE-001" in resolving_ids
+        assert "RULE-002" not in resolving_ids
 
     def test_reopened_finding_seen_again_increments_occurrence_stays_reopened(self):
         # REOPENED + seen in scan: occurrence_count increments, no new state transition.
