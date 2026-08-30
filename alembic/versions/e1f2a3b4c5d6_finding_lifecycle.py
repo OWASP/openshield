@@ -145,6 +145,21 @@ def upgrade() -> None:
     )
 
 
+    # Indexes for hot query paths
+    op.execute(
+        "CREATE INDEX ix_finding_fingerprints_tenant_sub ON finding_fingerprints (tenant_id, subscription_id)"
+    )
+    op.execute(
+        "CREATE INDEX ix_finding_lifecycles_state ON finding_lifecycles (state) WHERE state IN ('OPEN', 'REOPENED')"
+    )
+    op.execute(
+        "CREATE INDEX ix_finding_lifecycle_transitions_lifecycle_id ON finding_lifecycle_transitions (lifecycle_id)"
+    )
+    op.execute(
+        "CREATE INDEX ix_patterns_sub_created ON patterns (subscription_id, created_at DESC)"
+    )
+
+
 def downgrade() -> None:
     op.execute("DROP TABLE IF EXISTS patterns")
     op.execute("DROP TABLE IF EXISTS finding_lifecycle_transitions")

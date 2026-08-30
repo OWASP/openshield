@@ -277,8 +277,7 @@ class TestPatternsRouteList:
         assert resp.status_code == 400
 
     def test_list_returns_only_authorized_subscription(self, app_client):
-        """Patterns for a different subscription must not be returned to an
-        authorized user whose JWT contains a different subscription_id."""
+        """subscription_id from JWT must be passed as a SQL parameter."""
         row_authorized = _sample_pattern_row(sub_id="sub-authorized")
         mock_db = _mock_db_rows([row_authorized], 1)
 
@@ -289,9 +288,11 @@ class TestPatternsRouteList:
             )
 
         assert resp.status_code == 200
-        data = resp.get_json()
-        # The query is scoped; verify the mock was called (subscription scoped query).
-        assert "patterns" in data
+        # Verify subscription_id was enforced in the SQL WHERE clause parameters.
+        mock_cursor = mock_db._get_conn.return_value.cursor.return_value
+        first_call = mock_cursor.execute.call_args_list[0]
+        _, params = first_call[0]
+        assert "sub-authorized" in params
 
     def test_list_requires_auth(self, app_client):
         resp = app_client.get("/api/v1/patterns")
@@ -353,6 +354,12 @@ class TestPatternsRouteGet:
             )
 
         assert resp.status_code == 404
+        # Verify subscription_id was enforced as a SQL parameter (not just checked
+        # in Python), so removing the WHERE clause would break this test.
+        mock_cursor = mock_db._get_conn.return_value.cursor.return_value
+        call_args = mock_cursor.execute.call_args
+        _, params = call_args[0]
+        assert "sub-other" in params
 
     def test_get_requires_auth(self, app_client):
         resp = app_client.get("/api/v1/patterns/1")
