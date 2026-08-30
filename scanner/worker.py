@@ -262,7 +262,6 @@ def run_worker():
                         extra={"scan_id": scan_id},
                     )
 
-
                 SCANS_TOTAL.labels(status="completed").inc()
                 logger.info(
                     "Successfully completed scan %s",
