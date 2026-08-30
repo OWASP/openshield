@@ -155,35 +155,6 @@ def _run_enrichment_in_background(scan_id: str, findings: list, db_url: str) -> 
         db.close()
 
 
-def _run_enrichment_in_background(scan_id: str, findings: list, db_url: str) -> None:
-    """Run CVE enrichment off the request thread and persist the result.
-
-    Runs outside the Flask request/app context (it's started via
-    threading.Thread), so it opens its own DatabaseManager rather than
-    reusing flask.g.
-    """
-    db = DatabaseManager(db_url)
-    try:
-        enriched = enrich_findings(findings)
-        db.update_cve_fields(enriched)
-        db.update_scan_enrichment_status(scan_id, "COMPLETED")
-        logger.info("Background CVE enrichment complete for scan %s (%d findings)", scan_id, len(enriched))
-    except Exception as exc:
-        logger.error("Background enrichment failed for scan %s: %s", scan_id, exc)
-        try:
-            # A failed write (e.g. in update_cve_fields) can leave db.conn in
-            # an aborted-transaction state. Roll back first, or this status
-            # update itself raises InFailedSqlTransaction and gets swallowed
-            # below, leaving the scan stuck at ENRICHING forever.
-            if db.conn is not None:
-                db.conn.rollback()
-            db.update_scan_enrichment_status(scan_id, "FAILED")
-        except Exception as status_exc:
-            logger.error("Failed to record FAILED status for scan %s: %s", scan_id, status_exc)
-    finally:
-        db.close()
-
-
 @scans_bp.post("/api/scans/<scan_id>/enrich")
 def enrich_scan(scan_id):
     """Kick off CVE enrichment for an existing scan in the background.
