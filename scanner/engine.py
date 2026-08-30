@@ -12,6 +12,7 @@ from openshield.severity import CONTRACT_VERSION, SeverityContractError, normali
 
 try:
     import azure.core.exceptions as _azure_exc
+
     _AzureHttpResponseError = _azure_exc.HttpResponseError
 except Exception:
     _AzureHttpResponseError = None  # type: ignore[assignment,misc]

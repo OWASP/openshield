@@ -108,8 +108,8 @@ class TestPatternServiceDetection:
         count, conn = self._run(
             [
                 [{"lifecycle_id": 10}],  # persistent_finding
-                [],                       # cross_resource_recurrence
-                [],                       # reopened_finding
+                [],  # cross_resource_recurrence
+                [],  # reopened_finding
             ]
         )
         assert count == 1
@@ -144,19 +144,19 @@ class TestPatternServiceDetection:
         """The upsert call must include threshold and algorithm_version."""
         from api.services.pattern_service import PatternService, _ALGORITHM_VERSION, _PERSISTENT_THRESHOLD
 
-        conn = _FakeConn([
-            [{"lifecycle_id": 10}],  # persistent_finding
-            [],                       # cross_resource_recurrence
-            [],                       # reopened_finding
-        ])
+        conn = _FakeConn(
+            [
+                [{"lifecycle_id": 10}],  # persistent_finding
+                [],  # cross_resource_recurrence
+                [],  # reopened_finding
+            ]
+        )
         svc = PatternService()
         svc.detect_and_publish(conn, SCAN_ID, SUB_ID, TENANT_ID)
 
         # Find the INSERT INTO patterns call and verify the params.
         executed = conn._cursor_obj.executed
-        insert_sql, params = next(
-            ((sql, p) for sql, p in executed if "INSERT INTO patterns" in sql), (None, None)
-        )
+        insert_sql, params = next(((sql, p) for sql, p in executed if "INSERT INTO patterns" in sql), (None, None))
         assert insert_sql is not None
         # params order: pattern_type, lifecycle_id, tenant_id, subscription_id,
         #               scan_id, finding_ids, threshold, algorithm_version

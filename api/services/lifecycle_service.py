@@ -80,9 +80,7 @@ class LifecycleService:
                     (scan_id,),
                 )
                 if cur.fetchone() is not None:
-                    logger.info(
-                        "Scan %s already applied; skipping lifecycle update", scan_id
-                    )
+                    logger.info("Scan %s already applied; skipping lifecycle update", scan_id)
                     return
 
                 # --- Write durable per-rule outcome records -------------------
@@ -113,17 +111,13 @@ class LifecycleService:
 
                 # Build a lookup: rule_id -> outcome status
                 outcome_by_rule: Dict[str, str] = {
-                    o["rule_id"]: o["status"]
-                    for o in rule_outcomes
-                    if "rule_id" in o and "status" in o
+                    o["rule_id"]: o["status"] for o in rule_outcomes if "rule_id" in o and "status" in o
                 }
 
                 # Collect rule IDs that actively confirmed a clean result. Only
                 # these can trigger resolution of absent findings (fail-closed).
                 resolving_rule_ids = [
-                    rule_id
-                    for rule_id, status in outcome_by_rule.items()
-                    if status in _RESOLVING_STATUSES
+                    rule_id for rule_id, status in outcome_by_rule.items() if status in _RESOLVING_STATUSES
                 ]
 
                 # Build the set of fingerprints seen in this scan.
@@ -317,9 +311,7 @@ class LifecycleService:
 
         except Exception:
             db_conn.rollback()
-            logger.error(
-                "Lifecycle application rolled back for scan %s", scan_id, exc_info=True
-            )
+            logger.error("Lifecycle application rolled back for scan %s", scan_id, exc_info=True)
             raise
 
 
