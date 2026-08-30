@@ -10,6 +10,19 @@ logger = logging.getLogger(__name__)
 # Statuses that mean "we actively confirmed this rule was clean in the scan."
 _RESOLVING_STATUSES = frozenset({"SUCCESS", "EMPTY_SUCCESS"})
 
+# All statuses the DB constraint accepts. Any other value defaults to FAILED to
+# prevent a single malformed outcome from aborting the whole lifecycle transaction.
+_VALID_OUTCOME_STATUSES = frozenset(
+    {
+        "SUCCESS",
+        "EMPTY_SUCCESS",
+        "PERMISSION_DENIED",
+        "TIMEOUT",
+        "FAILED",
+        "NOT_APPLICABLE",
+    }
+)
+
 
 def _normalize_resource_id(resource_id: str) -> str:
     """Return a stable, lowercased, stripped version of an ARM resource ID."""
@@ -90,6 +103,13 @@ class LifecycleService:
                     status_o = outcome.get("status", "FAILED")
                     if not rule_id_o:
                         continue
+                    if status_o not in _VALID_OUTCOME_STATUSES:
+                        logger.warning(
+                            "Unknown outcome status %r for rule %s; defaulting to FAILED",
+                            status_o,
+                            rule_id_o,
+                        )
+                        status_o = "FAILED"
                     cur.execute(
                         """
                         INSERT INTO scan_rule_outcomes (
@@ -255,46 +275,45 @@ class LifecycleService:
                             )
 
                 # --- Resolve findings NOT seen in this scan -------------------
-                # Only process rules that had a resolving outcome (fail-closed).
-                if not resolving_rule_ids:
-                    pass
-                elif seen_fingerprint_ids:
-                    # Use != ALL(%s) with a list to avoid single-element tuple
-                    # syntax issues that occur with NOT IN %s.
-                    cur.execute(
-                        """
-                        SELECT fl.id, fl.state, fl.row_version, ff.rule_id
-                        FROM finding_lifecycles fl
-                        JOIN finding_fingerprints ff ON ff.id = fl.fingerprint_id
-                        WHERE ff.tenant_id = %s
-                          AND ff.subscription_id = %s
-                          AND fl.state IN ('OPEN', 'REOPENED')
-                          AND fl.fingerprint_id != ALL(%s)
-                          AND ff.rule_id = ANY(%s)
-                        FOR UPDATE OF fl
-                        """,
-                        (
-                            tenant_id,
-                            subscription_id,
-                            list(seen_fingerprint_ids),
-                            resolving_rule_ids,
-                        ),
-                    )
-                    _resolve_absent_rows(cur, scan_id, outcome_by_rule)
-                else:
-                    cur.execute(
-                        """
-                        SELECT fl.id, fl.state, fl.row_version, ff.rule_id
-                        FROM finding_lifecycles fl
-                        JOIN finding_fingerprints ff ON ff.id = fl.fingerprint_id
-                        WHERE ff.tenant_id = %s
-                          AND ff.subscription_id = %s
-                          AND fl.state IN ('OPEN', 'REOPENED')
-                          AND ff.rule_id = ANY(%s)
-                        FOR UPDATE OF fl
-                        """,
-                        (tenant_id, subscription_id, resolving_rule_ids),
-                    )
+                # Fail-closed: skip resolution entirely if no rule confirmed a
+                # clean result this scan (all outcomes were FAILED/PERMISSION_DENIED).
+                if resolving_rule_ids:
+                    if seen_fingerprint_ids:
+                        # Use != ALL(%s) with a list to avoid single-element tuple
+                        # syntax issues that occur with NOT IN %s.
+                        cur.execute(
+                            """
+                            SELECT fl.id, fl.state, fl.row_version, ff.rule_id
+                            FROM finding_lifecycles fl
+                            JOIN finding_fingerprints ff ON ff.id = fl.fingerprint_id
+                            WHERE ff.tenant_id = %s
+                              AND ff.subscription_id = %s
+                              AND fl.state IN ('OPEN', 'REOPENED')
+                              AND fl.fingerprint_id != ALL(%s)
+                              AND ff.rule_id = ANY(%s)
+                            FOR UPDATE OF fl
+                            """,
+                            (
+                                tenant_id,
+                                subscription_id,
+                                list(seen_fingerprint_ids),
+                                resolving_rule_ids,
+                            ),
+                        )
+                    else:
+                        cur.execute(
+                            """
+                            SELECT fl.id, fl.state, fl.row_version, ff.rule_id
+                            FROM finding_lifecycles fl
+                            JOIN finding_fingerprints ff ON ff.id = fl.fingerprint_id
+                            WHERE ff.tenant_id = %s
+                              AND ff.subscription_id = %s
+                              AND fl.state IN ('OPEN', 'REOPENED')
+                              AND ff.rule_id = ANY(%s)
+                            FOR UPDATE OF fl
+                            """,
+                            (tenant_id, subscription_id, resolving_rule_ids),
+                        )
                     _resolve_absent_rows(cur, scan_id, outcome_by_rule)
 
                 # --- Idempotency sentinel (inserted last) ---------------------
