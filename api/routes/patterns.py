@@ -11,9 +11,7 @@ from api.models.finding import DatabaseManager
 patterns_bp = Blueprint("patterns", __name__)
 logger = logging.getLogger(__name__)
 
-_ALLOWED_PATTERN_TYPES = frozenset(
-    {"persistent_finding", "cross_resource_recurrence", "reopened_finding"}
-)
+_ALLOWED_PATTERN_TYPES = frozenset({"persistent_finding", "cross_resource_recurrence", "reopened_finding"})
 _DEFAULT_LIMIT = 20
 _MAX_LIMIT = 100
 _MIN_LIMIT = 1

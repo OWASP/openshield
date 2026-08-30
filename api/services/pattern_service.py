@@ -127,16 +127,12 @@ class PatternService:
                 count += 1
 
             db_conn.commit()
-            logger.info(
-                "Pattern detection for scan %s: %d pattern(s) upserted", scan_id, count
-            )
+            logger.info("Pattern detection for scan %s: %d pattern(s) upserted", scan_id, count)
             return count
 
         except Exception:
             db_conn.rollback()
-            logger.error(
-                "Pattern detection rolled back for scan %s", scan_id, exc_info=True
-            )
+            logger.error("Pattern detection rolled back for scan %s", scan_id, exc_info=True)
             raise
 
 

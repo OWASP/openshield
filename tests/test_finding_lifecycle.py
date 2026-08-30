@@ -166,12 +166,18 @@ class TestLifecycleServiceIdempotency:
 
         svc = LifecycleService()
         svc.apply_scan(
-            _TrackingConn(False), SCAN_ID_1, SUB_ID, TENANT_ID,
+            _TrackingConn(False),
+            SCAN_ID_1,
+            SUB_ID,
+            TENANT_ID,
             [_make_outcome("RULE-001", "SUCCESS")],
             [_make_finding("RULE-001", "/rg/foo")],
         )
         svc.apply_scan(
-            _TrackingConn(True), SCAN_ID_1, SUB_ID, TENANT_ID,
+            _TrackingConn(True),
+            SCAN_ID_1,
+            SUB_ID,
+            TENANT_ID,
             [_make_outcome("RULE-001", "SUCCESS")],
             [_make_finding("RULE-001", "/rg/foo")],
         )
@@ -307,13 +313,13 @@ class TestLifecycleStateTransitions:
         # 6. transition insert -> None
         # 7. idempotency insert -> None
         results = [
-            None,                                        # idempotency check
-            None,                                        # scan_rule_outcomes RULE-001
-            None,                                        # scan_rule_outcomes RULE-002
-            [(10, "OPEN", 0, "RULE-001")],               # absent-findings query
-            None,                                        # UPDATE RESOLVED
-            None,                                        # transition insert
-            None,                                        # idempotency insert
+            None,  # idempotency check
+            None,  # scan_rule_outcomes RULE-001
+            None,  # scan_rule_outcomes RULE-002
+            [(10, "OPEN", 0, "RULE-001")],  # absent-findings query
+            None,  # UPDATE RESOLVED
+            None,  # transition insert
+            None,  # idempotency insert
         ]
         conn = self._run(
             results,
@@ -351,10 +357,7 @@ class TestLifecycleStateTransitions:
         sqls = self._all_sql(conn)
 
         # No transition record should be emitted for REOPENED->REOPENED.
-        transition_to_reopened = [
-            s for s in sqls
-            if "finding_lifecycle_transitions" in s and "REOPENED" in s
-        ]
+        transition_to_reopened = [s for s in sqls if "finding_lifecycle_transitions" in s and "REOPENED" in s]
         assert not transition_to_reopened
 
         # occurrence_count should increment.
