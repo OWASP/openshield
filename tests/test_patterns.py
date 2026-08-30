@@ -4,8 +4,6 @@ Pattern detection tests use a mocked DB; route tests use the Flask test client
 with mocked database queries.
 """
 
-import json
-import os
 import secrets
 import time
 from unittest.mock import MagicMock, patch
