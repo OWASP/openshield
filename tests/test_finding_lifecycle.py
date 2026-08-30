@@ -338,6 +338,29 @@ class TestLifecycleStateTransitions:
         assert "RULE-001" in resolving_ids
         assert "RULE-002" not in resolving_ids
 
+    def test_reopened_finding_absent_from_success_scan_is_resolved(self):
+        # REOPENED finding not seen in a SUCCESS scan must transition to RESOLVED.
+        # 1. idempotency -> None
+        # 2. scan_rule_outcomes insert -> None
+        # 3. absent-findings query (empty seen_ids branch) -> [(10,'REOPENED',0,'RULE-001')]
+        # 4. UPDATE to RESOLVED -> None
+        # 5. transition insert (REOPENED -> RESOLVED) -> None
+        # 6. idempotency insert -> None
+        results = [
+            None,
+            None,
+            [(10, "REOPENED", 0, "RULE-001")],
+            None,
+            None,
+            None,
+        ]
+        conn = self._run(results, [], [_make_outcome("RULE-001", "SUCCESS")])
+        assert conn.committed
+        sqls = self._all_sql(conn)
+        assert any("RESOLVED" in s and "UPDATE" in s.upper() for s in sqls)
+        # Transition from REOPENED to RESOLVED must be recorded.
+        assert any("finding_lifecycle_transitions" in s and "REOPENED" in s and "RESOLVED" in s for s in sqls)
+
     def test_reopened_finding_seen_again_increments_occurrence_stays_reopened(self):
         # REOPENED + seen in scan: occurrence_count increments, no new state transition.
         # 1. idempotency -> None
