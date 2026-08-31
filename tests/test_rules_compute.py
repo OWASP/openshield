@@ -609,7 +609,7 @@ def _net_config(name, has_public_ip, has_nsg, subnet_id=None):
     )
 
 
-def _subnet_id(vnet_name, subnet_name):
+def _vnet_subnet_id(vnet_name, subnet_name):
     return (
         f"/subscriptions/{_SUB}/resourceGroups/{_RG}/providers/Microsoft.Network/"
         f"virtualNetworks/{vnet_name}/subnets/{subnet_name}"
@@ -653,7 +653,7 @@ def test_cmp_006_compliant_no_public_ip_returns_no_findings(mock_azure, subscrip
 def test_cmp_006_noncompliant_public_ip_no_nsg_returns_one_finding(mock_azure, subscription_id):
     """A network config with a public IP, no NIC NSG, and a resolved subnet confirmed to
     have no NSG either, must produce exactly one confirmed HIGH finding."""
-    subnet_id = _subnet_id("vnet1", "subnet1")
+    subnet_id = _vnet_subnet_id("vnet1", "subnet1")
     vmss = _vmss(
         "vmss-exposed",
         [_net_config("nic-config", has_public_ip=True, has_nsg=False, subnet_id=subnet_id)],
@@ -701,7 +701,7 @@ def test_cmp_006_compliant_subnet_level_nsg_returns_no_findings(mock_azure, subs
     interface configuration with no network_security_group of its own is
     still compliant if the subnet it deploys into has one.
     """
-    subnet_id = _subnet_id("vnet1", "subnet1")
+    subnet_id = _vnet_subnet_id("vnet1", "subnet1")
     vmss = _vmss(
         "vmss-subnet-protected",
         [_net_config("nic-config", has_public_ip=True, has_nsg=False, subnet_id=subnet_id)],
@@ -713,7 +713,7 @@ def test_cmp_006_compliant_subnet_level_nsg_returns_no_findings(mock_azure, subs
 
 def test_cmp_006_noncompliant_no_nic_or_subnet_nsg_returns_one_finding(mock_azure, subscription_id):
     """Neither a NIC-level nor a resolved subnet-level NSG must still be flagged as confirmed."""
-    subnet_id = _subnet_id("vnet1", "subnet1")
+    subnet_id = _vnet_subnet_id("vnet1", "subnet1")
     vmss = _vmss(
         "vmss-fully-exposed",
         [_net_config("nic-config", has_public_ip=True, has_nsg=False, subnet_id=subnet_id)],
@@ -738,7 +738,7 @@ def test_cmp_006_unresolved_subnet_returns_indeterminate_not_confirmed(mock_azur
     that identically to a resolved subnet confirmed to have no NSG, wrongly
     re-flagging an already-protected VMSS as a definite HIGH violation.
     """
-    subnet_id = _subnet_id("vnet1", "subnet1")
+    subnet_id = _vnet_subnet_id("vnet1", "subnet1")
     vmss = _vmss(
         "vmss-unresolved-subnet",
         [_net_config("nic-config", has_public_ip=True, has_nsg=False, subnet_id=subnet_id)],
@@ -755,7 +755,7 @@ def test_cmp_006_unresolved_subnet_returns_indeterminate_not_confirmed(mock_azur
 
 def test_cmp_006_compliant_subnet_match_is_case_insensitive(mock_azure, subscription_id):
     """Subnet ID matching must not miss a match purely due to casing differences."""
-    subnet_id_upper = _subnet_id("VNET1", "SUBNET1")
+    subnet_id_upper = _vnet_subnet_id("VNET1", "SUBNET1")
     vmss = _vmss(
         "vmss-case-mismatch",
         [_net_config("nic-config", has_public_ip=True, has_nsg=False, subnet_id=subnet_id_upper)],
