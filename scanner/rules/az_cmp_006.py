@@ -45,7 +45,7 @@ INDETERMINATE_REMEDIATION = (
 logger = logging.getLogger(__name__)
 
 
-def _subnet_nsg_map(azure_client: Any) -> Dict[str, bool]:
+def _subnet_nsg_map(vnets: List[Any]) -> Dict[str, bool]:
     """Map subnet resource ID (lowercased) -> whether that subnet has an NSG attached.
 
     A VMSS network interface configuration only references its subnet by ID
@@ -56,7 +56,7 @@ def _subnet_nsg_map(azure_client: Any) -> Dict[str, bool]:
     lowercase to avoid missing a match on casing differences alone.
     """
     subnet_nsgs: Dict[str, bool] = {}
-    for vnet in azure_client.get_virtual_networks():
+    for vnet in vnets:
         for subnet in getattr(vnet, "subnets", []) or []:
             subnet_id = getattr(subnet, "id", None)
             if subnet_id:
@@ -77,7 +77,14 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
     """Detect VM Scale Sets whose network interface configuration has a public IP
     but no NSG protecting it, at either the NIC or the subnet level."""
     findings: List[Dict[str, Any]] = []
-    subnet_nsgs = _subnet_nsg_map(azure_client)
+    vnets = azure_client.get_virtual_networks()
+    subnet_nsgs = _subnet_nsg_map(vnets)
+    # get_virtual_networks() returns [] on a genuinely empty subscription and on
+    # collection failure alike, so this can't tell the two apart on its own —
+    # but reporting the raw count lets an operator spot the pattern (many
+    # indeterminate findings, always vnets_collected: 0) and escalate instead
+    # of it silently reading as "checked, subnet just has no NSG."
+    vnets_collected = len(vnets)
 
     for vmss in azure_client.get_virtual_machine_scale_sets():
         vmss_id = getattr(vmss, "id", "")
@@ -93,13 +100,19 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
         net_configs = getattr(network_profile, "network_interface_configurations", []) or []
         for net_config in net_configs:
             ip_configs = getattr(net_config, "ip_configurations", []) or []
-            has_public_ip = any(getattr(ip_cfg, "public_ip_address_configuration", None) for ip_cfg in ip_configs)
+            # Only an ip_configuration that itself carries a public IP is
+            # internet-reachable. A non-primary ip_config with no public IP
+            # contributes nothing to exposure, so its subnet must not be
+            # allowed to force a finding on an otherwise-compliant net_config.
+            public_ip_configs = [
+                ip_cfg for ip_cfg in ip_configs if getattr(ip_cfg, "public_ip_address_configuration", None)
+            ]
             has_nic_nsg = bool(getattr(net_config, "network_security_group", None))
 
-            if not has_public_ip or has_nic_nsg:
+            if not public_ip_configs or has_nic_nsg:
                 continue
 
-            subnet_statuses = [_subnet_nsg_status(subnet_nsgs, ip_cfg) for ip_cfg in ip_configs]
+            subnet_statuses = [_subnet_nsg_status(subnet_nsgs, ip_cfg) for ip_cfg in public_ip_configs]
             has_subnet_nsg = any(status is True for status in subnet_statuses)
             if has_subnet_nsg:
                 continue  # protected at the subnet level, compliant
@@ -108,6 +121,14 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
             confirmed = not has_unresolved_subnet
 
             parsed = azure_client.parse_resource_id(vmss_id)
+            metadata = {
+                "resource_group": parsed.get("resource_group", ""),
+                "location": getattr(vmss, "location", ""),
+                "network_interface_configuration": getattr(net_config, "name", ""),
+                "determination": "non_compliant" if confirmed else "indeterminate",
+            }
+            if not confirmed:
+                metadata["vnets_collected"] = vnets_collected
             findings.append(
                 {
                     "rule_id": RULE_ID,
@@ -121,14 +142,10 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
                     "remediation": REMEDIATION if confirmed else INDETERMINATE_REMEDIATION,
                     "playbook": PLAYBOOK,
                     "frameworks": FRAMEWORKS,
-                    "metadata": {
-                        "resource_group": parsed.get("resource_group", ""),
-                        "location": getattr(vmss, "location", ""),
-                        "network_interface_configuration": getattr(net_config, "name", ""),
-                        "determination": "non_compliant" if confirmed else "indeterminate",
-                    },
+                    "metadata": metadata,
                 }
             )
-            break  # one finding per VMSS is sufficient
+            # No break: every exposed net_config on this VMSS must be its own
+            # finding, or remediators only ever see the first of several.
 
     return findings

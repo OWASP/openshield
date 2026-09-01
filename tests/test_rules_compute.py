@@ -597,14 +597,20 @@ def test_cmp_007_subnet_level_nsg_exposure_is_flagged(mock_azure, subscription_i
 # ── AZ-CMP-006: VMSS public IP with no NSG on the network profile ──────────
 
 
-def _net_config(name, has_public_ip, has_nsg, subnet_id=None):
-    ip_cfg = make_resource(
+def _ip_config(has_public_ip, subnet_id=None):
+    return make_resource(
         public_ip_address_configuration=make_resource(name="pip-cfg") if has_public_ip else None,
         subnet=make_resource(id=subnet_id) if subnet_id else None,
     )
+
+
+def _net_config(name, has_public_ip, has_nsg, subnet_id=None, extra_ip_configs=None):
+    ip_configs = [_ip_config(has_public_ip, subnet_id)]
+    if extra_ip_configs:
+        ip_configs.extend(extra_ip_configs)
     return make_resource(
         name=name,
-        ip_configurations=[ip_cfg],
+        ip_configurations=ip_configs,
         network_security_group=make_resource(id="nsg1") if has_nsg else None,
     )
 
@@ -680,7 +686,7 @@ def test_cmp_006_missing_network_profile_returns_no_findings(mock_azure, subscri
 
 
 def test_cmp_006_one_bad_config_among_several_returns_one_finding(mock_azure, subscription_id):
-    """Multiple network configs on one VMSS still produce exactly one finding (break after first)."""
+    """A compliant config alongside one bad config produces exactly one finding, for the bad one."""
     vmss = _vmss(
         "vmss-mixed",
         [
@@ -692,6 +698,61 @@ def test_cmp_006_one_bad_config_among_several_returns_one_finding(mock_azure, su
     findings = az_cmp_006.scan(mock_azure, subscription_id)
     assert len(findings) == 1
     assert findings[0]["resource_name"] == "vmss-mixed"
+    assert findings[0]["metadata"]["network_interface_configuration"] == "nic-config-bad"
+
+
+def test_cmp_006_multiple_bad_configs_each_reported(mock_azure, subscription_id):
+    """A VMSS with several exposed network interface configurations must report every one of
+    them, not just the first (regression: scan() used to `break` after the first match,
+    silently hiding every other exposed attack surface on the same VMSS)."""
+    vmss = _vmss(
+        "vmss-multi-exposed",
+        [
+            _net_config("nic-config-bad-1", has_public_ip=True, has_nsg=False),
+            _net_config("nic-config-ok", has_public_ip=True, has_nsg=True),
+            _net_config("nic-config-bad-2", has_public_ip=True, has_nsg=False),
+        ],
+    )
+    mock_azure.set_virtual_machine_scale_sets([vmss])
+    findings = az_cmp_006.scan(mock_azure, subscription_id)
+    assert len(findings) == 2
+    flagged = {f["metadata"]["network_interface_configuration"] for f in findings}
+    assert flagged == {"nic-config-bad-1", "nic-config-bad-2"}
+
+
+def test_cmp_006_non_primary_ip_config_without_public_ip_is_not_checked(mock_azure, subscription_id):
+    """A non-primary ip_configuration with no public IP must not force a finding just because
+    its subnet is unresolved or unprotected (regression: the old code checked the subnet of
+    every ip_configuration on the net_config, not only the ones that are actually internet
+    -reachable, producing a false HIGH on a compliant net_config)."""
+    unresolved_subnet_id = _vnet_subnet_id("vnet1", "subnet-private")
+    net_config = _net_config(
+        "nic-config",
+        has_public_ip=True,
+        has_nsg=True,  # the actual public ip_config is protected at the NIC level
+        extra_ip_configs=[_ip_config(has_public_ip=False, subnet_id=unresolved_subnet_id)],
+    )
+    vmss = _vmss("vmss-non-primary-private", [net_config])
+    mock_azure.set_virtual_machine_scale_sets([vmss])
+    mock_azure.set_virtual_networks([])  # the non-primary config's subnet is unresolved
+    assert az_cmp_006.scan(mock_azure, subscription_id) == []
+
+
+def test_cmp_006_indeterminate_finding_reports_vnets_collected_count(mock_azure, subscription_id):
+    """An indeterminate finding must surface how many VNets were actually collected, so a
+    persistent zero across many findings is visible as a collection problem instead of
+    reading as an ordinary per-subnet indeterminate result."""
+    subnet_id = _vnet_subnet_id("vnet1", "subnet1")
+    vmss = _vmss(
+        "vmss-degraded-collection",
+        [_net_config("nic-config", has_public_ip=True, has_nsg=False, subnet_id=subnet_id)],
+    )
+    mock_azure.set_virtual_machine_scale_sets([vmss])
+    mock_azure.set_virtual_networks([])
+    findings = az_cmp_006.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["metadata"]["determination"] == "indeterminate"
+    assert findings[0]["metadata"]["vnets_collected"] == 0
 
 
 def test_cmp_006_compliant_subnet_level_nsg_returns_no_findings(mock_azure, subscription_id):
