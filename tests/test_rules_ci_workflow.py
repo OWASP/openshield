@@ -247,6 +247,28 @@ jobs:
       - run: ./ci/build.sh
 """
 
+# workflow_run that checks out untrusted head_sha
+WORKFLOW_RUN_CHECKOUT = """
+name: Workflow Run Checkout
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - run: ./deploy.sh
+"""
+
+# Repository with restricted default permissions (read-only)
+RESTRICTED_DEFAULT_PERMISSIONS = "read"
+
 SAFE_PRT_WORKFLOW = """
 name: Safe PRT
 on:
@@ -474,6 +496,22 @@ class TestAzCi002:
         assert len(findings) == 1, "Job-level write-all override must be flagged"
         assert findings[0]["rule_id"] == "AZ-CI-002"
 
+    def test_no_permissions_with_restricted_repo_default_no_finding(self):
+        """Workflow with no permissions block + repo default=read must not flag."""
+        mock_repo_info = {"default_workflow_permissions": RESTRICTED_DEFAULT_PERMISSIONS}
+        client = _make_client(contents=NO_PERMISSIONS_WORKFLOW)
+        client.get_repo_info = lambda: mock_repo_info
+        findings = az_ci_002.scan(client, OWNER, REPO)
+        assert findings == [], "Restricted repo default must suppress broad-permissions finding"
+
+    def test_no_permissions_unknown_repo_default_returns_finding(self):
+        """Workflow with no permissions block + unavailable repo default returns UNKNOWN finding."""
+        client = _make_client(contents=NO_PERMISSIONS_WORKFLOW)
+        client.get_repo_info = lambda: None
+        findings = az_ci_002.scan(client, OWNER, REPO)
+        assert len(findings) == 1
+        assert findings[0]["metadata"]["effective_permissions"] == "UNKNOWN"
+
 
 class TestAzCi003:
     def test_unpinned_actions_returns_finding(self):
@@ -571,6 +609,14 @@ class TestAzCi004:
         findings = az_ci_004.scan(client, OWNER, REPO)
         assert findings == [], "Base-ref checkout with head.sha in run step must not flag"
 
+    def test_workflow_run_head_sha_checkout_returns_finding(self):
+        """workflow_run trigger + checkout of head_sha must flag as pwn-request risk."""
+        client = _make_client(contents=WORKFLOW_RUN_CHECKOUT)
+        findings = az_ci_004.scan(client, OWNER, REPO)
+        assert len(findings) == 1, "workflow_run + head_sha checkout must flag"
+        assert findings[0]["rule_id"] == "AZ-CI-004"
+        assert "workflow_run" in findings[0]["metadata"]["dangerous_triggers"]
+
 
 class TestGitHubClient:
     def test_init_sets_owner_repo(self):
@@ -609,3 +655,90 @@ class TestGitHubClient:
         with patch.object(client, "_get", return_value=None):
             result = client.get_workflow_content(".github/workflows/ci.yml")
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# CIScanEngine tests
+# ---------------------------------------------------------------------------
+
+
+class TestCIScanEngine:
+    """Tests for scanner/ci_engine.py PASS/FAIL/UNKNOWN evaluation contract."""
+
+    def _make_engine(self, contents=None, workflows=None, repo_info=None):
+        from scanner.ci_engine import CIScanEngine
+
+        engine = CIScanEngine(owner=OWNER, repo=REPO, token="test-token")
+        if workflows is None:
+            engine.client.get_workflows = lambda: [{"path": ".github/workflows/ci.yml"}]
+        else:
+            engine.client.get_workflows = lambda: workflows
+        if contents is None:
+            engine.client.get_workflow_content = lambda p: SECURE_WORKFLOW
+        else:
+            engine.client.get_workflow_content = lambda p: contents
+        engine.client.get_repo_info = lambda: repo_info or {}
+        return engine
+
+    def test_secure_workflow_returns_all_pass(self):
+        """A fully compliant workflow returns PASS for all 4 rules."""
+        from scanner.evaluation import EvaluationStatus
+
+        engine = self._make_engine(contents=PINNED_ACTIONS_WORKFLOW)
+        results = engine.run_scan()
+        statuses = {r.status for r in results}
+        assert EvaluationStatus.FAIL not in statuses
+        assert EvaluationStatus.PASS in statuses
+
+    def test_insecure_workflow_returns_fail(self):
+        """A workflow with long-lived creds returns at least one FAIL."""
+        from scanner.evaluation import EvaluationStatus
+
+        engine = self._make_engine(contents=INSECURE_LONG_LIVED_CREDS)
+        results = engine.run_scan()
+        assert any(r.status == EvaluationStatus.FAIL for r in results)
+        fail = next(r for r in results if r.status == EvaluationStatus.FAIL)
+        assert fail.rule_id == "AZ-CI-001"
+
+    def test_unavailable_workflows_returns_unknown(self):
+        """When get_workflows returns None all rules emit UNKNOWN."""
+        from scanner.evaluation import EvaluationStatus
+
+        engine = self._make_engine()
+        engine.client.get_workflows = lambda: None
+        results = engine.run_scan()
+        assert all(r.status == EvaluationStatus.UNKNOWN for r in results)
+        assert all(r.reason_code == "WORKFLOWS_UNAVAILABLE" for r in results)
+
+    def test_empty_repo_returns_not_applicable(self):
+        """A repo with no workflows returns NOT_APPLICABLE for all rules."""
+        from scanner.evaluation import EvaluationStatus
+
+        engine = self._make_engine(workflows=[])
+        results = engine.run_scan()
+        assert all(r.status == EvaluationStatus.NOT_APPLICABLE for r in results)
+
+    def test_unreadable_workflow_returns_unknown(self):
+        """A workflow file that cannot be read returns UNKNOWN per rule."""
+        from scanner.evaluation import EvaluationStatus
+
+        engine = self._make_engine()
+        engine.client.get_workflow_content = lambda p: None
+        results = engine.run_scan()
+        assert any(r.status == EvaluationStatus.UNKNOWN for r in results)
+        unknown = [r for r in results if r.status == EvaluationStatus.UNKNOWN]
+        assert all(r.reason_code == "WORKFLOW_CONTENT_UNAVAILABLE" for r in unknown)
+
+    def test_evaluations_have_correct_resource_ids(self):
+        """Resource IDs follow the github/owner/repo/workflows/path pattern."""
+        engine = self._make_engine(contents=SECURE_WORKFLOW)
+        results = engine.run_scan()
+        for r in results:
+            assert r.resource_id.startswith(f"github/{OWNER}/{REPO}")
+
+    def test_four_rules_evaluated(self):
+        """All 4 AZ-CI-* rules produce evaluations."""
+        engine = self._make_engine(contents=SECURE_WORKFLOW)
+        results = engine.run_scan()
+        rule_ids = {r.rule_id for r in results}
+        assert rule_ids == {"AZ-CI-001", "AZ-CI-002", "AZ-CI-003", "AZ-CI-004"}
