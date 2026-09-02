@@ -40,6 +40,9 @@ _PR_HEAD_REF_PATTERNS = (
     "github.event.pull_request.head.ref",
     "github.head_ref",
     "GITHUB_HEAD_REF",
+    # workflow_run: checkout of the triggering run's untrusted head
+    "github.event.workflow_run.head_sha",
+    "github.event.workflow_run.head_branch",
 )
 
 
