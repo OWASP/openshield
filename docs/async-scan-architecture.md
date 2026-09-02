@@ -33,19 +33,31 @@ credentials or persistent Azure errors cannot retry forever.
 Findings use a stable database-enforced identity (`scan`, rule, canonical
 resource scope, and an optional rule-specific discriminator). Result retries
 use PostgreSQL upserts, so mutable text or severity is updated rather than
-creating a second authoritative finding. Rule evaluations use the same
-database-first uniqueness model.
+creating a second authoritative finding. Per-resource rule evaluations are a
+separate contract (issue #263) and are not persisted by this architecture yet;
+when they land, they are written inside the same fenced completion transaction
+and inherit its ownership check.
 
 ### 3. The Worker (Python)
-The scanner/worker.py process runs independently of the web server. It atomically claims a pending scan, starts a dedicated lease-heartbeat connection, and invokes `ScanEngine.run_scan(scan_id)`. Completion and failure are fenced database transactions: they only succeed when the current worker still owns the same unexpired token. On success, it persists findings, evaluations, and one durable enrichment job atomically. On failure, it records a sanitized error only while it still owns the lease.
+The scanner/worker.py process runs independently of the web server. It atomically claims a pending scan, starts a dedicated lease-heartbeat connection, and invokes `ScanEngine.run_scan(scan_id)`. Completion and failure are fenced database transactions: they only succeed when the current worker still owns the same unexpired token. On success, it persists findings and one durable enrichment job atomically. On failure, it records a sanitized error only while it still owns the lease.
 
 ### Durable CVE enrichment
 
 `POST /api/scans/<scan_id>/enrich` enqueues (or returns) the one durable PostgreSQL enrichment job for the scan; it never starts a request-owned daemon thread. The scan worker claims those jobs with the same owner/expiry/fencing model, checkpoints after each finding, and retries transient failures with bounded exponential backoff. An expired job is recovered or terminally failed after its attempt limit. NVD retrieval follows every `totalResults` page; replaying a checkpoint updates the existing finding instead of duplicating CVE data.
 
+A job that exhausts its retries becomes `failed`. Re-POSTing the endpoint is the supported recovery path: it atomically returns that job to `pending` with a fresh retry budget while keeping the same job row, its last `error_message`, and its `checkpoint`. A `running` job with a live lease is never disturbed by a re-POST — only lease expiry can move it — and a `completed` job is never restarted. See [api-reference.md](api-reference.md) for the exact response contract.
+
+### Worker scheduling
+
+One worker process serves both durable queues. Each loop iteration takes **at most one** enrichment job and **at most one** scan, so neither queue can starve the other no matter how deep either gets: a large enrichment backlog delays scans by one job per iteration rather than blocking them until it drains. An iteration that did any work polls again immediately; only a completely idle iteration sleeps for the poll interval.
+
 ### Operational signals
 
 `/metrics` derives bounded-cardinality operational gauges from PostgreSQL: worker heartbeat age, oldest queue age, oldest active lease age, aggregate retry attempts, and the last successful scan timestamp. Labels are limited to `queue` (`scan` or `enrichment`) and `worker_type`; scan, job, subscription, and worker identifiers are never metric labels.
+
+These gauges are recomputed on every scrape rather than cached. The queue, lease and heartbeat aggregates are served by partial indexes and touch only active rows; the last-successful-scan lookup is served by a partial index on completed scans. The two `retry_attempts` sums scan their whole table and therefore grow with scan history — acceptable at current volumes, and the thing to revisit first (a short-TTL in-process cache) if `/metrics` scrape latency ever becomes visible.
+
+Worker identities are per-process, so `worker_heartbeats` would otherwise gain a permanent row on every restart. Rows older than `WORKER_HEARTBEAT_RETENTION_SECONDS` (default 7 days) are pruned on the heartbeat that registers a new worker identity — once per worker process, never on every beat. Retention is far longer than any heartbeat interval, so a live worker is never pruned.
 
 ## Technical Rationale
 
@@ -61,6 +73,31 @@ This release is not safe for mixed old and new scan workers. Stop or drain old
 workers, apply Alembic migrations, then start the fenced worker version. Legacy
 workers do not carry ownership/fencing state; legacy running scans are retained
 and made recoverable by the lease migration rather than deleted.
+
+### Migration prerequisite: one active scan per subscription
+
+`a7c5e9d2f1b4` adds the unique index that enforces one `pending`/`running` scan
+per subscription. A deployment that predates that rule may already hold several,
+in which case the migration **stops before creating any index** and names the
+offending subscriptions:
+
+```
+Cannot enforce one active scan per subscription: 1 subscription(s) already have
+more than one pending/running scan: <subscription-id> (2 active). ...
+```
+
+Nothing is changed when this happens — the migration will not decide which of
+your production scans is authoritative. Resolve it, then re-run:
+
+1. Drain the old workers first (step 1 above), so no new active scans appear.
+2. Let the in-flight scans finish, or mark the superseded rows `failed`
+   (`UPDATE scans SET status = 'failed', error_message = '...' WHERE scan_id = ...`).
+   Never delete the rows: scan history is retained, and only `pending`/`running`
+   rows are constrained — any number of `completed`/`failed` scans per
+   subscription remains valid.
+3. Re-run `alembic upgrade head`. A retry is safe: the migration drops the
+   INVALID index that an interrupted `CREATE INDEX CONCURRENTLY` leaves behind
+   before rebuilding it.
 
 ## Testing Suite
 

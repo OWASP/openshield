@@ -13,7 +13,11 @@ import traceback
 import uuid
 from datetime import datetime, timezone
 
-from api.models.finding import DatabaseManager, LostLease
+from api.models.finding import (
+    DEFAULT_WORKER_HEARTBEAT_RETENTION_SECONDS,
+    DatabaseManager,
+    LostLease,
+)
 from api.observability import (
     PENDING_SCANS,
     SCAN_DURATION_SECONDS,
@@ -139,14 +143,17 @@ def run_worker():
     db = DatabaseManager(db_url)
     worker_id = str(uuid.uuid4())
     lease_seconds, heartbeat_seconds = lease_configuration()
+    heartbeat_retention_seconds = _positive_seconds(
+        "WORKER_HEARTBEAT_RETENTION_SECONDS", DEFAULT_WORKER_HEARTBEAT_RETENTION_SECONDS
+    )
     logger.info("OpenShield Background Worker started. Polling every %ds", POLL_INTERVAL_SECONDS)
 
     while True:
         try:
-            db.record_worker_heartbeat(worker_id, "scan")
+            db.record_worker_heartbeat(worker_id, "scan", heartbeat_retention_seconds)
             # This process executes both durable queue types; record both
             # liveness signals without exporting the worker UUID as a label.
-            db.record_worker_heartbeat(worker_id, "enrichment")
+            db.record_worker_heartbeat(worker_id, "enrichment", heartbeat_retention_seconds)
             # 1. Cleanup stale scans from previous crashes
             db.recover_stale_scans()
             db.recover_stale_enrichment_jobs()
@@ -154,16 +161,22 @@ def run_worker():
             # 2. Publish current queue depth
             PENDING_SCANS.set(len(db.get_pending_scans()))
 
-            # 3. Run one durable enrichment job before taking another scan.
+            # 3. Take at most one job from each durable queue per iteration.
+            #    Draining enrichment first and restarting the loop would let a
+            #    sustained enrichment backlog hold off every pending scan, so
+            #    the two queues alternate instead: neither can starve the
+            #    other regardless of how deep either one gets.
             enrichment_job = db.claim_next_enrichment_job(worker_id, lease_seconds)
             if enrichment_job:
                 process_enrichment_job(db, enrichment_job, worker_id, lease_seconds)
-                continue
 
             # 4. Atomic scan claim
             scan = db.claim_next_pending_scan(worker_id, lease_seconds)
             if not scan:
-                time.sleep(POLL_INTERVAL_SECONDS)
+                # Only idle when there was no work at all; an iteration that
+                # ran an enrichment job polls again immediately.
+                if not enrichment_job:
+                    time.sleep(POLL_INTERVAL_SECONDS)
                 continue
 
             scan_id = str(scan["scan_id"])

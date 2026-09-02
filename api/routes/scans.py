@@ -169,6 +169,14 @@ def trigger_scan():
         return jsonify({"error": "Critical route failure"}), 500
 
 
+_ENRICH_MESSAGES = {
+    "created": "CVE enrichment queued; poll GET /api/scans/<scan_id> for completion.",
+    "requeued": "Previously failed enrichment job requeued; poll GET /api/scans/<scan_id> for completion.",
+    "active": "Existing enrichment job returned.",
+    "completed": "Scan already enriched",
+}
+
+
 @scans_bp.post("/api/scans/<scan_id>/enrich")
 def enrich_scan(scan_id):
     """Enqueue durable CVE enrichment; no request-owned thread is created."""
@@ -188,25 +196,17 @@ def enrich_scan(scan_id):
         if not findings:
             return jsonify({"error": "No findings found for this scan"}), 404
 
-        job, created = db.enqueue_enrichment_job(scan_id)
-        if not created:
-            return jsonify(
-                {
-                    "job_id": str(job["job_id"]),
-                    "scan_id": scan_id,
-                    "status": job["status"],
-                    "message": "Existing enrichment job returned.",
-                }
-            ), 202
-
-        return jsonify(
-            {
-                "scan_id": scan_id,
-                "job_id": str(job["job_id"]),
-                "status": "PENDING",
-                "message": "CVE enrichment queued; poll GET /api/scans/<scan_id> for completion.",
-            }
-        ), 202
+        job, outcome = db.enqueue_enrichment_job(scan_id)
+        body = {
+            "scan_id": scan_id,
+            "job_id": str(job["job_id"]),
+            "status": job["status"],
+            "outcome": outcome,
+            "message": _ENRICH_MESSAGES[outcome],
+        }
+        # A job that already finished is reported as-is rather than restarted;
+        # every other outcome leaves exactly one queued or running job.
+        return jsonify(body), 200 if outcome == "completed" else 202
 
     except ValidationError:
         return jsonify({"error": VALIDATION_ERROR_MESSAGE}), 400

@@ -31,8 +31,22 @@ def upgrade() -> None:
         "idx_worker_heartbeats_type_seen", "worker_heartbeats", ["worker_type", "last_seen_at"], unique=False
     )
 
+    # /metrics reports the last successful scan on every scrape. Without this
+    # the aggregate degrades into a sequential scan of the whole scans table as
+    # scan history grows; the partial index keeps it an index-only lookup.
+    with op.get_context().autocommit_block():
+        op.execute(
+            """
+            CREATE INDEX CONCURRENTLY idx_scans_completed_completed_at
+            ON scans (completed_at DESC)
+            WHERE status = 'completed'
+            """
+        )
+
 
 def downgrade() -> None:
     """Remove durable worker heartbeat state."""
+    with op.get_context().autocommit_block():
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_scans_completed_completed_at")
     op.drop_index("idx_worker_heartbeats_type_seen", table_name="worker_heartbeats")
     op.drop_table("worker_heartbeats")
