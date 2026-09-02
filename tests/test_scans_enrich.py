@@ -18,24 +18,54 @@ def _mock_db(current_scan=None, findings=None):
 def test_enrich_returns_202_and_enqueues_durable_job(client, auth_headers):
     scan = {"scan_id": _SCAN_ID, "cve_enrichment_status": "PENDING"}
     db = _mock_db(current_scan=scan, findings=[{"id": 1, "rule_id": "AZ-STOR-001"}])
-    db.enqueue_enrichment_job.return_value = ({"job_id": _SCAN_ID, "status": "pending"}, True)
+    db.enqueue_enrichment_job.return_value = ({"job_id": _SCAN_ID, "status": "pending"}, "created")
 
     with patch.object(scans_route, "_get_db", return_value=db):
         resp = client.post(f"/api/scans/{_SCAN_ID}/enrich", headers=auth_headers)
 
     assert resp.status_code == 202
-    assert resp.get_json()["status"] == "PENDING"
+    body = resp.get_json()
+    assert body["outcome"] == "created"
+    assert body["status"] == "pending"
+    assert body["job_id"] == _SCAN_ID
     db.enqueue_enrichment_job.assert_called_once_with(_SCAN_ID)
 
 
 def test_enrich_reuses_existing_durable_job(client, auth_headers):
     scan = {"scan_id": _SCAN_ID, "cve_enrichment_status": "PENDING"}
     db = _mock_db(current_scan=scan, findings=[{"id": 1}])
-    db.enqueue_enrichment_job.return_value = ({"job_id": _SCAN_ID, "status": "running"}, False)
+    db.enqueue_enrichment_job.return_value = ({"job_id": _SCAN_ID, "status": "running"}, "active")
     with patch.object(scans_route, "_get_db", return_value=db):
         resp = client.post(f"/api/scans/{_SCAN_ID}/enrich", headers=auth_headers)
     assert resp.status_code == 202
-    assert resp.get_json()["status"] == "running"
+    body = resp.get_json()
+    assert body["outcome"] == "active"
+    assert body["status"] == "running"
+
+
+def test_enrich_requeues_a_terminally_failed_job(client, auth_headers):
+    """A failed job is the case a re-POST exists to recover from."""
+    scan = {"scan_id": _SCAN_ID, "cve_enrichment_status": "FAILED"}
+    db = _mock_db(current_scan=scan, findings=[{"id": 1}])
+    db.enqueue_enrichment_job.return_value = ({"job_id": _SCAN_ID, "status": "pending"}, "requeued")
+    with patch.object(scans_route, "_get_db", return_value=db):
+        resp = client.post(f"/api/scans/{_SCAN_ID}/enrich", headers=auth_headers)
+    assert resp.status_code == 202
+    body = resp.get_json()
+    assert body["outcome"] == "requeued"
+    assert body["status"] == "pending"
+    assert "requeued" in body["message"]
+
+
+def test_enrich_reports_an_already_completed_job_without_restarting_it(client, auth_headers):
+    # The scan header still reads PENDING, so the job row is the authority.
+    scan = {"scan_id": _SCAN_ID, "cve_enrichment_status": "PENDING"}
+    db = _mock_db(current_scan=scan, findings=[{"id": 1}])
+    db.enqueue_enrichment_job.return_value = ({"job_id": _SCAN_ID, "status": "completed"}, "completed")
+    with patch.object(scans_route, "_get_db", return_value=db):
+        resp = client.post(f"/api/scans/{_SCAN_ID}/enrich", headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.get_json()["outcome"] == "completed"
 
 
 def test_enrich_already_completed_returns_200(client, auth_headers):

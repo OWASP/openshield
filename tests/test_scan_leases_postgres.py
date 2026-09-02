@@ -95,18 +95,11 @@ class ScanRows:
                     (owner, fencing_token, scan_id),
                 )
 
-    def evaluation_count(self, scan_id: str) -> int:
-        with psycopg2.connect(self.dsn) as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM rule_evaluations WHERE scan_id = %s", (scan_id,))
-                return cur.fetchone()[0]
-
     def cleanup(self) -> None:
         with psycopg2.connect(self.dsn) as conn:
             with conn.cursor() as cur:
                 for scan_id in self.scan_ids:
                     cur.execute("DELETE FROM enrichment_jobs WHERE scan_id = %s", (scan_id,))
-                    cur.execute("DELETE FROM rule_evaluations WHERE scan_id = %s", (scan_id,))
                     cur.execute("DELETE FROM findings WHERE scan_id = %s", (scan_id,))
                     cur.execute("DELETE FROM scans WHERE scan_id = %s", (scan_id,))
 
@@ -118,10 +111,16 @@ def scan_rows() -> ScanRows:
     rows.cleanup()
 
 
-def _claim(dsn: str, owner: str) -> dict | None:
+def _claim(dsn: str, owner: str, scan_id: str | None = None) -> dict | None:
+    """Claim a pending scan, restricted to ``scan_id`` when given.
+
+    Tests always pass their own scan: an unrestricted claim takes the globally
+    oldest pending row, so in a shared database it would otherwise claim
+    whatever unrelated scan another test admitted first.
+    """
     db = DatabaseManager(dsn)
     try:
-        return db.claim_next_pending_scan(owner, 120)
+        return db.claim_next_pending_scan(owner, 120, scan_id=scan_id)
     finally:
         db.close()
 
@@ -135,13 +134,13 @@ def _recover(dsn: str, max_attempts: int = 3) -> int:
 
 
 def test_two_workers_race_to_claim_only_one_scan(scan_rows):
-    scan_rows.create()
+    scan_id, _ = scan_rows.create()
     barrier = threading.Barrier(2)
     claims: list[dict | None] = []
 
     def claim(owner: str) -> None:
         barrier.wait()
-        claims.append(_claim(scan_rows.dsn, owner))
+        claims.append(_claim(scan_rows.dsn, owner, scan_id))
 
     threads = [threading.Thread(target=claim, args=(owner,)) for owner in ("worker-a", "worker-b")]
     for thread in threads:
@@ -156,14 +155,14 @@ def test_two_workers_race_to_claim_only_one_scan(scan_rows):
 
 
 def test_active_lease_cannot_be_reclaimed(scan_rows):
-    scan_rows.create()
-    assert _claim(scan_rows.dsn, "worker-a") is not None
-    assert _claim(scan_rows.dsn, "worker-b") is None
+    scan_id, _ = scan_rows.create()
+    assert _claim(scan_rows.dsn, "worker-a", scan_id) is not None
+    assert _claim(scan_rows.dsn, "worker-b", scan_id) is None
 
 
 def test_heartbeat_extends_current_lease_without_changing_owner_or_token(scan_rows):
     scan_id, _ = scan_rows.create()
-    claim = _claim(scan_rows.dsn, "worker-a")
+    claim = _claim(scan_rows.dsn, "worker-a", scan_id)
     assert claim is not None
 
     db = DatabaseManager(scan_rows.dsn)
@@ -179,12 +178,15 @@ def test_heartbeat_extends_current_lease_without_changing_owner_or_token(scan_ro
 
 def test_expired_lease_is_reclaimed_with_new_fencing_token(scan_rows):
     scan_id, _ = scan_rows.create()
-    first_claim = _claim(scan_rows.dsn, "worker-a")
+    first_claim = _claim(scan_rows.dsn, "worker-a", scan_id)
     assert first_claim is not None
     scan_rows.expire(scan_id)
 
-    assert _recover(scan_rows.dsn) == 1
-    second_claim = _claim(scan_rows.dsn, "worker-b")
+    # Recovery is queue-wide, so assert this scan was recovered rather than
+    # that it was the only scan recovered.
+    assert _recover(scan_rows.dsn) >= 1
+    assert scan_rows.scan(scan_id)["status"] == "pending"
+    second_claim = _claim(scan_rows.dsn, "worker-b", scan_id)
 
     assert second_claim is not None
     assert second_claim["lease_owner"] == "worker-b"
@@ -193,11 +195,11 @@ def test_expired_lease_is_reclaimed_with_new_fencing_token(scan_rows):
 
 def test_stale_worker_cannot_heartbeat_complete_fail_or_write_results(scan_rows):
     scan_id, subscription_id = scan_rows.create()
-    first_claim = _claim(scan_rows.dsn, "worker-a")
+    first_claim = _claim(scan_rows.dsn, "worker-a", scan_id)
     assert first_claim is not None
     scan_rows.expire(scan_id)
     _recover(scan_rows.dsn)
-    second_claim = _claim(scan_rows.dsn, "worker-b")
+    second_claim = _claim(scan_rows.dsn, "worker-b", scan_id)
     assert second_claim is not None
 
     stale_db = DatabaseManager(scan_rows.dsn)
@@ -226,7 +228,7 @@ def test_stale_worker_cannot_heartbeat_complete_fail_or_write_results(scan_rows)
 
 def test_current_owner_completion_persists_results_atomically(scan_rows):
     scan_id, subscription_id = scan_rows.create()
-    claim = _claim(scan_rows.dsn, "worker-b")
+    claim = _claim(scan_rows.dsn, "worker-b", scan_id)
     assert claim is not None
 
     db = DatabaseManager(scan_rows.dsn)
@@ -243,7 +245,7 @@ def test_current_owner_completion_persists_results_atomically(scan_rows):
 
 def test_sql_abort_rolls_back_and_the_connection_remains_usable(scan_rows):
     scan_id, subscription_id = scan_rows.create()
-    claim = _claim(scan_rows.dsn, "worker-a")
+    claim = _claim(scan_rows.dsn, "worker-a", scan_id)
     assert claim is not None
     broken_result = _result(scan_id, subscription_id)
     broken_result["findings"][0]["detected_at"] = None
@@ -297,43 +299,31 @@ def test_terminated_backend_is_discarded_and_reacquired(scan_rows):
 
 def test_expired_restart_work_obeys_attempt_limit(scan_rows):
     scan_id, _ = scan_rows.create()
-    assert _claim(scan_rows.dsn, "worker-a") is not None
-    scan_rows.expire(scan_id)
-    assert _recover(scan_rows.dsn, max_attempts=3) == 1
-
-    assert _claim(scan_rows.dsn, "worker-b") is not None
-    scan_rows.expire(scan_id)
-    assert _recover(scan_rows.dsn, max_attempts=3) == 1
-
-    assert _claim(scan_rows.dsn, "worker-c") is not None
-    scan_rows.expire(scan_id)
-    assert _recover(scan_rows.dsn, max_attempts=3) == 1
+    # Recovery is queue-wide, so assert this scan's own progression rather
+    # than a global count another test could contribute to.
+    for owner in ("worker-a", "worker-b", "worker-c"):
+        assert _claim(scan_rows.dsn, owner, scan_id) is not None
+        scan_rows.expire(scan_id)
+        assert _recover(scan_rows.dsn, max_attempts=3) >= 1
     assert scan_rows.scan(scan_id)["status"] == "failed"
 
 
 def test_empty_claim_leaves_no_open_transaction(scan_rows):
+    # A scan_id with no pending row exercises the same "claimed nothing" path
+    # without depending on the shared queue being empty.
     db = DatabaseManager(scan_rows.dsn)
     try:
-        assert db.claim_next_pending_scan("worker-a", 120) is None
+        assert db.claim_next_pending_scan("worker-a", 120, scan_id=str(uuid.uuid4())) is None
         assert db._get_conn().info.transaction_status == extensions.TRANSACTION_STATUS_IDLE
     finally:
         db.close()
 
 
-def test_duplicate_result_delivery_upserts_mutable_fields_and_evaluations(scan_rows):
+def test_duplicate_result_delivery_upserts_mutable_fields(scan_rows):
     scan_id, subscription_id = scan_rows.create()
-    claim = _claim(scan_rows.dsn, "worker-a")
+    claim = _claim(scan_rows.dsn, "worker-a", scan_id)
     assert claim is not None
     result = _result(scan_id, subscription_id)
-    result["evaluations"] = [
-        {
-            "rule_id": "AZ-LEASE-001",
-            "resource_id": result["findings"][0]["resource_id"],
-            "resource_type": "Test/resource",
-            "status": "FAIL",
-            "evidence": {"version": 1},
-        }
-    ]
 
     db = DatabaseManager(scan_rows.dsn)
     try:
@@ -342,22 +332,21 @@ def test_duplicate_result_delivery_upserts_mutable_fields_and_evaluations(scan_r
         scan_rows.rearm(scan_id, "worker-a", claim["fencing_token"])
         result["findings"][0]["description"] = "Updated presentation text"
         result["findings"][0]["severity"] = "CRITICAL"
-        result["evaluations"][0]["evidence"] = {"version": 2}
         db.save_scan(result, "worker-a", claim["fencing_token"])
         persisted = db.get_findings({"scan_id": scan_id})
     finally:
         db.close()
 
+    # Replay updates the same row in place instead of duplicating it.
     assert len(persisted) == 1
     assert persisted[0]["id"] == first_id
     assert persisted[0]["description"] == "Updated presentation text"
     assert persisted[0]["severity"] == "CRITICAL"
-    assert scan_rows.evaluation_count(scan_id) == 1
 
 
 def test_distinct_finding_discriminators_preserve_multiple_violations(scan_rows):
     scan_id, subscription_id = scan_rows.create()
-    claim = _claim(scan_rows.dsn, "worker-a")
+    claim = _claim(scan_rows.dsn, "worker-a", scan_id)
     assert claim is not None
     result = _result(scan_id, subscription_id)
     duplicate_scope = dict(result["findings"][0])

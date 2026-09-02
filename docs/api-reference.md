@@ -200,9 +200,9 @@ Example response:
 
 ## POST /api/scans/trigger
 
-Triggers an asynchronous scan against the configured subscription. Returns `202 Accepted` with the `scan_id` immediately. The actual scan execution happens in a background worker process.
+Admits an asynchronous scan against the configured subscription. Execution happens in a background worker process; the response returns as soon as the scan is durably recorded.
 
-Request body:
+Request body (optional — falls back to `AZURE_SUBSCRIPTION_ID`):
 
 ```json
 {
@@ -210,7 +210,26 @@ Request body:
 }
 ```
 
-Example response:
+### Admission semantics
+
+Admission is serialized per subscription and enforced by the database, so concurrent and replayed triggers converge on one logical scan rather than creating duplicates:
+
+- **At most one active scan per subscription.** While a `pending` or `running` scan exists, a further trigger returns that existing scan instead of queueing another.
+- **`Idempotency-Key` (optional request header, 1–200 characters).** A repeat of the same key for the same subscription returns the original scan. The key is scoped to the subscription; the same key under a different subscription is a different request.
+- **`OPENSHIELD_MAX_SCANS_PER_SUBSCRIPTION_PER_HOUR`** adds an optional hourly admission quota. Unset or `0` (the default) applies no time-window limit; the one-active-scan rule still applies.
+
+### Responses
+
+| Status | When | Body |
+| --- | --- | --- |
+| `202 Accepted` | A new scan was admitted and queued. | `scan_id`, `status: "pending"`, `message` |
+| `200 OK` | The request resolved to an existing logical scan — an `Idempotency-Key` replay of the same request, or a trigger while a scan is already active for the subscription. | `scan_id`, `status` (the existing scan's `pending`/`running`), `message: "Existing logical scan returned."` |
+| `400 Bad Request` | Malformed body, invalid `subscription_id`, missing subscription, or an `Idempotency-Key` outside 1–200 characters. | `error` |
+| `403 Forbidden` | `subscription_id` is not on the `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS` allowlist. | `error` |
+| `409 Conflict` | The `Idempotency-Key` was reused with a different request payload. | `error: "Idempotency-Key is already associated with a different request."` |
+| `429 Too Many Requests` | The configured hourly quota for this subscription is exhausted. | `error: "Scan quota exceeded for this subscription."` |
+
+New scan (`202`):
 
 ```json
 {
@@ -220,13 +239,71 @@ Example response:
 }
 ```
 
-Missing subscription response:
+Replay or already-active scan (`200`):
+
+```json
+{
+  "scan_id": "6f4a08ac-7d3a-4d9a-a4b4-2a26e5f63c8a",
+  "status": "running",
+  "message": "Existing logical scan returned."
+}
+```
+
+Missing subscription response (`400`):
 
 ```json
 {
   "error": "subscription_id is required"
 }
 ```
+
+---
+
+## POST /api/scans/&lt;scan_id&gt;/enrich
+
+Queues durable CVE enrichment for a completed scan's findings. Enrichment runs as a database-backed job claimed by the background worker — the request never owns a thread, so the work survives an API restart.
+
+There is **never more than one enrichment job per scan**. Repeat calls are safe: they report the state of the single job rather than creating another.
+
+### Responses
+
+Every response carries `scan_id`, `job_id`, `status` (the job row's state) and an `outcome` naming what this call did:
+
+| Status | `outcome` | When |
+| --- | --- | --- |
+| `202 Accepted` | `created` | No job existed; one was queued. |
+| `202 Accepted` | `requeued` | A previously **failed** job was reset to `pending` and will be retried. |
+| `202 Accepted` | `active` | A `pending` or `running` job already exists and was returned unchanged. A live claim is never interrupted. |
+| `200 OK` | `completed` | Enrichment already finished; nothing was restarted. |
+| `404 Not Found` | — | Unknown `scan_id`, or the scan has no findings to enrich. |
+
+A job that exhausts its retry budget becomes `failed`. Re-POSTing this endpoint is the supported operator recovery: it atomically returns the job to `pending` with a fresh retry budget, clears the lease, and keeps the last `error_message` and the `checkpoint` so the retry resumes rather than re-enriching findings that already succeeded. Concurrent re-POSTs converge — exactly one reports `requeued` and the rest report `active`.
+
+Newly queued (`202`):
+
+```json
+{
+  "scan_id": "6f4a08ac-7d3a-4d9a-a4b4-2a26e5f63c8a",
+  "job_id": "1f2e3d4c-5b6a-4790-8123-456789abcdef",
+  "status": "pending",
+  "outcome": "created",
+  "message": "CVE enrichment queued; poll GET /api/scans/<scan_id> for completion."
+}
+```
+
+Requeued after terminal failure (`202`):
+
+```json
+{
+  "scan_id": "6f4a08ac-7d3a-4d9a-a4b4-2a26e5f63c8a",
+  "job_id": "1f2e3d4c-5b6a-4790-8123-456789abcdef",
+  "status": "pending",
+  "outcome": "requeued",
+  "message": "Previously failed enrichment job requeued; poll GET /api/scans/<scan_id> for completion."
+}
+```
+
+Poll `GET /api/scans/<scan_id>` for `cve_enrichment_status` (`PENDING`, `ENRICHING`, `COMPLETED`, `FAILED`).
 
 ---
 

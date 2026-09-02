@@ -210,6 +210,68 @@ def test_heartbeat_surfaces_lost_lease_and_closes_its_connection(mock_db_class):
 
         mock_sleep.assert_called_with(POLL_INTERVAL_SECONDS)
 
+    @patch("scanner.worker.process_enrichment_job")
+    @patch("scanner.worker.DatabaseManager")
+    @patch("scanner.worker.ScanEngine")
+    @patch("scanner.worker.os.environ.get")
+    @patch("scanner.worker.time.sleep")
+    @patch("scanner.worker.LeaseHeartbeat")
+    def test_enrichment_backlog_does_not_starve_pending_scans(
+        self, mock_heartbeat_class, mock_sleep, mock_env, mock_engine_class, mock_db_class, mock_process
+    ):
+        """With both queues permanently backlogged, each still gets served.
+
+        Draining enrichment and restarting the loop would mean a scan is never
+        claimed while enrichment work keeps arriving.
+        """
+        mock_env.return_value = self.mock_db_url
+        mock_db = mock_db_class.return_value
+        mock_engine_class.return_value.run_scan.return_value = {
+            "scan_id": self.scan_id,
+            "subscription_id": self.subscription_id,
+            "findings": [],
+            "started_at": "2026-06-05T12:00:00Z",
+        }
+        mock_heartbeat_class.return_value.lost.is_set.return_value = False
+
+        # Both queues always have work; stop after two full iterations.
+        mock_db.recover_stale_scans.side_effect = [None, None, StopWorker()]
+        mock_db.claim_next_enrichment_job.return_value = {"job_id": "job-1", "scan_id": self.scan_id}
+        mock_db.claim_next_pending_scan.return_value = {
+            "scan_id": self.scan_id,
+            "subscription_id": self.subscription_id,
+            "fencing_token": 1,
+        }
+
+        with self.assertRaises(StopWorker):
+            run_worker()
+
+        # Each iteration served one job from each queue -- neither starved.
+        self.assertEqual(mock_process.call_count, 2)
+        self.assertEqual(mock_db.save_scan.call_count, 2)
+        # A busy worker never idles.
+        mock_sleep.assert_not_called()
+
+    @patch("scanner.worker.process_enrichment_job")
+    @patch("scanner.worker.DatabaseManager")
+    @patch("scanner.worker.os.environ.get")
+    @patch("scanner.worker.time.sleep")
+    def test_enrichment_only_backlog_polls_again_without_idling(
+        self, mock_sleep, mock_env, mock_db_class, mock_process
+    ):
+        """Enrichment work must not be paced by the empty-queue poll interval."""
+        mock_env.return_value = self.mock_db_url
+        mock_db = mock_db_class.return_value
+        mock_db.recover_stale_scans.side_effect = [None, StopWorker()]
+        mock_db.claim_next_enrichment_job.return_value = {"job_id": "job-1", "scan_id": self.scan_id}
+        mock_db.claim_next_pending_scan.return_value = None
+
+        with self.assertRaises(StopWorker):
+            run_worker()
+
+        mock_process.assert_called_once()
+        mock_sleep.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

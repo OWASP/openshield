@@ -23,7 +23,6 @@ def admitted_scans():
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
             for scan_id in scan_ids:
-                cur.execute("DELETE FROM rule_evaluations WHERE scan_id = %s", (scan_id,))
                 cur.execute("DELETE FROM findings WHERE scan_id = %s", (scan_id,))
                 cur.execute("DELETE FROM scans WHERE scan_id = %s", (scan_id,))
 
