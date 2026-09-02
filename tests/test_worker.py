@@ -10,7 +10,14 @@ using mocks. No live database or Azure calls are made.
 import unittest
 from unittest.mock import ANY, patch
 from api.models.finding import LostLease
-from scanner.worker import LeaseHeartbeat, POLL_INTERVAL_SECONDS, run_worker
+from scanner.worker import (
+    DEFAULT_HEARTBEAT_SECONDS,
+    DEFAULT_LEASE_SECONDS,
+    LeaseHeartbeat,
+    POLL_INTERVAL_SECONDS,
+    lease_configuration,
+    run_worker,
+)
 import uuid
 
 
@@ -271,6 +278,49 @@ def test_heartbeat_surfaces_lost_lease_and_closes_its_connection(mock_db_class):
 
         mock_process.assert_called_once()
         mock_sleep.assert_not_called()
+
+
+class TestLeaseConfiguration(unittest.TestCase):
+    """A worker that heartbeats no more often than its lease expires would
+    lose its own claim mid-scan, so the configuration is clamped rather than
+    trusted. .env.example documents this; these tests hold it to it."""
+
+    def _configure(self, **env):
+        with patch.dict("scanner.worker.os.environ", env, clear=True):
+            return lease_configuration()
+
+    def test_defaults_keep_the_heartbeat_shorter_than_the_lease(self):
+        lease, heartbeat = self._configure()
+        self.assertEqual((lease, heartbeat), (DEFAULT_LEASE_SECONDS, DEFAULT_HEARTBEAT_SECONDS))
+        self.assertLess(heartbeat, lease)
+
+    def test_valid_overrides_are_used_as_given(self):
+        lease, heartbeat = self._configure(SCAN_LEASE_SECONDS="600", SCAN_HEARTBEAT_SECONDS="60")
+        self.assertEqual((lease, heartbeat), (600, 60))
+
+    def test_heartbeat_equal_to_the_lease_is_clamped_below_it(self):
+        lease, heartbeat = self._configure(SCAN_LEASE_SECONDS="300", SCAN_HEARTBEAT_SECONDS="300")
+        self.assertEqual(lease, 300)
+        self.assertEqual(heartbeat, 100)
+        self.assertLess(heartbeat, lease)
+
+    def test_heartbeat_longer_than_the_lease_is_clamped_below_it(self):
+        lease, heartbeat = self._configure(SCAN_LEASE_SECONDS="300", SCAN_HEARTBEAT_SECONDS="9000")
+        self.assertEqual((lease, heartbeat), (300, 100))
+        self.assertLess(heartbeat, lease)
+
+    def test_a_tiny_lease_still_yields_a_positive_heartbeat(self):
+        # lease // 3 would floor to 0 and make the heartbeat thread spin.
+        lease, heartbeat = self._configure(SCAN_LEASE_SECONDS="2", SCAN_HEARTBEAT_SECONDS="2")
+        self.assertEqual((lease, heartbeat), (2, 1))
+        self.assertGreater(heartbeat, 0)
+
+    def test_malformed_or_non_positive_values_fall_back_to_defaults(self):
+        for bad in ("not-a-number", "0", "-30", ""):
+            with self.subTest(value=bad):
+                lease, heartbeat = self._configure(SCAN_LEASE_SECONDS=bad, SCAN_HEARTBEAT_SECONDS=bad)
+                self.assertEqual((lease, heartbeat), (DEFAULT_LEASE_SECONDS, DEFAULT_HEARTBEAT_SECONDS))
+                self.assertLess(heartbeat, lease)
 
 
 if __name__ == "__main__":
