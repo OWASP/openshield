@@ -137,23 +137,58 @@ def is_permissions_broad(
     permissions: Optional[Dict[str, str]],
     parsed: Optional[Dict[str, Any]] = None,
 ) -> bool:
-    """Return True if permissions grant write-all or multiple broad scopes.
+    """Return True if effective permissions are over-broad at any level.
 
-    An absent top-level permissions block is only treated as broad when jobs
-    also lack explicit per-job permissions declarations. Per-job least privilege
-    (no top-level block, every job declares its own) is a recommended secure
-    pattern and must not be flagged.
+    Evaluates both the top-level permissions block and every job-level
+    override. A workflow is broad if:
+    - Top-level block is write-all or grants 3+ sensitive write scopes, OR
+    - Any job-level override grants write-all or 3+ sensitive write scopes.
+    An absent top-level block is safe only when every job declares explicit
+    permissions AND none of those per-job blocks are themselves broad.
     """
+
+    def _block_is_broad(perms: Optional[Dict[str, str]]) -> bool:
+        if perms is None:
+            return False  # None means not declared at this level
+        if isinstance(perms, str):
+            return perms in ("write-all", "write")
+        if not isinstance(perms, dict):
+            return False
+        if perms.get("all") in ("write-all", "write"):
+            return True
+        broad_count = sum(1 for k, v in perms.items() if str(v).lower() == "write" and k in _BROAD_PERMISSIONS)
+        return broad_count >= 3
+
+    # Check top-level permissions
+    if permissions is not None and _block_is_broad(permissions):
+        return True
+
+    jobs = (parsed or {}).get("jobs") or {}
+
     if permissions is None:
-        if parsed is not None:
-            jobs = parsed.get("jobs") or {}
-            if jobs and all(isinstance(job, dict) and job.get("permissions") is not None for job in jobs.values()):
-                return False
-        return True
-    if permissions.get("all") in ("write-all", "write"):
-        return True
-    broad_count = sum(1 for k, v in permissions.items() if v == "write" and k in _BROAD_PERMISSIONS)
-    return broad_count >= 3
+        # No top-level block: safe only if every job declares explicit
+        # non-broad permissions
+        if not jobs:
+            return True  # no jobs, treat as unconstrained
+        for job in jobs.values():
+            if not isinstance(job, dict):
+                continue
+            job_perms = job.get("permissions")
+            if job_perms is None:
+                return True  # job has no permissions declaration
+            if _block_is_broad(job_perms):
+                return True
+        return False
+
+    # Top-level block present and not broad: also check job-level overrides
+    for job in jobs.values():
+        if not isinstance(job, dict):
+            continue
+        job_perms = job.get("permissions")
+        if job_perms is not None and _block_is_broad(job_perms):
+            return True
+
+    return False
 
 
 def get_dangerous_triggers(workflow: Dict[str, Any]) -> List[str]:

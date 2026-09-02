@@ -61,6 +61,41 @@ jobs:
 """
 
 # Workflow with per-job explicit permissions, no top-level block
+# Every job declares write-all — no top-level block
+ALL_JOBS_WRITE_ALL_WORKFLOW = """
+name: All jobs write-all
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - run: echo build
+  deploy:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - run: echo deploy
+"""
+
+# Safe top-level but one job overrides with write-all
+SAFE_TOPLEVEL_BROAD_JOB_WORKFLOW = """
+name: Safe top broad job
+on: [push]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo build
+  privileged:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - run: echo privileged
+"""
+
 PER_JOB_PERMISSIONS_WORKFLOW = """
 name: Per-job permissions
 on: [push]
@@ -424,6 +459,20 @@ class TestAzCi002:
         client = _make_client(contents=PER_JOB_PERMISSIONS_WORKFLOW)
         findings = az_ci_002.scan(client, OWNER, REPO)
         assert findings == [], "Per-job least privilege must not be flagged as broad"
+
+    def test_all_jobs_write_all_returns_finding(self):
+        """No top-level block but every job declares write-all must flag."""
+        client = _make_client(contents=ALL_JOBS_WRITE_ALL_WORKFLOW)
+        findings = az_ci_002.scan(client, OWNER, REPO)
+        assert len(findings) == 1, "All-jobs write-all must be flagged"
+        assert findings[0]["rule_id"] == "AZ-CI-002"
+
+    def test_safe_toplevel_broad_job_returns_finding(self):
+        """Safe top-level permissions overridden by one broad job must flag."""
+        client = _make_client(contents=SAFE_TOPLEVEL_BROAD_JOB_WORKFLOW)
+        findings = az_ci_002.scan(client, OWNER, REPO)
+        assert len(findings) == 1, "Job-level write-all override must be flagged"
+        assert findings[0]["rule_id"] == "AZ-CI-002"
 
 
 class TestAzCi003:
