@@ -33,6 +33,11 @@
       "control_name": "Required Blob Container Immutability Missing",
       "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation."
     },
+    "AZ-STOR-010": {
+      "control_id": "N/A-STOR-010",
+      "control_name": "Storage Account Missing Private Endpoint",
+      "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation."
+    },
     "AZ-DB-005": {"control_id": "N/A-DB-005", "control_name": "SQL Server Microsoft Entra-Only Authentication Not Enforced", "description": "Service-specific OpenShield control."},
     "AZ-DB-006": {"control_id": "N/A-DB-006", "control_name": "SQL Vulnerability Assessment Not Configured", "description": "Service-specific OpenShield control."},
     "AZ-DB-007": {"control_id": "N/A-DB-007", "control_name": "SQL Auditing Retention Below Minimum", "description": "Service-specific OpenShield control."},
