@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 420" role="img" aria-label="Rule engine: a dropped-in Python rule file is imported dynamically, runs against the AzureClient abstraction and returns a finding record that references a playbook.">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#f3441d"/>
+    </marker>
+  </defs>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+    <rect x="30" y="80" width="190" height="120" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="44" y="106" font-size="11" letter-spacing="1" fill="#f3441d" font-family="ui-monospace, Menlo, Consolas, monospace">1 / THE FILE</text>
+    <text x="44" y="132" font-size="14" font-weight="700" fill="#050505" font-family="ui-monospace, Menlo, Consolas, monospace">az_stor_001.py</text>
+    <text x="44" y="156" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">scanner/rules/</text>
+    <text x="44" y="178" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">one rule, one file</text>
+
+    <rect x="250" y="80" width="190" height="120" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="264" y="106" font-size="11" letter-spacing="1" fill="#f3441d" font-family="ui-monospace, Menlo, Consolas, monospace">2 / LOAD</text>
+    <text x="264" y="132" font-size="14" font-weight="700" fill="#050505">Dynamic import</text>
+    <text x="264" y="156" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">engine scans folder</text>
+    <text x="264" y="178" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">no engine edits</text>
+
+    <rect x="470" y="80" width="190" height="120" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="484" y="106" font-size="11" letter-spacing="1" fill="#f3441d" font-family="ui-monospace, Menlo, Consolas, monospace">3 / CONTRACT</text>
+    <text x="484" y="132" font-size="14" font-weight="700" fill="#050505">Metadata + scan()</text>
+    <text x="484" y="156" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">RULE_ID SEVERITY</text>
+    <text x="484" y="178" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">FRAMEWORKS</text>
+
+    <rect x="690" y="80" width="190" height="120" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="704" y="106" font-size="11" letter-spacing="1" fill="#f3441d" font-family="ui-monospace, Menlo, Consolas, monospace">4 / FINDING</text>
+    <text x="704" y="132" font-size="14" font-weight="700" fill="#050505">Finding record</text>
+    <text x="704" y="156" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">resource_id severity</text>
+    <text x="704" y="178" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">frameworks playbook</text>
+
+    <rect x="910" y="80" width="220" height="120" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="924" y="106" font-size="11" letter-spacing="1" fill="#f3441d" font-family="ui-monospace, Menlo, Consolas, monospace">5 / FIX</text>
+    <text x="924" y="132" font-size="14" font-weight="700" fill="#050505">Remediation</text>
+    <text x="924" y="156" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">PLAYBOOK points at</text>
+    <text x="924" y="178" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">fix_az_*.sh</text>
+
+    <line x1="222" y1="140" x2="238" y2="140" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="442" y1="140" x2="458" y2="140" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="662" y1="140" x2="678" y2="140" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="882" y1="140" x2="898" y2="140" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+
+    <rect x="30" y="270" width="1100" height="96" rx="12" fill="#1f1f2c"/>
+    <text x="54" y="306" font-size="17" font-weight="700" fill="#f2f0ec">AzureClient</text>
+    <text x="54" y="332" font-size="12" fill="#a7a7b0" font-family="ui-monospace, Menlo, Consolas, monospace">typed accessors, unified auth, cache-backed in tests. Rules never instantiate an SDK client.</text>
+    <line x1="565" y1="268" x2="565" y2="212" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="785" y1="268" x2="785" y2="212" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+  </g>
+</svg>

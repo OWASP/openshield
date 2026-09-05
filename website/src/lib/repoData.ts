@@ -141,6 +141,7 @@ function countPlaybooks(): number {
 /** Historical aliases merged so one person is not counted several times. */
 const ALIASES: Record<string, string> = {
   'ritik sah': 'Ritik Sah',
+  ritiksah141: 'Ritik Sah',
   'vishnu ajith': 'Vishnu Ajith',
   vishnu2707: 'Vishnu Ajith',
   'tanvir farhad': 'Tanvir Farhad',

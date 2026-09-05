@@ -87,12 +87,6 @@ const siteJsonLd = {
 </head>
 <body>
 
-<div class="announce">
-  <div class="wrap">
-    <a href={url('/blog/')}><span class="pill">{repoData.release.tag}</span>Live data wiring, React dashboard, CVE enrichment and drift detection are out. Read the blog <span class="ar">&#8594;</span></a>
-  </div>
-</div>
-
 <nav class="nav">
   <div class="wrap">
     <a class="wordmark" href={url('/')}><img src={logoLight.src} alt="OpenShield" width="132" height="22"></a>
@@ -102,7 +96,7 @@ const siteJsonLd = {
       <a href={url('/docs/')} aria-current={active === 'docs' ? 'page' : undefined}>Docs</a>
       <a href={url('/blog/')} aria-current={active === 'blog' ? 'page' : undefined}>Blog</a>
       <a href={url('/#roadmap')} aria-current={active === 'roadmap' ? 'page' : undefined}>Roadmap</a>
-      <a href={url('/#community')} aria-current={active === 'community' ? 'page' : undefined}>Community</a>
+      <a href={url('/community/')} aria-current={active === 'community' ? 'page' : undefined}>Community</a>
     </div>
     <div class="nav-right">
       <a class="star-btn" href={GITHUB} target="_blank" rel="noopener">&#9733; Star<span id="starCount"></span></a>
@@ -112,7 +106,7 @@ const siteJsonLd = {
 
 <slot />
 
-<section class="cta" id="community">
+<section class="cta" id="get-started">
   <div class="wrap">
     <div class="kicker">Get started</div>
     <h2>Open source security posture for Azure.</h2>

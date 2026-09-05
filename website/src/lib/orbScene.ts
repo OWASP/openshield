@@ -12,7 +12,8 @@ interface OrbRule {
   domain: string;
 }
 interface OrbData {
-  rules: OrbRule[];
+  /** [id, severity, name] triples, see orbRules in repoData */
+  rules: [string, string, string][];
   domains: string[];
 }
 
@@ -35,7 +36,12 @@ export function initOrb(): void {
   } catch {
     return;
   }
-  const RULES = data.rules || [];
+  const RULES: OrbRule[] = (data.rules || []).map(([id, severity, name]) => ({
+    id,
+    severity,
+    name,
+    domain: domainOf(id),
+  }));
   const DOMAINS = data.domains || [];
   if (!RULES.length || !DOMAINS.length) return;
 

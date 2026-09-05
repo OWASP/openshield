@@ -13,6 +13,7 @@ export async function GET(context: APIContext) {
     description:
       'Release notes, engineering deep-dives and integration guides from the OpenShield maintainers.',
     site: new URL(url('/'), siteRoot),
+    stylesheet: url('/rss.xsl'),
     items: posts.map((post) => ({
       title: post.data.title,
       pubDate: post.data.pubDate,

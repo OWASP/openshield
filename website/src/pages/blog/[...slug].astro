@@ -12,12 +12,17 @@ export async function getStaticPaths() {
 }
 
 const { post } = Astro.props;
-const { Content } = await render(post);
+const { Content, headings } = await render(post);
 
 function fmtDate(d: Date): string {
   return d
     .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     .toUpperCase();
+}
+
+function readingTime(body: string): number {
+  const words = body.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
 }
 
 const all = (await getCollection('blog', ({ data }) => !data.draft)).sort(
@@ -26,6 +31,8 @@ const all = (await getCollection('blog', ({ data }) => !data.draft)).sort(
 const idx = all.findIndex((p) => p.id === post.id);
 const newer = idx > 0 ? all[idx - 1] : null;
 const older = idx < all.length - 1 ? all[idx + 1] : null;
+
+const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 
 const postUrl = new URL(url(`/blog/${post.id}/`), Astro.site).href;
 const postJsonLd = {
@@ -44,22 +51,39 @@ const postJsonLd = {
 ---
 
 <Base title={`${post.data.title} · OpenShield Blog`} description={post.data.description} active="blog" jsonLd={postJsonLd}>
-  <article class="post-page">
+  <header class="post-hero">
     <div class="wrap">
       <div class="ph-kicker">{(post.data.tags[0] ?? 'Post').toUpperCase()}</div>
       <h1>{post.data.title}</h1>
-      <div class="byline">{fmtDate(post.data.pubDate)} / {post.data.author.toUpperCase()}</div>
-      <div class="prose">
-        <Content />
-      </div>
-      <div class="post-nav">
-        {older ? (
-          <a href={url(`/blog/${older.id}/`)}>&#8592; {older.data.title}</a>
-        ) : <span />}
-        {newer ? (
-          <a href={url(`/blog/${newer.id}/`)}>{newer.data.title} &#8594;</a>
-        ) : <a href={url('/blog/')}>All articles &#8594;</a>}
+      <p class="lede">{post.data.description}</p>
+      <div class="byline">{fmtDate(post.data.pubDate)} / {post.data.author.toUpperCase()} / {readingTime(post.body)} MIN READ</div>
+      <div class="chips">
+        {post.data.tags.map((t) => <span class="chip">{t}</span>)}
       </div>
     </div>
-  </article>
+  </header>
+
+  <div class="wrap">
+    <div class="post-layout">
+      <article class="prose">
+        <Content />
+      </article>
+      {toc.length > 0 && (
+        <nav class="post-toc" aria-label="On this page">
+          <h4>On this page</h4>
+          {toc.map((h) => (
+            <a href={`#${h.slug}`} class={h.depth === 3 ? 'h3' : undefined}>{h.text}</a>
+          ))}
+        </nav>
+      )}
+    </div>
+    <div class="post-nav">
+      {older ? (
+        <a href={url(`/blog/${older.id}/`)}>&#8592; {older.data.title}</a>
+      ) : <span />}
+      {newer ? (
+        <a href={url(`/blog/${newer.id}/`)}>{newer.data.title} &#8594;</a>
+      ) : <a href={url('/blog/')}>All articles &#8594;</a>}
+    </div>
+  </div>
 </Base>
