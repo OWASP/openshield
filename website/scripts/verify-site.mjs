@@ -33,6 +33,15 @@ for (const file of htmlFiles) {
   if (!html.includes('href="#main-content"')) failures.push(`${relative} has no skip link`);
   if (!html.includes('<meta name="description"')) failures.push(`${relative} has no meta description`);
   if (!html.includes('<link rel="canonical"')) failures.push(`${relative} has no canonical URL`);
+  const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/i)?.[1] || '';
+  if (!csp) failures.push(`${relative} has no Content-Security-Policy meta policy`);
+  const scriptPolicy = csp.split(';').find((directive) => directive.trim().startsWith('script-src')) || '';
+  if (!scriptPolicy || scriptPolicy.includes('unsafe-inline')) {
+    failures.push(`${relative} allows inline script execution in its Content-Security-Policy`);
+  }
+  for (const directive of ['object-src \'none\'', 'base-uri \'self\'', 'form-action \'self\'', 'frame-ancestors \'self\'']) {
+    if (!csp.includes(directive)) failures.push(`${relative} is missing CSP directive ${directive}`);
+  }
   for (const match of html.matchAll(/href="([^"]+)"/g)) {
     const href = match[1];
     if (!href.startsWith('/openshield/')) continue;
