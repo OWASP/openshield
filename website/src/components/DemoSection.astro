@@ -13,13 +13,13 @@ const { ruleCount, sampleScan } = repoData;
     <div class="demo-grid">
       <div>
         <div class="tabs" role="tablist" aria-label="Interfaces">
-          <button class="tab on" role="tab" aria-selected="true" data-term="termScanner" type="button">scanner CLI</button>
-          <button class="tab" role="tab" aria-selected="false" data-term="termApi" type="button">REST API</button>
-          <button class="tab" role="tab" aria-selected="false" data-term="termSentinel" type="button">sentinel</button>
+          <button id="tabScanner" class="tab on" role="tab" aria-selected="true" aria-controls="termScanner" data-term="termScanner" type="button">Scanner CLI</button>
+          <button id="tabApi" class="tab" role="tab" aria-selected="false" aria-controls="termApi" data-term="termApi" tabindex="-1" type="button">REST API</button>
+          <button id="tabSentinel" class="tab" role="tab" aria-selected="false" aria-controls="termSentinel" data-term="termSentinel" tabindex="-1" type="button">Sentinel</button>
         </div>
-        <div class="term-card">
+          <div class="term-card">
           <div class="term-bar"><i></i><i></i><i></i><span class="title">scanner @ prod-01</span><span class="lang">bash</span></div>
-          <div class="term" id="termScanner">
+          <div class="term" id="termScanner" role="tabpanel" aria-labelledby="tabScanner">
 <span class="ln" style="--i:0"><span class="dim">$</span> git clone https://github.com/openshield-org/openshield.git</span>
 <span class="ln" style="--i:1"><span class="dim">$</span> python -m scanner.run --subscription <span class="path">prod-01</span></span>
 <span class="ln" style="--i:2"><span class="dim">loading {ruleCount} rule modules from scanner/rules/ ...</span></span>
@@ -31,7 +31,7 @@ const { ruleCount, sampleScan } = repoData;
 <span class="ln" style="--i:8">&nbsp;</span>
 <span class="ln" style="--i:9"><span class="dim">SCORE</span> <span class="acc">{sampleScan.score}/100</span>&nbsp;&nbsp;<span class="dim">{sampleScan.high} HIGH / {sampleScan.medium} MEDIUM / {sampleScan.passing} PASSING</span></span>
           </div>
-          <div class="term" id="termApi" hidden>
+          <div class="term" id="termApi" role="tabpanel" aria-labelledby="tabApi" hidden>
 <span class="ln" style="--i:0"><span class="dim">$</span> curl https://openshield-api.onrender.com/api/score</span>
 <span class="ln" style="--i:1"><span class="acc">62</span></span>
 <span class="ln" style="--i:2">&nbsp;</span>
@@ -42,7 +42,7 @@ const { ruleCount, sampleScan } = repoData;
 <span class="ln" style="--i:7">&nbsp;&nbsp;<span class="dim">...8 more findings</span></span>
 <span class="ln" style="--i:8"><span class="dim">]</span> <span class="dim">{'}'}</span></span>
           </div>
-          <div class="term" id="termSentinel" hidden>
+          <div class="term" id="termSentinel" role="tabpanel" aria-labelledby="tabSentinel" hidden>
 <span class="ln" style="--i:0"><span class="dim">$</span> az monitor log-analytics workspace create \</span>
 <span class="ln" style="--i:1">&nbsp;&nbsp;&nbsp;&nbsp;--resource-group <span class="path">openshield-rg</span> --workspace-name <span class="path">openshield-laws</span></span>
 <span class="ln" style="--i:2"><span class="dim">$</span> export SENTINEL_WORKSPACE_ID=<span class="path">"your-workspace-id"</span></span>
@@ -53,8 +53,9 @@ const { ruleCount, sampleScan } = repoData;
 <span class="ln" style="--i:7"><span class="dim">query them in Sentinel:</span></span>
 <span class="ln" style="--i:8"><span class="path">OpenShieldFindings_CL</span> | where Severity_s == <span class="amb">"HIGH"</span></span>
           </div>
+          </div>
+          <p class="demo-note"><strong>Illustrative output.</strong> The values above are a stable example for learning the interface, not a live customer scan. Repository-derived coverage counts remain live at build time.</p>
         </div>
-      </div>
       <div class="steps">
         <div class="step"><span class="no">01</span><div><h3>Detect</h3><p>The engine imports every rule module in scanner/rules/ and runs it against your subscription.</p></div></div>
         <div class="step"><span class="no">02</span><div><h3>Map</h3><p>Each finding cites the CIS, NIST, ISO 27001 or SOC 2 control it violates, straight from the rule definition.</p></div></div>
@@ -68,11 +69,11 @@ const { ruleCount, sampleScan } = repoData;
 <script>
   /* functional tabs: each button swaps the visible terminal panel */
   const tabs = Array.from(document.querySelectorAll('.tabs .tab')) as HTMLButtonElement[];
-  tabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
+  function selectTab(tab: HTMLButtonElement): void {
       tabs.forEach((t) => {
         t.classList.toggle('on', t === tab);
         t.setAttribute('aria-selected', String(t === tab));
+        t.tabIndex = t === tab ? 0 : -1;
       });
       document.querySelectorAll('.term-card .term').forEach((panel) => {
         const el = panel as HTMLElement;
@@ -83,6 +84,19 @@ const { ruleCount, sampleScan } = repoData;
           el.classList.add('anim');
         }
       });
+  }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => selectTab(tab));
+    tab.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      let next = index;
+      if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = tabs.length - 1;
+      selectTab(tabs[next]);
+      tabs[next].focus();
     });
   });
 </script>

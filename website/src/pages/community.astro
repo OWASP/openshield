@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import { repoData } from '../lib/repoData';
 
 const GITHUB = 'https://github.com/openshield-org/openshield';
-const contributors = repoData.contributors;
+const contributors = repoData.contributorActivity;
 
 const LEAD = new Set(['Vishnu Ajith']);
 const MAINTAINERS = new Set(['Ritik Sah', 'Tanvir Farhad', 'Parth Rohit']);
@@ -32,18 +32,29 @@ function initials(name: string): string {
 
     <section style="padding-top:22px">
       <div class="contrib-grid">
-        {contributors.map((name, i) => (
-          <div class="contrib">
+        {contributors.map((contributor, i) => {
+          const { name, commits, github } = contributor;
+          const content = (
+            <>
             <span class={`avatar r${(i % 6) + 1}`}>{initials(name)}</span>
-            <div>
+            <div class="contrib-copy">
               <h3>{name}</h3>
-              <span class="role">{role(name)}</span>
+              <span class="role">{role(name)} / {commits} {commits === 1 ? 'commit' : 'commits'}</span>
             </div>
-          </div>
-        ))}
+            {github && <span class="profile-link">GitHub &#8599;</span>}
+            </>
+          );
+          return github ? (
+            <a class="contrib" href={`https://github.com/${github}`} target="_blank" rel="noopener" aria-label={`${name} on GitHub`}>
+              {content}
+            </a>
+          ) : (
+            <div class="contrib">{content}</div>
+          );
+        })}
       </div>
       <p class="contrib-note mono">
-        Counted from git history at build time. See the full log on
+        Counted from git history at build time. Profile links appear only where a repository-recorded identity is available. See the full log on
         <a href={`${GITHUB}/graphs/contributors`} target="_blank" rel="noopener">GitHub contributors &#8594;</a>
       </p>
     </section>

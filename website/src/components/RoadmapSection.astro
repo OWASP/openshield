@@ -1,5 +1,6 @@
 ---
 import { repoData } from '../lib/repoData';
+import { url } from '../lib/base';
 const { ruleCount, domainCount } = repoData;
 const GITHUB = 'https://github.com/openshield-org/openshield';
 ---
@@ -8,7 +9,7 @@ const GITHUB = 'https://github.com/openshield-org/openshield';
   <div class="wrap">
     <div class="sec-head">
       <h2>How it works, and where it goes.</h2>
-      <a class="sec-link" href={`${GITHUB}/blob/dev/docs/architecture.md`} target="_blank" rel="noopener">Architecture docs &#8594;</a>
+      <a class="sec-link" href={url('/architecture/')}>Explore the architecture &#8594;</a>
     </div>
     <div class="tl-wrap">
       <div class="tl">
@@ -19,17 +20,17 @@ const GITHUB = 'https://github.com/openshield-org/openshield';
         <div class="tl-item next"><span class="tl-q">Q1 2027</span><b>Org scale</b><p>Multi-subscription workflows and a provider interface for future clouds.</p></div>
       </div>
     </div>
-    <div class="pipe-wrap">
+    <div class="pipe-wrap" aria-label="OpenShield system flow">
       <div class="pipe">
-        <div class="pnode"><div class="t">Scanner</div><div class="s">READ-ONLY / AZURE SDK</div></div>
+        <div class="pnode"><div class="t">Azure metadata</div><div class="s">READER ACCESS</div></div>
         <span class="parrow">&#8594;</span>
-        <div class="pnode"><div class="t">Rule engine</div><div class="s">{ruleCount} PYTHON MODULES</div></div>
+        <div class="pnode"><div class="t">Scanner</div><div class="s">{ruleCount} RULE MODULES</div></div>
         <span class="parrow">&#8594;</span>
-        <div class="pnode"><div class="t">Compliance mapper</div><div class="s">CIS / NIST / ISO / SOC 2</div></div>
+        <div class="pnode"><div class="t">PostgreSQL</div><div class="s">FINDINGS + SCANS</div></div>
         <span class="parrow">&#8594;</span>
-        <div class="pnode"><div class="t">PostgreSQL</div><div class="s">YOUR TENANT DATA</div></div>
+        <div class="pnode"><div class="t">Flask API</div><div class="s">AUTHENTICATED ACCESS</div></div>
         <span class="parrow">&#8594;</span>
-        <div class="pnode"><div class="t">Dashboard + Sentinel</div><div class="s">VISIBILITY LAYER</div></div>
+        <div class="pnode"><div class="t">Dashboard + exports</div><div class="s">OPERATOR VIEWS</div></div>
       </div>
     </div>
     <div class="matrix-wrap">
@@ -39,7 +40,7 @@ const GITHUB = 'https://github.com/openshield-org/openshield';
           <tr><td>Open source rule library</td><td class="yes">&#10003; every rule readable in the repo</td><td class="no">&#10007; closed checks</td></tr>
           <tr><td>Self-hosted findings store</td><td class="yes">&#10003; your PostgreSQL, your tenant</td><td class="no">&#10007; vendor cloud</td></tr>
           <tr><td>Framework mapping</td><td class="yes">&#10003; CIS, NIST, ISO 27001, SOC 2</td><td class="yes">&#10003; comparable</td></tr>
-          <tr><td>Remediation playbook per finding</td><td class="yes">&#10003; exact CLI command</td><td class="part">~ prose guidance only</td></tr>
+          <tr><td>Remediation guidance</td><td class="yes">&#10003; repository playbooks</td><td class="part">~ implementation varies</td></tr>
           <tr><td>SIEM export</td><td class="yes">&#10003; Microsoft Sentinel</td><td class="part">~ varies</td></tr>
           <tr><td>Cost</td><td class="yes">&#10003; MIT, free forever</td><td class="no">&#10007; enterprise licence</td></tr>
         </tbody>

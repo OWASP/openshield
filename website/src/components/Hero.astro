@@ -3,7 +3,7 @@ import { url } from '../lib/base';
 import { repoData, orbRules, domainOrder } from '../lib/repoData';
 
 const GITHUB = 'https://github.com/openshield-org/openshield';
-const { ruleCount, domainCount, sampleScan } = repoData;
+const { ruleCount, domainCount } = repoData;
 ---
 
 <header class="hero" id="top">
@@ -13,8 +13,8 @@ const { ruleCount, domainCount, sampleScan } = repoData;
       <h1>Open source security posture for Azure. <span class="alt">Written in the open.</span></h1>
       <div class="claims">
         <div class="claim"><span class="ar">&#8594;</span><span>{ruleCount} misconfiguration rules across {domainCount} Azure domains, each one a plain Python file you can read, audit and extend.</span></div>
-        <div class="claim"><span class="ar">&#8594;</span><span>Every finding maps itself to CIS, NIST, ISO 27001 and SOC 2 controls automatically.</span></div>
-        <div class="claim"><span class="ar">&#8594;</span><span>Read-only scanning with the built-in Reader role. Your data never leaves your tenant.</span></div>
+        <div class="claim"><span class="ar">&#8594;</span><span>Rule definitions carry CIS, NIST, ISO 27001 and SOC 2 mappings beside the detection logic.</span></div>
+        <div class="claim"><span class="ar">&#8594;</span><span>Azure collection uses the built-in Reader role. Self-host the data layer when posture data must stay in infrastructure you control.</span></div>
       </div>
       <div class="hero-cta">
         <a class="btn btn-accent" href={url('/docs/')}>Read the quickstart <span class="ar">&#8594;</span></a>
@@ -22,9 +22,14 @@ const { ruleCount, domainCount, sampleScan } = repoData;
       </div>
     </div>
     <div class="hero-panel">
-      <canvas id="heroCanvas" role="img" aria-label={`Interactive 3D map of an Azure subscription: a central core connects ${domainCount} domain hubs and ${ruleCount} rule nodes while a scan pulse sweeps the estate. Click a node to inspect a rule.`}></canvas>
+      <canvas id="heroCanvas" role="img" aria-label={`Interactive map of an Azure subscription with ${domainCount} domain hubs and ${ruleCount} rule nodes. Use the previous and next controls to inspect rules.`}></canvas>
       <div class="hero-fallback" id="heroFallback">{ruleCount} RULE NODES / WEBGL UNAVAILABLE IN THIS BROWSER</div>
-      <div class="hero-cap"><span id="ruleInfo"><b>AZURE SUBSCRIPTION</b> / {domainCount} DOMAINS / {ruleCount} RULES</span><span>DRAG TO ROTATE / CLICK TO FOCUS</span></div>
+      <div class="hero-cap"><span id="ruleInfo" aria-live="polite"><b>AZURE SUBSCRIPTION</b> / {domainCount} DOMAINS / {ruleCount} RULES</span><span>Drag or use the controls to inspect</span></div>
+      <div class="orb-controls" aria-label="Rule map controls">
+        <button id="orbPrevious" type="button">Previous rule</button>
+        <button id="orbMotion" type="button" aria-pressed="false">Pause motion</button>
+        <button id="orbNext" type="button">Next rule</button>
+      </div>
       <div class="hero-legend" id="heroLegend"></div>
     </div>
   </div>
@@ -32,6 +37,19 @@ const { ruleCount, domainCount, sampleScan } = repoData;
 </header>
 
 <script>
-  import { initOrb } from '../lib/orbScene';
-  initOrb();
+  const canvas = document.getElementById('heroCanvas');
+  if (canvas) {
+    const load = () => import('../lib/orbScene').then(({ initOrb }) => initOrb());
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect();
+          void load();
+        }
+      }, { rootMargin: '180px' });
+      observer.observe(canvas);
+    } else {
+      void load();
+    }
+  }
 </script>

@@ -42,7 +42,7 @@ const postJsonLd = {
   description: post.data.description,
   datePublished: post.data.pubDate.toISOString(),
   dateModified: post.data.pubDate.toISOString(),
-  author: { '@type': 'Organization', name: post.data.author },
+  author: { '@type': 'Person', name: post.data.author },
   publisher: { '@type': 'Organization', name: 'OpenShield' },
   mainEntityOfPage: postUrl,
   url: postUrl,
@@ -50,7 +50,7 @@ const postJsonLd = {
 };
 ---
 
-<Base title={`${post.data.title} · OpenShield Blog`} description={post.data.description} active="blog" jsonLd={postJsonLd}>
+<Base title={`${post.data.title} · OpenShield Blog`} description={post.data.description} active="blog" jsonLd={postJsonLd} ogType="article">
   <header class="post-hero">
     <div class="wrap">
       <div class="ph-kicker">{(post.data.tags[0] ?? 'Post').toUpperCase()}</div>

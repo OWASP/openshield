@@ -5,7 +5,8 @@
 #        https://github.com/settings/applications/new
 #      Homepage URL:            https://openshield-org.github.io/openshield/admin/
 #      Authorization callback: https://api.netlify.com/auth/done
-#   2. Put the app's Client ID into app_id below.
+#   2. Store the public Client ID in the DECAP_GITHUB_APP_ID repository
+#      variable. The deployment pipeline injects it into the built artifact.
 #
 # Publishing flow (compatible with branch protection on dev and main):
 #   author writes in /admin -> editorial_workflow opens a PR from cms/<slug>
@@ -20,12 +21,11 @@ backend:
   repo: openshield-org/openshield
   branch: dev
   auth_type: pkce
-  # Client ID of the GitHub OAuth App registered for this CMS.
-  app_id: REPLACE_WITH_GITHUB_OAUTH_APP_CLIENT_ID
+  # The deployment build inserts app_id from the repository variable.
+  # Never put an OAuth client secret in this public configuration.
 
 publish_mode: editorial_workflow
 open_authoring: true
-local_backend: true
 
 media_folder: website/public/uploads
 public_folder: /openshield/uploads

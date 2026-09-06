@@ -13,31 +13,28 @@ name: website
 on:
   push:
     branches: [dev]
-    paths:
-      - "website/**"
-      - ".github/workflows/website.yml"
   pull_request:
-    paths:
-      - "website/**"
-      - ".github/workflows/website.yml"
+    branches: [dev, main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: website-${{ github.ref }}
+  group: website-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     name: Build site
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout with full history
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -54,17 +51,28 @@ jobs:
         working-directory: website
         run: npm run build
 
+      - name: Configure CMS
+        working-directory: website
+        env:
+          DECAP_GITHUB_APP_ID: ${{ vars.DECAP_GITHUB_APP_ID }}
+        run: npm run configure:cms
+
+      - name: Verify rendered site
+        working-directory: website
+        run: npm run verify
+
       - name: Upload Pages artifact
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/dev' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
         with:
           path: website/dist
 
   deploy:
     name: Deploy to GitHub Pages
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/dev' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

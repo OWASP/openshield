@@ -142,6 +142,7 @@ function countPlaybooks(): number {
 const ALIASES: Record<string, string> = {
   'ritik sah': 'Ritik Sah',
   ritiksah141: 'Ritik Sah',
+  ritiksah141: 'Ritik Sah',
   'vishnu ajith': 'Vishnu Ajith',
   vishnu2707: 'Vishnu Ajith',
   'tanvir farhad': 'Tanvir Farhad',
@@ -158,6 +159,22 @@ const ALIASES: Record<string, string> = {
   'prayas gautam': 'Prayas Gautam',
   vogonprayas: 'Prayas Gautam',
 };
+
+const GITHUB_PROFILES: Record<string, string> = {
+  'Ritik Sah': 'ritiksah141',
+  'Vishnu Ajith': 'Vishnu2707',
+  'Tanvir Farhad': 'tft444',
+  'Parth Rohit': 'parthrohit22',
+  'Safid Nadaf': 'safidnadaf',
+  'Sharique Ahmad': 'shariqueahmad108',
+  'Shaurya K Sharma': 'shauryaksharma24',
+  'Prayas Gautam': 'vogonPrayas',
+  'Muhammad Ibrahim': 'm-khan-97',
+};
+
+export function contributorGithub(name: string): string | undefined {
+  return GITHUB_PROFILES[name];
+}
 
 function listContributors(): string[] {
   let raw: string;
@@ -176,10 +193,95 @@ function listContributors(): string[] {
   return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 
+export interface ContributorActivity {
+  name: string;
+  commits: number;
+  github?: string;
+}
+
+function listContributorActivity(): ContributorActivity[] {
+  let raw: string;
+  try {
+    raw = execSync('git log --format=%aN', { cwd: repoRoot, encoding: 'utf8' });
+  } catch {
+    return [];
+  }
+  const counts = new Map<string, { name: string; commits: number }>();
+  for (const value of raw.split('\n')) {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.endsWith('[bot]')) continue;
+    const name = ALIASES[trimmed.toLowerCase()] ?? trimmed;
+    const key = name.toLowerCase();
+    const current = counts.get(key) ?? { name, commits: 0 };
+    current.commits++;
+    counts.set(key, current);
+  }
+  return [...counts.values()]
+    .map(({ name, commits }) => ({ name, commits, github: contributorGithub(name) }))
+    .sort((a, b) => b.commits - a.commits || a.name.localeCompare(b.name));
+}
+
 function latestRelease(): { tag: string; date: string } {
   const changelog = fs.readFileSync(path.join(repoRoot, 'CHANGELOG.md'), 'utf8');
   const m = changelog.match(/^##\s*\[(\d+\.\d+\.\d+)\]\s*-\s*(\d{4}-\d{2}-\d{2})/m);
   return m ? { tag: `v${m[1]}`, date: m[2] } : { tag: 'v0.0.0', date: '' };
+}
+
+export interface ReleaseEntry {
+  tag: string;
+  date: string;
+  href: string;
+}
+
+function releaseHistory(): ReleaseEntry[] {
+  const changelog = fs.readFileSync(path.join(repoRoot, 'CHANGELOG.md'), 'utf8');
+  return [...changelog.matchAll(/^##\s*\[(\d+\.\d+\.\d+)\]\s*-\s*(\d{4}-\d{2}-\d{2})/gm)]
+    .map((match) => {
+      const version = match[1];
+      const reference = changelog.match(new RegExp(`^\\[${version.replace(/\./g, '\\.')}\\]:\\s*(\\S+)`, 'm'));
+      return {
+        tag: `v${version}`,
+        date: match[2],
+        href: reference?.[1] ?? `https://github.com/openshield-org/openshield/releases/tag/v${version}`,
+      };
+    });
+}
+
+export interface RoadmapPeriod {
+  period: string;
+  items: string[];
+}
+
+function roadmapData(): { periods: RoadmapPeriod[]; limitations: string[] } {
+  const source = fs.readFileSync(path.join(repoRoot, 'ROADMAP.md'), 'utf8');
+  const periods: RoadmapPeriod[] = [];
+  let limitations: string[] = [];
+  let heading = '';
+  let items: string[] = [];
+  const flush = () => {
+    if (!heading) return;
+    if (heading.toLowerCase().includes('out of scope')) limitations = items;
+    else if (/\d{4}/.test(heading)) periods.push({ period: heading, items });
+  };
+  for (const line of source.split('\n')) {
+    const nextHeading = line.match(/^##\s+(.+)/);
+    if (nextHeading) {
+      flush();
+      heading = nextHeading[1].trim();
+      items = [];
+      continue;
+    }
+    const bullet = line.match(/^-\s+(.+)/);
+    if (bullet) {
+      items.push(bullet[1].trim());
+      continue;
+    }
+    if (/^\s{2,}\S/.test(line) && items.length) {
+      items[items.length - 1] += ` ${line.trim()}`;
+    }
+  }
+  flush();
+  return { periods, limitations };
 }
 
 export interface DocEntry {
@@ -227,6 +329,9 @@ function listDocs(): DocEntry[] {
 /* ------------------------------------------------------------------ */
 
 const rules = parseRules();
+const contributors = listContributors();
+const contributorActivity = listContributorActivity();
+const roadmap = roadmapData();
 
 const domainCounts = new Map<string, number>();
 for (const r of rules) domainCounts.set(r.domain, (domainCounts.get(r.domain) ?? 0) + 1);
@@ -241,8 +346,12 @@ export interface RepoData {
   domainCount: number;
   playbookCount: number;
   contributors: string[];
+  contributorActivity: ContributorActivity[];
   contributorCount: number;
   release: { tag: string; date: string };
+  releases: ReleaseEntry[];
+  roadmap: RoadmapPeriod[];
+  limitations: string[];
   docs: DocEntry[];
   /** demo scan: 6 high + 3 medium failing, everything else passing */
   sampleScan: { score: number; high: number; medium: number; passing: number };
@@ -254,9 +363,13 @@ export const repoData: RepoData = {
   ruleCount: rules.length,
   domainCount: domains.length,
   playbookCount: countPlaybooks(),
-  contributors: listContributors(),
-  contributorCount: listContributors().length,
+  contributors,
+  contributorCount: contributors.length,
+  contributorActivity,
   release: latestRelease(),
+  releases: releaseHistory(),
+  roadmap: roadmap.periods,
+  limitations: roadmap.limitations,
   docs: listDocs(),
   sampleScan: { score: 62, high: 6, medium: 3, passing: Math.max(rules.length - 9, 0) },
 };

@@ -21,7 +21,7 @@ domains.forEach((d) => {
 });
 ---
 
-<Base title="Rules · OpenShield" description={`All ${ruleCount} Azure misconfiguration rules: severity, domain, compliance mapping, remediation and playbook for every check.`} active="rules">
+<Base title="Rules · OpenShield" description={`Explore ${ruleCount} Azure misconfiguration rules with source-level severity, domain, compliance mapping and remediation metadata.`} active="rules">
   <div class="wrap">
     <div class="page-head">
       <h1>The rule book.</h1>
@@ -43,6 +43,7 @@ domains.forEach((d) => {
           <option value="ALL">ALL DOMAINS</option>
           {domains.map((d) => <option value={d.key}>{`${d.label.toUpperCase()} (${d.count})`}</option>)}
         </select>
+        <button class="clearbtn" id="clearFilters" type="button">Clear filters</button>
       </div>
       <div class="rules-count" id="rulesCount" aria-live="polite">SHOWING {ruleCount} OF {ruleCount} RULES</div>
 
@@ -82,6 +83,11 @@ domains.forEach((d) => {
           );
         })}
       </div>
+      <div class="rules-empty" id="rulesEmpty" hidden>
+        <h2>No rules match those filters.</h2>
+        <p>Try a shorter search, another domain or clear every filter.</p>
+        <button class="btn btn-dark" id="emptyClear" type="button">Show all rules</button>
+      </div>
     </section>
   </div>
 </Base>
@@ -90,6 +96,9 @@ domains.forEach((d) => {
   const search = document.getElementById('ruleSearch') as HTMLInputElement;
   const domainSel = document.getElementById('domainFilter') as HTMLSelectElement;
   const countEl = document.getElementById('rulesCount');
+  const emptyEl = document.getElementById('rulesEmpty');
+  const clear = document.getElementById('clearFilters') as HTMLButtonElement;
+  const emptyClear = document.getElementById('emptyClear') as HTMLButtonElement;
   const cards = Array.from(document.querySelectorAll('#ruleGrid .rcard')) as HTMLElement[];
   const sevBtns = Array.from(document.querySelectorAll('.sevbtn')) as HTMLButtonElement[];
   let sev = 'ALL';
@@ -107,10 +116,38 @@ domains.forEach((d) => {
       if (ok) shown++;
     }
     if (countEl) countEl.textContent = `SHOWING ${shown} OF ${cards.length} RULES`;
+    if (emptyEl) emptyEl.hidden = shown !== 0;
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (sev !== 'ALL') params.set('severity', sev);
+    if (dom !== 'ALL') params.set('domain', dom);
+    history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}`);
   }
+
+  function clearAll(): void {
+    search.value = '';
+    domainSel.value = 'ALL';
+    sev = 'ALL';
+    sevBtns.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.sev === 'ALL')));
+    apply();
+    search.focus();
+  }
+
+  const initial = new URLSearchParams(location.search);
+  search.value = initial.get('q') ?? '';
+  const initialDomain = initial.get('domain');
+  if (initialDomain && Array.from(domainSel.options).some((option) => option.value === initialDomain)) domainSel.value = initialDomain;
+  const initialSeverity = initial.get('severity');
+  if (initialSeverity && ['HIGH', 'MEDIUM', 'LOW'].includes(initialSeverity)) sev = initialSeverity;
+  sevBtns.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.sev === sev)));
 
   search.addEventListener('input', apply);
   domainSel.addEventListener('change', apply);
+  clear.addEventListener('click', clearAll);
+  emptyClear.addEventListener('click', clearAll);
+  search.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') clearAll();
+  });
   sevBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       sev = btn.dataset.sev ?? 'ALL';
@@ -118,4 +155,5 @@ domains.forEach((d) => {
       apply();
     });
   });
+  apply();
 </script>

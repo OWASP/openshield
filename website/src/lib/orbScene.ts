@@ -27,6 +27,9 @@ export function initOrb(): void {
   const fallback = document.getElementById('heroFallback') as HTMLElement | null;
   const info = document.getElementById('ruleInfo');
   const legend = document.getElementById('heroLegend');
+  const previous = document.getElementById('orbPrevious') as HTMLButtonElement | null;
+  const next = document.getElementById('orbNext') as HTMLButtonElement | null;
+  const motion = document.getElementById('orbMotion') as HTMLButtonElement | null;
   const dataEl = document.getElementById('orb-data');
   if (!canvas || !info || !legend || !dataEl) return;
 
@@ -255,7 +258,11 @@ export function initOrb(): void {
     sevEl.style.color = sevCol[r.severity] || '#a7a7b0';
     sevEl.textContent = r.severity;
     info.replaceChildren(idEl, document.createTextNode(` / ${r.name} / `), sevEl);
+    renderer.render(scene, camera);
   };
+
+  previous?.addEventListener('click', () => setFocus(((focus < 0 ? 0 : focus) - 1 + N) % N));
+  next?.addEventListener('click', () => setFocus((focus + 1) % N));
 
   const ray = new THREE.Raycaster();
   ray.params.Points = { threshold: 0.14 };
@@ -317,8 +324,19 @@ export function initOrb(): void {
   resize();
 
   const start = performance.now();
+  let motionPaused = reduce;
+  let inView = true;
+  let frameId = 0;
+
+  const setMotionLabel = () => {
+    if (!motion) return;
+    motion.setAttribute('aria-pressed', String(motionPaused));
+    motion.textContent = motionPaused ? 'Resume motion' : 'Pause motion';
+  };
+  setMotionLabel();
+
   const frame = (now: number) => {
-    requestAnimationFrame(frame);
+    frameId = 0;
     const t = now - start;
     if (focus >= 0 && !dragging) {
       const px = positions[focus * 3], py = positions[focus * 3 + 1], pz = positions[focus * 3 + 2];
@@ -328,24 +346,54 @@ export function initOrb(): void {
       dY = Math.atan2(Math.sin(dY), Math.cos(dY));
       tRy += dY * 0.09;
       tRx += (tx - tRx) * 0.09;
-    } else if (!dragging && !reduce) {
+    } else if (!dragging && !motionPaused) {
       tRy += 0.0024;
     }
     ry += (tRy - ry) * 0.12;
     rx += (tRx - rx) * 0.12;
-    group.rotation.set(rx + (reduce ? 0 : hoverX * 0.08), ry + (reduce ? 0 : hoverY * 0.1), 0);
+    group.rotation.set(rx + (motionPaused ? 0 : hoverX * 0.08), ry + (motionPaused ? 0 : hoverY * 0.1), 0);
     if (marker.visible) marker.scale.setScalar(1 + Math.sin(t * 0.005) * 0.14);
     const period = 4200;
     const pp = (t % period) / period;
     pulse.scale.setScalar(0.78 + pp * 1.4);
-    pulseMat.opacity = reduce ? 0 : 0.20 * (1 - pp);
-    if (!reduce) {
+    pulseMat.opacity = motionPaused ? 0 : 0.20 * (1 - pp);
+    if (!motionPaused) {
       ringA.rotation.z += 0.0006;
       ringB.rotation.z -= 0.0004;
       core.scale.setScalar(1 + 0.025 * Math.sin(t * 0.0024));
     }
-    group.position.y = reduce ? 0 : Math.sin(t * 0.00055) * 0.07;
+    group.position.y = motionPaused ? 0 : Math.sin(t * 0.00055) * 0.07;
     renderer.render(scene, camera);
+    if (!motionPaused && inView && !document.hidden) frameId = requestAnimationFrame(frame);
   };
-  requestAnimationFrame(frame);
+
+  const startFrames = () => {
+    if (!frameId && !motionPaused && inView && !document.hidden) frameId = requestAnimationFrame(frame);
+  };
+  motion?.addEventListener('click', () => {
+    motionPaused = !motionPaused;
+    setMotionLabel();
+    if (motionPaused && frameId) {
+      cancelAnimationFrame(frameId);
+      frameId = 0;
+      renderer.render(scene, camera);
+    } else {
+      startFrames();
+    }
+  });
+  document.addEventListener('visibilitychange', startFrames);
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      inView = entries[0]?.isIntersecting ?? true;
+      if (!inView && frameId) {
+        cancelAnimationFrame(frameId);
+        frameId = 0;
+      } else {
+        startFrames();
+      }
+    });
+    observer.observe(canvas);
+  }
+  renderer.render(scene, camera);
+  startFrames();
 }

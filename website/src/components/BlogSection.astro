@@ -4,7 +4,7 @@ import { url } from '../lib/base';
 
 const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
-);
+).slice(0, 3);
 
 function fmtDate(d: Date): string {
   return d

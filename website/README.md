@@ -18,6 +18,7 @@ Other scripts:
 ```bash
 npm run build      # production build into dist/
 npm run preview    # serve the production build locally
+npm run check      # build plus content, semantics and bundle verification
 ```
 
 Requires Node 20+ (CI uses Node 22). The build reads `scanner/rules/`,
@@ -40,21 +41,17 @@ Via the CMS (recommended):
    deploys the site automatically (about 1-2 minutes). The site follows
    `dev`; `main` only receives release merges.
 
-Local CMS development:
-
-```bash
-npm run dev                    # terminal 1
-npx decap-server               # terminal 2 (local auth proxy on :8081)
-```
-
-Then open `http://localhost:4321/openshield/admin/` and click the login
-button; it connects to the local proxy.
-
 ## Deployment pipeline
 
-`.github/workflows/website.yml` runs on every pull request touching
-`website/**` (build check) and deploys to GitHub Pages on pushes to `dev`.
-There is no manual deploy step and no other environment to configure.
+`.github/workflows/website.yml` builds the site on every pull request targeting
+`dev` or `main`. Every push to `dev` rebuilds and deploys the verified artifact
+to GitHub Pages, so changes to rules, features, documentation, or site code are
+published without maintaining a fragile path list. Manual runs can deploy only
+from `dev`.
+
+GitHub Pages does not support custom response headers. The document-level
+content security policy covers supported directives, but hosting-level headers
+such as `frame-ancestors` require a configurable hosting edge.
 
 ## One-time maintainer setup
 
@@ -63,9 +60,11 @@ There is no manual deploy step and no other environment to configure.
    - New OAuth App: https://github.com/settings/applications/new
    - Homepage URL: `https://openshield-org.github.io/openshield/admin/`
    - Authorization callback URL: `https://api.netlify.com/auth/done`
-3. Put the Client ID into `public/admin/config.yml`, replacing the
-   `REPLACE_WITH_GITHUB_OAUTH_APP_CLIENT_ID` placeholder. Commit that change
-   through a pull request.
+3. Add its public Client ID as an Actions repository variable named
+   `DECAP_GITHUB_APP_ID`. Do not store a client secret. The build fails closed
+   when this variable is absent or malformed.
+4. Require the `Build site` status check in the protection rules for `dev` and
+   `main`. This prevents a site-breaking repository change from being merged.
 
 Decap uses `auth_type: pkce`, so no client secret or server-side token
 exchange is needed.
@@ -89,6 +88,6 @@ website/
   src/components/         # one file per section of the landing page
   src/lib/repoData.ts     # build-time extraction of rules, docs, contributors
   src/lib/orbScene.ts     # hero visualization (three.js)
-  src/pages/              # routes: /, /rules/, /docs/, /blog/, rss.xml, 404
+  src/pages/              # routes: home, architecture, evidence, rules, docs, blog, community, RSS and 404
   public/admin/           # Decap CMS (config + editor shell)
 ```
