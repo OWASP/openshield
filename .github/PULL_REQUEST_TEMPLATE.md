@@ -25,6 +25,11 @@
 ## Related issue
 Closes #
 
+## Dependencies
+<!-- List any PRs or issues that must merge before this one. -->
+<!-- Replace "none" with one or more references, e.g. Depends-On: #123 -->
+Depends-On: none
+
 ## Checklist
 - [ ] Every commit includes a DCO `Signed-off-by` trailer (`git commit -s`; see `docs/dco.md`)
 - [ ] My code follows the rule template in CONTRIBUTING.md

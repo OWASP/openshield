@@ -1,0 +1,69 @@
+# .mergify.yml
+# Merge-queue configuration for the OpenShield dev branch.
+#
+# This file is inactive until the Mergify GitHub App is installed and
+# authorized for this repository. GitHub Actions remains the CI system.
+# Mergify reads pull-request state and operates the queue; it does not
+# run CI, replace existing workflows, or bypass GitHub branch protection.
+#
+# Related: https://github.com/openshield-org/openshield/issues/334
+
+queue_rules:
+  - name: default
+    # Serial queue: one pull request processed at a time.
+    # No batch merging, no parallel queue, no automatic conflict resolution.
+    speculative_checks: 1
+    batch_size: 1
+
+    # These conditions must hold at the moment Mergify merges the PR.
+    # Mergify re-evaluates them after rebasing onto the current dev HEAD.
+    merge_conditions:
+      - check-success=CI Summary
+      - check-success=DCO sign-off
+      - check-success=dependency-review
+      - "#approved-reviews-by>=1"
+      - "#changes-requested-reviews-by=0"
+      - "#review-threads-unresolved=0"
+      - -draft
+
+pull_request_rules:
+  # Queue an eligible PR automatically once all conditions are met.
+  # The PR is rebased onto the latest dev HEAD before merge so CI runs
+  # against the actual post-merge state.
+  - name: add to merge queue when eligible
+    conditions:
+      - base=dev
+      - check-success=CI Summary
+      - check-success=DCO sign-off
+      - check-success=dependency-review
+      - "#approved-reviews-by>=1"
+      - "#changes-requested-reviews-by=0"
+      - "#review-threads-unresolved=0"
+      - -draft
+      - -label=blocked
+    actions:
+      queue:
+        name: default
+
+  # Apply awaiting-author when a reviewer has requested changes.
+  # This makes blocked PRs visible in the issue tracker without any
+  # manual triage step.
+  - name: label awaiting-author when changes are requested
+    conditions:
+      - base=dev
+      - "#changes-requested-reviews-by>0"
+    actions:
+      label:
+        add:
+          - awaiting-author
+
+  # Remove awaiting-author once all change requests are resolved.
+  - name: remove awaiting-author when no changes are requested
+    conditions:
+      - base=dev
+      - label=awaiting-author
+      - "#changes-requested-reviews-by=0"
+    actions:
+      label:
+        remove:
+          - awaiting-author
