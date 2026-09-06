@@ -28,15 +28,17 @@ queue_rules:
     # These conditions must hold at the moment Mergify merges the PR.
     # Mergify re-evaluates them after rebasing onto the current dev HEAD.
     #
-    # CI Summary covers all required GitHub Actions jobs. Once PR #329 merges,
-    # it will also include the Astro website build and rendered-site verification
-    # ("Website (Astro build + verification)"), so no separate check-success
-    # condition is needed for the website gate. If maintainers later want an
-    # explicit condition, add "check-success=Build site" after #329 has merged.
+    # CI Summary aggregates the jobs inside ci.yml. Once PR #329 merges it
+    # also covers the Astro website build and rendered-site verification.
+    # CodeQL runs in a separate workflow (codeql.yml) and is NOT included in
+    # CI Summary, so it is gated explicitly below.
     merge_conditions:
       - check-success=CI Summary
       - check-success=DCO sign-off
       - check-success=dependency-review
+      - check-success=CodeQL
+      - check-success=Analyze (python)
+      - check-success=Analyze (javascript)
       - "#approved-reviews-by>=1"
       - "#changes-requested-reviews-by=0"
       - "#review-threads-unresolved=0"
