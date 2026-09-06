@@ -285,6 +285,7 @@ class MockAzureClient:
 
     def get_jit_network_access_policies(self) -> Optional[List[Any]]:
         return self._jit_policies
+
     def set_vm_patch_status(self, resource_group: str, vm_name: str, summary: Optional[Any]) -> "MockAzureClient":
         """Configure the AvailablePatchSummary returned for a VM; ``None`` means no real
         assessment evidence is available."""
