@@ -26,11 +26,25 @@ are true:
 - All review conversations are resolved
 - The pull request is not a draft
 - The `blocked` label is not applied
-- All declared dependencies have merged (see below)
 
 Mergify processes one pull request at a time. It rebases the queued PR onto
 the latest `dev` and runs CI again before merging, so the branch is always
 tested against what is actually on `dev` at merge time.
+
+`CI Summary` covers all required GitHub Actions jobs. Once PR #329 merges,
+it will also include the Astro website build and rendered-site verification,
+so the website gate is satisfied through `CI Summary` with no separate
+condition needed.
+
+## Keeping a PR out of the queue
+
+To prevent a PR from entering the queue while it is still in progress, either:
+
+- Open it as a **draft**. Mergify will not queue it until you mark it ready
+  for review.
+- Apply the **`blocked` label**. This removes the PR from queue eligibility
+  and also prevents it from merging even if it is already in the queue.
+  Remove the label when the PR is ready to proceed.
 
 ## Declaring dependencies
 
@@ -41,9 +55,10 @@ pull request description:
 Depends-On: #123
 ```
 
-Use one `Depends-On:` line per dependency. Mergify holds the PR in the queue
-until every declared dependency is merged, then re-evaluates it against the
-latest `dev` state.
+Use one `Depends-On:` line per dependency. The PR can enter the queue
+immediately, but Mergify holds it there until every declared dependency has
+merged. Once all dependencies are satisfied, Mergify re-evaluates the PR
+against the latest `dev` state and proceeds.
 
 Leave the placeholder as `none` when there are no dependencies:
 

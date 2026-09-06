@@ -27,6 +27,12 @@ queue_rules:
 
     # These conditions must hold at the moment Mergify merges the PR.
     # Mergify re-evaluates them after rebasing onto the current dev HEAD.
+    #
+    # CI Summary covers all required GitHub Actions jobs. Once PR #329 merges,
+    # it will also include the Astro website build and rendered-site verification
+    # ("Website (Astro build + verification)"), so no separate check-success
+    # condition is needed for the website gate. If maintainers later want an
+    # explicit condition, add "check-success=Build site" after #329 has merged.
     merge_conditions:
       - check-success=CI Summary
       - check-success=DCO sign-off
@@ -35,6 +41,7 @@ queue_rules:
       - "#changes-requested-reviews-by=0"
       - "#review-threads-unresolved=0"
       - -draft
+      - -label=blocked
 
 pull_request_rules:
   # Dismiss approvals when a new commit is pushed to a dev-targeted PR.
