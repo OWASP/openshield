@@ -227,13 +227,16 @@ def test_get_compliance_score_all_pass_after_clean_scan():
     assert statuses["AZ-NET-001"] == "PASS"
 
 
-def test_get_compliance_score_no_evaluation_rows_is_unknown_not_pass():
-    """A clean (zero-finding) scan with no rule_evaluations rows at all — e.g.
-    a scan that predates #263, or a rule that was never evaluated — must
-    report UNKNOWN, never silently default to PASS (the bug #263 fixes)."""
+def test_get_compliance_score_clean_completed_scan_with_no_findings_is_pass():
+    """A completed scan that produced no finding for a rule, and whose engine
+    recorded no failure for it, is the absence-of-findings PASS this method
+    reports on (issue #302). "Never actually ran" is signalled explicitly via
+    the scan's _scan_rule_outcomes.failed_rule_ids (-> NOT_EVALUATED) or by
+    there being no completed scan at all (-> NO_SCAN_DATA), not inferred here
+    from a missing evaluation row."""
     db = _db()
     conn = MagicMock()
-    cur = _mock_cursor([], evaluation_rows=[])
+    cur = _mock_cursor([])
     cur.fetchone.return_value = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
     conn.cursor.return_value = cur
 
@@ -256,10 +259,10 @@ def test_get_compliance_score_no_evaluation_rows_is_unknown_not_pass():
             with patch.object(Path, "exists", return_value=True):
                 result = db.get_compliance_score("cis")
 
-    assert result["controls"][0]["status"] == "UNKNOWN"
-    assert result["passed"] == 0
-    assert result["unknown"] == 1
-    assert result["score_percent"] == 0
+    assert result["controls"][0]["status"] == "PASS"
+    assert result["passed"] == 1
+    assert result["unknown"] == 0
+    assert result["score_percent"] == 100
 
 
 def test_get_compliance_score_remediated_rule_shows_pass():

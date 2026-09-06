@@ -2,6 +2,10 @@
   "framework": "CIS Microsoft Azure Foundations Benchmark",
   "version": "2.0.0",
   "published": "2023-02",
+  "mapping_pack_version": "1.0.0",
+  "mapping_pack_status": "current",
+  "mapping_pack_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+  "mapping_pack_published": "2026-09-06",
   "controls": {
     "AZ-STOR-001": {
       "control_id": "3.5",
@@ -30,52 +34,122 @@
     "AZ-STOR-006": {
       "control_id": "N/A-STOR-006",
       "control_name": "Storage Account Shared-Key Authorization Enabled",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-STOR-006",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-STOR-006: Storage Account Shared-Key Authorization Enabled is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-007": {
       "control_id": "N/A-STOR-007",
       "control_name": "Storage Account Allows TLS Below 1.2",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-STOR-007",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-STOR-007: Storage Account Allows TLS Below 1.2 is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-008": {
       "control_id": "N/A-STOR-008",
       "control_name": "Required Storage Customer-Managed Key Protection Missing",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-STOR-008",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-STOR-008: Required Storage Customer-Managed Key Protection Missing is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-009": {
       "control_id": "N/A-STOR-009",
       "control_name": "Required Blob Container Immutability Missing",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-STOR-009",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-STOR-009: Required Blob Container Immutability Missing is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-005": {
       "control_id": "N/A-DB-005",
       "control_name": "SQL Server Microsoft Entra-Only Authentication Not Enforced",
-      "description": "Service-specific OpenShield control."
+      "description": "Service-specific OpenShield control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-DB-005",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-DB-005: SQL Server Microsoft Entra-Only Authentication Not Enforced is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-006": {
       "control_id": "N/A-DB-006",
       "control_name": "SQL Vulnerability Assessment Not Configured",
-      "description": "Service-specific OpenShield control."
+      "description": "Service-specific OpenShield control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-DB-006",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-DB-006: SQL Vulnerability Assessment Not Configured is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-007": {
       "control_id": "N/A-DB-007",
       "control_name": "SQL Auditing Retention Below Minimum",
-      "description": "Service-specific OpenShield control."
+      "description": "Service-specific OpenShield control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-DB-007",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-DB-007: SQL Auditing Retention Below Minimum is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-COSMOS-001": {
       "control_id": "N/A-COSMOS-001",
       "control_name": "Cosmos DB Local Authentication Enabled",
-      "description": "Service-specific OpenShield control."
+      "description": "Service-specific OpenShield control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-COSMOS-001",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-COSMOS-001: Cosmos DB Local Authentication Enabled is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-COSMOS-002": {
       "control_id": "N/A-COSMOS-002",
       "control_name": "Cosmos DB Public Network Access Enabled",
-      "description": "Service-specific OpenShield control."
+      "description": "Service-specific OpenShield control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-COSMOS-002",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-COSMOS-002: Cosmos DB Public Network Access Enabled is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CACHE-001": {
       "control_id": "N/A-CACHE-001",
       "control_name": "Managed Cache Public or Non-TLS Access",
-      "description": "Service-specific OpenShield control."
+      "description": "Service-specific OpenShield control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-CACHE-001",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-CACHE-001: Managed Cache Public or Non-TLS Access is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-001": {
       "control_id": "6.2",
@@ -944,52 +1018,122 @@
     "AZ-IDN-016": {
       "control_id": "N/A-IDN-016",
       "control_name": "Privileged User Missing Phishing-Resistant MFA",
-      "description": "Service-specific OpenShield control for phishing-resistant MFA enforcement on privileged users."
+      "description": "Service-specific OpenShield control for phishing-resistant MFA enforcement on privileged users.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-016",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-016: Privileged User Missing Phishing-Resistant MFA is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-017": {
       "control_id": "N/A-IDN-017",
       "control_name": "Global Administrator Permanently Assigned Outside PIM",
-      "description": "Service-specific OpenShield control for PIM-governed Global Administrator assignments."
+      "description": "Service-specific OpenShield control for PIM-governed Global Administrator assignments.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-017",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-017: Global Administrator Permanently Assigned Outside PIM is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-018": {
       "control_id": "N/A-IDN-018",
       "control_name": "Privileged Role Assigned Outside PIM",
-      "description": "Service-specific OpenShield control requiring all privileged roles to be managed via PIM."
+      "description": "Service-specific OpenShield control requiring all privileged roles to be managed via PIM.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-018",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-018: Privileged Role Assigned Outside PIM is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-019": {
       "control_id": "N/A-IDN-019",
       "control_name": "Stale Privileged Account Retains Active Access",
-      "description": "Service-specific OpenShield control for dormant privileged accounts."
+      "description": "Service-specific OpenShield control for dormant privileged accounts.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-019",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-019: Stale Privileged Account Retains Active Access is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-020": {
       "control_id": "N/A-IDN-020",
       "control_name": "Emergency Access Accounts Missing or Misconfigured",
-      "description": "Service-specific OpenShield control for break-glass account configuration."
+      "description": "Service-specific OpenShield control for break-glass account configuration.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-020",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-020: Emergency Access Accounts Missing or Misconfigured is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-021": {
       "control_id": "N/A-IDN-021",
       "control_name": "Legacy Authentication Not Blocked by Conditional Access",
-      "description": "Service-specific OpenShield control for blocking legacy authentication protocols."
+      "description": "Service-specific OpenShield control for blocking legacy authentication protocols.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-021",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-021: Legacy Authentication Not Blocked by Conditional Access is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-022": {
       "control_id": "N/A-IDN-022",
       "control_name": "Azure Management Not Protected by Conditional Access",
-      "description": "Service-specific OpenShield control requiring CA protection for Azure management."
+      "description": "Service-specific OpenShield control requiring CA protection for Azure management.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-022",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-022: Azure Management Not Protected by Conditional Access is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-023": {
       "control_id": "N/A-IDN-023",
       "control_name": "Identity Protection Risk Policies Not Enabled",
-      "description": "Service-specific OpenShield control for Identity Protection risk policy enablement."
+      "description": "Service-specific OpenShield control for Identity Protection risk policy enablement.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-023",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-023: Identity Protection Risk Policies Not Enabled is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-024": {
       "control_id": "N/A-IDN-024",
       "control_name": "Workload Identities Excluded From Conditional Access",
-      "description": "Service-specific OpenShield control for workload identity CA coverage."
+      "description": "Service-specific OpenShield control for workload identity CA coverage.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-024",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-024: Workload Identities Excluded From Conditional Access is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-025": {
       "control_id": "N/A-IDN-025",
       "control_name": "Privileged Role-Assignable Group Has No Owner",
-      "description": "Service-specific OpenShield control for privileged group ownership governance."
+      "description": "Service-specific OpenShield control for privileged group ownership governance.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-025",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-025: Privileged Role-Assignable Group Has No Owner is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-001": {
       "control_id": "N/A-SC-001",

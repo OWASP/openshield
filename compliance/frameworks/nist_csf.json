@@ -2,6 +2,10 @@
   "framework": "NIST Cybersecurity Framework",
   "version": "1.1",
   "published": "2018-04",
+  "mapping_pack_version": "1.0.0",
+  "mapping_pack_status": "current",
+  "mapping_pack_source": "OpenShield compliance mapping pack, authored against NIST Cybersecurity Framework 1.1. Technical-evidence mapping only.",
+  "mapping_pack_published": "2026-09-06",
   "controls": {
     "AZ-STOR-001": {
       "control_id": "PR.AC-3",
@@ -30,52 +34,122 @@
     "AZ-STOR-006": {
       "control_id": "N/A-STOR-006",
       "control_name": "Storage Account Shared-Key Authorization Enabled",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "NIST Cybersecurity Framework 1.1 (no corresponding subcategory)",
+      "rationale": "NIST Cybersecurity Framework 1.1 defines no subcategory that OpenShield rule AZ-STOR-006 maps to (Storage Account Shared-Key Authorization Enabled); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-007": {
       "control_id": "N/A-STOR-007",
       "control_name": "Storage Account Allows TLS Below 1.2",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "NIST Cybersecurity Framework 1.1 (no corresponding subcategory)",
+      "rationale": "NIST Cybersecurity Framework 1.1 defines no subcategory that OpenShield rule AZ-STOR-007 maps to (Storage Account Allows TLS Below 1.2); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-008": {
       "control_id": "N/A-STOR-008",
       "control_name": "Required Storage Customer-Managed Key Protection Missing",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "NIST Cybersecurity Framework 1.1 (no corresponding subcategory)",
+      "rationale": "NIST Cybersecurity Framework 1.1 defines no subcategory that OpenShield rule AZ-STOR-008 maps to (Required Storage Customer-Managed Key Protection Missing); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-009": {
       "control_id": "N/A-STOR-009",
       "control_name": "Required Blob Container Immutability Missing",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "NIST Cybersecurity Framework 1.1 (no corresponding subcategory)",
+      "rationale": "NIST Cybersecurity Framework 1.1 defines no subcategory that OpenShield rule AZ-STOR-009 maps to (Required Blob Container Immutability Missing); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-005": {
       "control_id": "PR.AC-6",
       "control_name": "Identity proofing and authentication",
-      "description": "SQL authentication is restricted to approved Entra identities."
+      "description": "SQL authentication is restricted to approved Entra identities.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-6",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-6 ('Identity proofing and authentication') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-DB-005 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-006": {
       "control_id": "DE.CM-8",
       "control_name": "Vulnerability scans are performed",
-      "description": "Required SQL vulnerability assessment is configured."
+      "description": "Required SQL vulnerability assessment is configured.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory DE.CM-8",
+      "rationale": "NIST CSF 1.1 subcategory DE.CM-8 ('Vulnerability scans are performed') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-DB-006 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-007": {
       "control_id": "A.12.4.1",
       "control_name": "Event logging",
-      "description": "SQL audit logs are retained according to policy."
+      "description": "SQL audit logs are retained according to policy.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory A.12.4.1",
+      "rationale": "NIST CSF 1.1 subcategory A.12.4.1 ('Event logging') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-DB-007 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-COSMOS-001": {
       "control_id": "PR.AC-6",
       "control_name": "Identity proofing and authentication",
-      "description": "Cosmos authentication is restricted to approved Entra identities."
+      "description": "Cosmos authentication is restricted to approved Entra identities.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-6",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-6 ('Identity proofing and authentication') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-COSMOS-001 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-COSMOS-002": {
       "control_id": "PR.AC-5",
       "control_name": "Network integrity is protected",
-      "description": "Cosmos public network access is restricted according to policy."
+      "description": "Cosmos public network access is restricted according to policy.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-5",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-5 ('Network integrity is protected') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-COSMOS-002 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CACHE-001": {
       "control_id": "PR.AC-5",
       "control_name": "Network integrity is protected",
-      "description": "Managed cache access is private and uses approved TLS."
+      "description": "Managed cache access is private and uses approved TLS.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-5",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-5 ('Network integrity is protected') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-CACHE-001 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-001": {
       "control_id": "PR.AC-3",
@@ -944,52 +1018,122 @@
     "AZ-IDN-016": {
       "control_id": "PR.AC-7",
       "control_name": "Users, devices, and other assets are authenticated",
-      "description": "Privileged users must register phishing-resistant authentication methods."
+      "description": "Privileged users must register phishing-resistant authentication methods.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-7",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-7 ('Users, devices, and other assets are authenticated') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-IDN-016 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-017": {
       "control_id": "PR.AC-4",
       "control_name": "Access permissions and authorizations are managed",
-      "description": "Global Administrator assignments must be time-bound and managed through PIM."
+      "description": "Global Administrator assignments must be time-bound and managed through PIM.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-4",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-4 ('Access permissions and authorizations are managed') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-IDN-017 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-018": {
       "control_id": "PR.AC-4",
       "control_name": "Access permissions and authorizations are managed",
-      "description": "All privileged role assignments must be governed through Privileged Identity Management."
+      "description": "All privileged role assignments must be governed through Privileged Identity Management.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-4",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-4 ('Access permissions and authorizations are managed') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-IDN-018 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-019": {
       "control_id": "PR.AC-1",
       "control_name": "Identities and credentials are managed",
-      "description": "Dormant privileged accounts must be reviewed and disabled."
+      "description": "Dormant privileged accounts must be reviewed and disabled.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-1",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-1 ('Identities and credentials are managed') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-IDN-019 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-020": {
       "control_id": "PR.AC-4",
       "control_name": "Access permissions and authorizations are managed",
-      "description": "At least two correctly configured emergency access accounts must exist."
+      "description": "At least two correctly configured emergency access accounts must exist.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-4",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-4 ('Access permissions and authorizations are managed') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-IDN-020 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-021": {
       "control_id": "PR.AC-7",
       "control_name": "Users, devices, and other assets are authenticated",
-      "description": "Legacy authentication protocols that bypass MFA must be blocked."
+      "description": "Legacy authentication protocols that bypass MFA must be blocked.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-7",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-7 ('Users, devices, and other assets are authenticated') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-IDN-021 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-022": {
       "control_id": "PR.AC-4",
       "control_name": "Access permissions and authorizations are managed",
-      "description": "Azure management interfaces require MFA enforcement via Conditional Access."
+      "description": "Azure management interfaces require MFA enforcement via Conditional Access.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-4",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-4 ('Access permissions and authorizations are managed') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-IDN-022 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-023": {
       "control_id": "DE.CM-3",
       "control_name": "Personnel activity is monitored to detect potential cybersecurity events",
-      "description": "Identity Protection risk policies must be enabled to detect and respond to compromised accounts."
+      "description": "Identity Protection risk policies must be enabled to detect and respond to compromised accounts.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory DE.CM-3",
+      "rationale": "NIST CSF 1.1 subcategory DE.CM-3 ('Personnel activity is monitored to detect potential cybersecurity events') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-IDN-023 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-024": {
       "control_id": "PR.AC-4",
       "control_name": "Access permissions and authorizations are managed",
-      "description": "Workload identities with privileged roles must not be broadly excluded from CA policies."
+      "description": "Workload identities with privileged roles must not be broadly excluded from CA policies.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-4",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-4 ('Access permissions and authorizations are managed') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-IDN-024 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-025": {
       "control_id": "PR.AC-4",
       "control_name": "Access permissions and authorizations are managed",
-      "description": "Role-assignable groups must have designated owners to control privileged group membership."
+      "description": "Role-assignable groups must have designated owners to control privileged group membership.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-4",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-4 ('Access permissions and authorizations are managed') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-IDN-025 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-001": {
       "control_id": "PR.AC-1",

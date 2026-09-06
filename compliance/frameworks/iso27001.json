@@ -2,6 +2,10 @@
   "framework": "ISO/IEC 27001:2013",
   "version": "2013",
   "published": "2013-10",
+  "mapping_pack_version": "1.0.0",
+  "mapping_pack_status": "current",
+  "mapping_pack_source": "OpenShield compliance mapping pack, authored against ISO/IEC 27001:2013 Annex A. Technical-evidence mapping only.",
+  "mapping_pack_published": "2026-09-06",
   "controls": {
     "AZ-STOR-001": {
       "control_id": "A.9.4.1",
@@ -30,52 +34,122 @@
     "AZ-STOR-006": {
       "control_id": "N/A-STOR-006",
       "control_name": "Storage Account Shared-Key Authorization Enabled",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated ISO 27001 recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated ISO 27001 recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "ISO/IEC 27001:2013 (no corresponding Annex A control)",
+      "rationale": "ISO/IEC 27001:2013 defines no Annex A control that OpenShield rule AZ-STOR-006 maps to (Storage Account Shared-Key Authorization Enabled); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-007": {
       "control_id": "N/A-STOR-007",
       "control_name": "Storage Account Allows TLS Below 1.2",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated ISO 27001 recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated ISO 27001 recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "ISO/IEC 27001:2013 (no corresponding Annex A control)",
+      "rationale": "ISO/IEC 27001:2013 defines no Annex A control that OpenShield rule AZ-STOR-007 maps to (Storage Account Allows TLS Below 1.2); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-008": {
       "control_id": "N/A-STOR-008",
       "control_name": "Required Storage Customer-Managed Key Protection Missing",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated ISO 27001 recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated ISO 27001 recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "ISO/IEC 27001:2013 (no corresponding Annex A control)",
+      "rationale": "ISO/IEC 27001:2013 defines no Annex A control that OpenShield rule AZ-STOR-008 maps to (Required Storage Customer-Managed Key Protection Missing); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-009": {
       "control_id": "N/A-STOR-009",
       "control_name": "Required Blob Container Immutability Missing",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated ISO 27001 recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated ISO 27001 recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "ISO/IEC 27001:2013 (no corresponding Annex A control)",
+      "rationale": "ISO/IEC 27001:2013 defines no Annex A control that OpenShield rule AZ-STOR-009 maps to (Required Blob Container Immutability Missing); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-005": {
       "control_id": "A.9.4.2",
       "control_name": "Secure log-on procedures",
-      "description": "SQL authentication is restricted to approved Entra identities."
+      "description": "SQL authentication is restricted to approved Entra identities.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.4.2",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.4.2 ('Secure log-on procedures') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-DB-005 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-006": {
       "control_id": "A.12.6.1",
       "control_name": "Management of technical vulnerabilities",
-      "description": "Required SQL vulnerability assessment is configured."
+      "description": "Required SQL vulnerability assessment is configured.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.12.6.1",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.12.6.1 ('Management of technical vulnerabilities') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-DB-006 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-007": {
       "control_id": "A.12.4.1",
       "control_name": "Event logging",
-      "description": "SQL audit logs are retained according to policy."
+      "description": "SQL audit logs are retained according to policy.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.12.4.1",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.12.4.1 ('Event logging') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-DB-007 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-COSMOS-001": {
       "control_id": "A.9.4.2",
       "control_name": "Secure log-on procedures",
-      "description": "Cosmos authentication is restricted to approved Entra identities."
+      "description": "Cosmos authentication is restricted to approved Entra identities.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.4.2",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.4.2 ('Secure log-on procedures') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-COSMOS-001 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-COSMOS-002": {
       "control_id": "A.13.1.1",
       "control_name": "Network controls",
-      "description": "Cosmos public network access is restricted according to policy."
+      "description": "Cosmos public network access is restricted according to policy.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.13.1.1",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.13.1.1 ('Network controls') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-COSMOS-002 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CACHE-001": {
       "control_id": "A.13.1.1",
       "control_name": "Network controls",
-      "description": "Managed cache access is private and uses approved TLS."
+      "description": "Managed cache access is private and uses approved TLS.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.13.1.1",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.13.1.1 ('Network controls') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-CACHE-001 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-001": {
       "control_id": "A.13.1.1",
@@ -944,52 +1018,122 @@
     "AZ-IDN-016": {
       "control_id": "A.9.4.2",
       "control_name": "Secure log-on procedures",
-      "description": "Privileged users must use phishing-resistant multi-factor authentication."
+      "description": "Privileged users must use phishing-resistant multi-factor authentication.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.4.2",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.4.2 ('Secure log-on procedures') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-IDN-016 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-017": {
       "control_id": "A.9.2.3",
       "control_name": "Management of privileged access rights",
-      "description": "Global Administrator access must be time-bound through PIM rather than permanently assigned."
+      "description": "Global Administrator access must be time-bound through PIM rather than permanently assigned.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.2.3",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.2.3 ('Management of privileged access rights') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-IDN-017 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-018": {
       "control_id": "A.9.2.3",
       "control_name": "Management of privileged access rights",
-      "description": "Privileged role assignments must be managed and audited through PIM."
+      "description": "Privileged role assignments must be managed and audited through PIM.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.2.3",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.2.3 ('Management of privileged access rights') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-IDN-018 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-019": {
       "control_id": "A.9.2.5",
       "control_name": "Review of user access rights",
-      "description": "Dormant privileged accounts must be periodically reviewed and revoked."
+      "description": "Dormant privileged accounts must be periodically reviewed and revoked.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.2.5",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.2.5 ('Review of user access rights') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-IDN-019 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-020": {
       "control_id": "A.9.1.2",
       "control_name": "Access to networks and network services",
-      "description": "Emergency access accounts ensure administrative access during lockout scenarios."
+      "description": "Emergency access accounts ensure administrative access during lockout scenarios.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.1.2",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.1.2 ('Access to networks and network services') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-IDN-020 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-021": {
       "control_id": "A.9.4.2",
       "control_name": "Secure log-on procedures",
-      "description": "Legacy authentication protocols that bypass MFA controls must be blocked."
+      "description": "Legacy authentication protocols that bypass MFA controls must be blocked.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.4.2",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.4.2 ('Secure log-on procedures') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-IDN-021 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-022": {
       "control_id": "A.9.4.1",
       "control_name": "Information access restriction",
-      "description": "Azure management interfaces must require MFA via Conditional Access."
+      "description": "Azure management interfaces must require MFA via Conditional Access.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.4.1",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.4.1 ('Information access restriction') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-IDN-022 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-023": {
       "control_id": "A.12.4.1",
       "control_name": "Event logging",
-      "description": "Identity Protection risk policies detect and respond to anomalous sign-in activity."
+      "description": "Identity Protection risk policies detect and respond to anomalous sign-in activity.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.12.4.1",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.12.4.1 ('Event logging') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-IDN-023 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-024": {
       "control_id": "A.9.2.3",
       "control_name": "Management of privileged access rights",
-      "description": "Workload identities must not be broadly excluded from Conditional Access enforcement."
+      "description": "Workload identities must not be broadly excluded from Conditional Access enforcement.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.2.3",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.2.3 ('Management of privileged access rights') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-IDN-024 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-025": {
       "control_id": "A.9.2.5",
       "control_name": "Review of user access rights",
-      "description": "Role-assignable groups must have owners to govern privileged membership changes."
+      "description": "Role-assignable groups must have owners to govern privileged membership changes.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.9.2.5",
+      "rationale": "ISO/IEC 27001:2013 Annex A control A.9.2.5 ('Review of user access rights') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-IDN-025 evaluates one Azure configuration state that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-001": {
       "control_id": "A.9.2.1",

@@ -20,7 +20,7 @@ from openshield.severity import (
     score_findings,
     severity_rank,
 )
-from scanner.evaluation import EvaluationStatus, aggregate_status
+from scanner.evaluation import EvaluationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -515,7 +515,7 @@ class DatabaseManager:
         """Return the most recently started completed scan."""
         conn = self._get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur2.execute(
+            cur.execute(
                 """
                 SELECT * FROM scans
                 WHERE status = 'completed'
@@ -730,14 +730,18 @@ class DatabaseManager:
             completed scan exists yet, or {"status": "OK", "score": <0-100>}
             once one has.
         """
+        subscription_id = getattr(self, "subscription_id", None)
         conn = self._get_conn()
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT scan_id FROM scans "
-                "WHERE status = 'completed' AND subscription_id = %s "
-                "ORDER BY started_at DESC LIMIT 1",
-                (self.subscription_id,),
-            )
+            if subscription_id:
+                cur.execute(
+                    "SELECT scan_id FROM scans "
+                    "WHERE status = 'completed' AND subscription_id = %s "
+                    "ORDER BY started_at DESC LIMIT 1",
+                    (subscription_id,),
+                )
+            else:
+                cur.execute("SELECT scan_id FROM scans WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1")
             latest_scan = cur.fetchone()
 
             if latest_scan is None:
@@ -968,17 +972,6 @@ class DatabaseManager:
             )
             finding_rows = cur2.fetchall()
 
-            cur.execute(
-                """
-                SELECT rule_id, status
-                FROM rule_evaluations
-                WHERE scan_id = (
-                    SELECT scan_id FROM scans WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1
-                )
-                """
-            )
-            evaluation_rows = cur2.fetchall()
-
         failures: Dict[str, Dict[str, Any]] = {}
         for rule_id, raw_severity, category, resource_count in finding_rows:
             severity = normalize_severity(raw_severity)
@@ -995,10 +988,6 @@ class DatabaseManager:
                 current["severity"] = severity
                 current["category"] = category
 
-        statuses_by_rule: Dict[str, List[str]] = {}
-        for rule_id, status in evaluation_rows:
-            statuses_by_rule.setdefault(rule_id, []).append(status)
-        aggregated_status = {rule_id: aggregate_status(statuses) for rule_id, statuses in statuses_by_rule.items()}
         # Rules the scan engine could not complete for this scan (raised,
         # or returned malformed data) - recorded by save_scan() alongside
         # the mapping snapshot. A rule missing from findings only proves
@@ -1013,9 +1002,6 @@ class DatabaseManager:
             mapping_type = control.get("mapping_type", "supporting")
             is_excluded = mapping_type in ("not_applicable", "organizational")
             failure = failures.get(rule_id)
-            # No evaluation row at all means this rule was never run against
-            # this scan (predates rule_evaluations, or was skipped) — report
-            # UNKNOWN rather than defaulting to PASS or inferring from findings.
             if is_excluded:
                 status = EvaluationStatus.NOT_APPLICABLE if mapping_type == "not_applicable" else "ORGANIZATIONAL"
                 excluded_count += 1
@@ -1029,7 +1015,10 @@ class DatabaseManager:
                 status = "NOT_EVALUATED"
                 excluded_count += 1
             else:
-                status = aggregated_status.get(rule_id, EvaluationStatus.UNKNOWN)
+                # A completed scan that produced no finding for this rule, and
+                # whose engine did not record the rule as failed to run, is
+                # the absence-of-findings PASS this method reports on.
+                status = EvaluationStatus.FAIL if failure else EvaluationStatus.PASS
             results.append(
                 {
                     "rule_id": rule_id,
@@ -1055,7 +1044,9 @@ class DatabaseManager:
             "failed": sum(1 for r in results if r["status"] == EvaluationStatus.FAIL),
             "unknown": sum(1 for r in results if r["status"] == EvaluationStatus.UNKNOWN),
             "error": sum(1 for r in results if r["status"] == EvaluationStatus.ERROR),
-            "not_applicable": sum(1 for r in results if r["status"] in (EvaluationStatus.NOT_APPLICABLE, "ORGANIZATIONAL")),
+            "not_applicable": sum(
+                1 for r in results if r["status"] in (EvaluationStatus.NOT_APPLICABLE, "ORGANIZATIONAL")
+            ),
             "not_evaluated": sum(1 for r in results if r["status"] == "NOT_EVALUATED"),
         }
         # UNKNOWN/ERROR must never improve the score: they count against the
@@ -1090,7 +1081,7 @@ class DatabaseManager:
             ),
             "total_controls": total,
             "in_scope_controls": evaluated,
-            "excluded_controls": counts["not_applicable"],
+            "excluded_controls": counts["not_applicable"] + counts["not_evaluated"],
             "evaluated": evaluated,
             **counts,
             "score_percent": score_pct,
