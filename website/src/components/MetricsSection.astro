@@ -1,0 +1,23 @@
+---
+import { repoData } from '../lib/repoData';
+const { ruleCount, domainCount, playbookCount, sampleScan, domains } = repoData;
+const domainList = domains.slice(0, 6).map((d) => d.label.toLowerCase()).join(', ');
+---
+
+<section id="metrics">
+  <div class="wrap">
+    <div class="kicker">Posture at a glance</div>
+    <div class="metric-grid">
+      <div class="metric"><div class="num">{ruleCount}</div><div class="lbl">Rules</div><p>Across {domainCount} domains: {domainList} and more.</p><span class="delta">+106 since v0.1.0</span></div>
+      <div class="metric"><div class="num">4</div><div class="lbl">Frameworks</div><p>CIS, NIST CSF, ISO 27001 and SOC 2 mappings are stored in rule definitions.</p><span class="delta">auditable in source</span></div>
+      <div class="metric"><div class="num">{playbookCount}</div><div class="lbl">Playbooks</div><p>A fix_az_*.sh remediation script for every rule, ready to run.</p><span class="delta">+48 since v0.1.0</span></div>
+      <div class="metric"><div class="num">{sampleScan.score}<span class="unit">/100</span></div><div class="lbl">Example output</div><p>{sampleScan.high} high, {sampleScan.medium} medium, {sampleScan.passing} passing in the illustrative interface fixture.</p><span class="delta">clearly labelled sample</span></div>
+    </div>
+    <div class="badges">
+      <span class="badge b1">reader role only</span>
+      <span class="badge b2">python 3.11</span>
+      <span class="badge b3">react dashboard</span>
+      <span class="badge b4">sentinel export</span>
+    </div>
+  </div>
+</section>

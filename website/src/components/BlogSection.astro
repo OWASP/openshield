@@ -1,0 +1,46 @@
+---
+import { getCollection } from 'astro:content';
+import { url } from '../lib/base';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+).slice(0, 3);
+
+function fmtDate(d: Date): string {
+  return d
+    .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    .toUpperCase();
+}
+
+function readingTime(body: string): number {
+  const words = body.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
+}
+---
+
+<section class="sec-rule" id="blog">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>From the blog.</h2>
+      <a class="sec-link" href={url('/blog/')}>Read all articles &#8594;</a>
+    </div>
+    <div class="blog-grid">
+      {posts.map((post, i) => {
+        const tag = post.data.tags[0] ?? 'Post';
+        return (
+          <div class="post">
+            <div class={`swatch r${(i % 6) + 1}`}>
+              <span class="ghost">POST/{String(i + 1).padStart(2, '0')}</span>
+              <span class="tag">{tag}</span>
+            </div>
+            <div class="body">
+              <h3><a href={url(`/blog/${post.id}/`)}>{post.data.title}</a></h3>
+              <p>{post.data.description}</p>
+              <span class="date">{fmtDate(post.data.pubDate)} / {readingTime(post.body)} MIN READ</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>

@@ -697,20 +697,33 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Website validation joins CI Summary; website.yml handles Pages deployment.
   website:
-    name: Website (script tests)
+    name: Website (Astro build + verification)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: website
     steps:
-      - name: Checkout repository
+      - name: Checkout repository with full history
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "22"
+          node-version: "22.22.0"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
 
-      - name: Run website script tests
-        run: node website/test_toEmbedUrl.mjs
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and verify CMS-disabled and CMS-enabled output
+        run: npm run check
 
   # ── Enforce branch flow: main may only receive PRs from dev ───────────────
   # No-op on dev PRs (step skipped -> job succeeds). To allow hotfixes straight
@@ -768,7 +781,7 @@ jobs:
               ("Container Runtime + Scan (Trivy)",        os.environ["CONTAINER_SCAN"]),
               ("Backend Tests (pytest + coverage)",  os.environ["BACKEND_TESTS"]),
               ("Frontend (lint + build)",            os.environ["FRONTEND"]),
-              ("Website (script tests)",             os.environ["WEBSITE"]),
+              ("Website (Astro build + verification)", os.environ["WEBSITE"]),
               ("Enforce dev to main source",        os.environ["ENFORCE_SOURCE"]),
           ]
 

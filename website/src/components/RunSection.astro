@@ -1,0 +1,16 @@
+---
+import { url } from '../lib/base';
+---
+
+<section class="sec-rule" id="run">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Run it yourself, on your own data.</h2>
+    </div>
+    <div class="run-grid">
+      <div class="run"><span class="tag">Self-hosted scan</span><h3>Clone and point it at a subscription</h3><p>Azure collection uses Reader permissions. Choose and operate the PostgreSQL deployment that stores your findings.</p><a class="go" href={url('/docs/')}>Read the quickstart <span class="ar">&#8594;</span></a></div>
+      <div class="run"><span class="tag">React dashboard</span><h3>Explore the posture workflow</h3><p>Resources, drift, prioritization and playbooks are wired to the backend. Availability depends on the hosted API.</p><a class="go" href="https://openshield-gules.vercel.app" target="_blank" rel="noopener">Open the hosted dashboard <span class="ar">&#8594;</span></a></div>
+      <div class="run"><span class="tag">Sentinel integration</span><h3>Feed findings into your SIEM</h3><p>Pipe OpenShield posture data straight into Microsoft Sentinel for unified visibility.</p><a class="go" href={url('/blog/sentinel-automation/')}>Read the guide <span class="ar">&#8594;</span></a></div>
+    </div>
+  </div>
+</section>

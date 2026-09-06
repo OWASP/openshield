@@ -1,0 +1,22 @@
+{
+  "name": "openshield-website",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "configure:cms": "node scripts/configure-cms.mjs",
+    "verify": "node scripts/verify-site.mjs",
+    "check": "npm run build && DECAP_GITHUB_APP_ID= npm run configure:cms && npm run verify && npm run build && DECAP_GITHUB_APP_ID=0123456789LOCALTEST npm run configure:cms && npm run verify"
+  },
+  "dependencies": {
+    "@astrojs/rss": "^4.0.12",
+    "@astrojs/sitemap": "^3.5.0",
+    "@fontsource-variable/schibsted-grotesk": "^5.2.0",
+    "@fontsource/dm-mono": "^5.2.0",
+    "astro": "^7.3.1",
+    "three": "^0.180.0"
+  }
+}

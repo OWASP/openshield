@@ -1,0 +1,48 @@
+---
+import Base from '../layouts/Base.astro';
+import Hero from '../components/Hero.astro';
+import TrustStrip from '../components/TrustStrip.astro';
+import WhySection from '../components/WhySection.astro';
+import MetricsSection from '../components/MetricsSection.astro';
+import DemoSection from '../components/DemoSection.astro';
+import RulesSection from '../components/RulesSection.astro';
+import RunSection from '../components/RunSection.astro';
+import JourneySection from '../components/JourneySection.astro';
+import RoadmapSection from '../components/RoadmapSection.astro';
+import BlogSection from '../components/BlogSection.astro';
+import { url } from '../lib/base';
+import { repoData } from '../lib/repoData';
+
+const appJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'OpenShield',
+  description:
+    'Open source security posture for Azure: misconfiguration scanning, compliance mapping to CIS, NIST, ISO 27001 and SOC 2, and one-command remediation playbooks.',
+  applicationCategory: 'SecurityApplication',
+  operatingSystem: 'Linux, macOS, Windows',
+  url: new URL(url('/'), Astro.site).href,
+  license: 'https://opensource.org/license/mit',
+  softwareVersion: repoData.release.tag.replace(/^v/, ''),
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  sameAs: ['https://github.com/openshield-org/openshield'],
+};
+---
+
+<Base active="start" jsonLd={appJsonLd}>
+  <Hero />
+  <TrustStrip />
+  <WhySection />
+  <MetricsSection />
+  <DemoSection />
+  <RulesSection />
+  <RunSection />
+  <JourneySection />
+  <RoadmapSection />
+  <BlogSection />
+</Base>
+
+<script>
+  import { initImmersive } from '../lib/immersive';
+  initImmersive();
+</script>

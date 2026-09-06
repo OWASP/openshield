@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 400" role="img" aria-label="Sentinel flow: an OpenShield scan writes findings JSON, ingest.py posts it signed to the Log Analytics Data Collector API, and Sentinel analytics rules raise alerts from the custom table.">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#f3441d"/>
+    </marker>
+  </defs>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+    <rect x="30" y="70" width="210" height="88" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="135" y="106" text-anchor="middle" font-size="17" font-weight="700" fill="#050505">OpenShield scan</text>
+    <text x="135" y="130" text-anchor="middle" font-size="12" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">posture score + findings</text>
+
+    <rect x="290" y="70" width="190" height="88" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="385" y="106" text-anchor="middle" font-size="17" font-weight="700" fill="#050505">findings.json</text>
+    <text x="385" y="130" text-anchor="middle" font-size="12" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">list or findings array</text>
+
+    <rect x="530" y="70" width="220" height="88" rx="12" fill="#1f1f2c"/>
+    <text x="640" y="106" text-anchor="middle" font-size="17" font-weight="700" fill="#f2f0ec">sentinel/ingest.py</text>
+    <text x="640" y="130" text-anchor="middle" font-size="12" fill="#a7a7b0" font-family="ui-monospace, Menlo, Consolas, monospace">normalises + signs</text>
+
+    <rect x="800" y="70" width="330" height="88" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="965" y="106" text-anchor="middle" font-size="17" font-weight="700" fill="#050505">Log Analytics</text>
+    <text x="965" y="130" text-anchor="middle" font-size="12" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">Data Collector API</text>
+
+    <rect x="800" y="250" width="330" height="88" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="965" y="286" text-anchor="middle" font-size="17" font-weight="700" fill="#050505" font-family="ui-monospace, Menlo, Consolas, monospace">OpenShieldFindings_CL</text>
+    <text x="965" y="310" text-anchor="middle" font-size="12" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">custom log table</text>
+
+    <rect x="430" y="250" width="300" height="88" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="580" y="286" text-anchor="middle" font-size="17" font-weight="700" fill="#050505">Sentinel analytics</text>
+    <text x="580" y="310" text-anchor="middle" font-size="12" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">4 KQL rules, alerts + workbooks</text>
+
+    <line x1="242" y1="114" x2="278" y2="114" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="482" y1="114" x2="518" y2="114" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="752" y1="114" x2="788" y2="114" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="770" y="100" text-anchor="middle" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">POST</text>
+    <line x1="965" y1="160" x2="965" y2="238" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="788" y1="294" x2="742" y2="294" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="765" y="280" text-anchor="middle" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">KQL</text>
+
+    <text x="30" y="200" font-size="11" letter-spacing="1" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">SENTINEL_WORKSPACE_ID + SENTINEL_SHARED_KEY SIGN EVERY BATCH</text>
+  </g>
+</svg>

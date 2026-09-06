@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 400" role="img" aria-label="OpenShield scan pipeline: read-only access to an Azure tenant feeds the scanner, which loads rules, emits a findings report and points at remediation playbooks.">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#f3441d"/>
+    </marker>
+  </defs>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+    <rect x="30" y="70" width="240" height="88" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="150" y="106" text-anchor="middle" font-size="17" font-weight="700" fill="#050505">Azure tenant</text>
+    <text x="150" y="130" text-anchor="middle" font-size="12" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">Reader role, read-only</text>
+
+    <rect x="340" y="70" width="260" height="88" rx="12" fill="#1f1f2c"/>
+    <text x="470" y="106" text-anchor="middle" font-size="17" font-weight="700" fill="#f2f0ec">OpenShield scanner</text>
+    <text x="470" y="130" text-anchor="middle" font-size="12" fill="#a7a7b0" font-family="ui-monospace, Menlo, Consolas, monospace">scanner/engine.py</text>
+
+    <rect x="340" y="230" width="260" height="88" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="470" y="266" text-anchor="middle" font-size="17" font-weight="700" fill="#050505">Repository rules</text>
+    <text x="470" y="290" text-anchor="middle" font-size="12" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">scanner/rules/az_*.py</text>
+
+    <rect x="670" y="70" width="220" height="88" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="780" y="106" text-anchor="middle" font-size="17" font-weight="700" fill="#050505">Findings report</text>
+    <text x="780" y="130" text-anchor="middle" font-size="12" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">score + severities</text>
+
+    <rect x="960" y="70" width="170" height="88" rx="12" fill="#ffffff" stroke="#d3d2d2"/>
+    <text x="1045" y="106" text-anchor="middle" font-size="17" font-weight="700" fill="#050505">Playbooks</text>
+    <text x="1045" y="130" text-anchor="middle" font-size="12" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">playbooks/cli/*.sh</text>
+
+    <line x1="272" y1="114" x2="328" y2="114" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="300" y="100" text-anchor="middle" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">read-only</text>
+    <line x1="602" y1="114" x2="658" y2="114" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="630" y="100" text-anchor="middle" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">findings</text>
+    <line x1="892" y1="114" x2="948" y2="114" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="920" y="100" text-anchor="middle" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">fixes</text>
+    <line x1="470" y1="228" x2="470" y2="170" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="486" y="204" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">loads</text>
+
+    <text x="30" y="358" font-size="11" letter-spacing="1" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">RULE DEFINITIONS MAP TO</text>
+    <rect x="250" y="336" width="150" height="32" rx="99" fill="#fde4dd"/>
+    <text x="325" y="357" text-anchor="middle" font-size="12" fill="#050505" font-family="ui-monospace, Menlo, Consolas, monospace">CIS Azure v2.0</text>
+    <rect x="412" y="336" width="110" height="32" rx="99" fill="#e6d7bf"/>
+    <text x="467" y="357" text-anchor="middle" font-size="12" fill="#050505" font-family="ui-monospace, Menlo, Consolas, monospace">NIST CSF</text>
+    <rect x="534" y="336" width="110" height="32" rx="99" fill="#d7e0e7"/>
+    <text x="589" y="357" text-anchor="middle" font-size="12" fill="#050505" font-family="ui-monospace, Menlo, Consolas, monospace">ISO 27001</text>
+    <rect x="656" y="336" width="90" height="32" rx="99" fill="#d9e0d6"/>
+    <text x="701" y="357" text-anchor="middle" font-size="12" fill="#050505" font-family="ui-monospace, Menlo, Consolas, monospace">SOC 2</text>
+  </g>
+</svg>

@@ -1,0 +1,159 @@
+---
+import Base from '../layouts/Base.astro';
+import { repoData, domainOrder } from '../lib/repoData';
+
+const { rules, ruleCount, domainCount, playbookCount, domains } = repoData;
+const GITHUB = 'https://github.com/openshield-org/openshield';
+
+const SEV_TEXT: Record<string, string> = { HIGH: '#a03a1e', MEDIUM: '#7a5310', LOW: '#3d5a75' };
+const SEV_DOT: Record<string, string> = { HIGH: '#c73a17', MEDIUM: '#a06f10', LOW: '#5d6c80' };
+const SEV_LABEL: Record<string, string> = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' };
+
+/* stable pastel per domain so one domain reads as one color */
+const domainSwatch: Record<string, string> = {};
+domainOrder.forEach((d, i) => {
+  domainSwatch[d] = `r${(i % 6) + 1}`;
+});
+
+const labelOf: Record<string, string> = {};
+domains.forEach((d) => {
+  labelOf[d.key] = d.label;
+});
+---
+
+<Base title="Rules · OpenShield" description={`Explore ${ruleCount} Azure misconfiguration rules with source-level severity, domain, compliance mapping and remediation metadata.`} active="rules">
+  <div class="wrap">
+    <div class="page-head">
+      <h1>The rule book.</h1>
+      <p class="sub">
+        All {ruleCount} misconfiguration rules across {domainCount} Azure domains, with {playbookCount} remediation playbooks.
+        Every rule is a plain Python file in <a href={`${GITHUB}/tree/dev/scanner/rules`} target="_blank" rel="noopener" style="text-decoration:underline;text-underline-offset:3px">scanner/rules/</a>,
+        extracted here at build time.
+      </p>
+    </div>
+
+    <section style="padding-top:20px">
+      <div class="rules-toolbar">
+        <input type="search" id="ruleSearch" placeholder="Search by ID, name or control..." aria-label="Search rules">
+        <button class="sevbtn" data-sev="ALL" aria-pressed="true" type="button">ALL</button>
+        <button class="sevbtn" data-sev="HIGH" aria-pressed="false" type="button">HIGH</button>
+        <button class="sevbtn" data-sev="MEDIUM" aria-pressed="false" type="button">MEDIUM</button>
+        <button class="sevbtn" data-sev="LOW" aria-pressed="false" type="button">LOW</button>
+        <select id="domainFilter" aria-label="Filter by domain">
+          <option value="ALL">ALL DOMAINS</option>
+          {domains.map((d) => <option value={d.key}>{`${d.label.toUpperCase()} (${d.count})`}</option>)}
+        </select>
+        <button class="clearbtn" id="clearFilters" type="button">Clear filters</button>
+      </div>
+      <div class="rules-count" id="rulesCount" aria-live="polite">SHOWING {ruleCount} OF {ruleCount} RULES</div>
+
+      <div class="rule-grid" id="ruleGrid">
+        {rules.map((rule) => {
+          const hay = `${rule.id} ${rule.name} ${rule.category} ${Object.entries(rule.frameworks).map(([k, v]) => `${k} ${v}`).join(' ')}`.toLowerCase();
+          return (
+            <div class="rcard" data-sev={rule.severity} data-domain={rule.domain} data-hay={hay}>
+              <div class={`swatch ${domainSwatch[rule.domain] ?? 'r1'}`}>
+                <span class="sev" style={`color:${SEV_TEXT[rule.severity]}`}>
+                  <i style={`background:${SEV_DOT[rule.severity]}`}></i>{SEV_LABEL[rule.severity]}
+                </span>
+                <span class="rid">{rule.id}</span>
+              </div>
+              <div class="body">
+                <h3>{rule.name}</h3>
+                <div class="meta">
+                  <span>{(labelOf[rule.domain] ?? rule.domain).toLowerCase()}</span>
+                  {rule.frameworks.CIS && <span>CIS {rule.frameworks.CIS}</span>}
+                  {rule.frameworks.NIST && <span>NIST {rule.frameworks.NIST}</span>}
+                </div>
+              </div>
+              <details>
+                <summary>Details +</summary>
+                {rule.description && <p>{rule.description}</p>}
+                {rule.remediation && <p><b style="color:var(--ink)">Fix:</b> {rule.remediation}</p>}
+                <div class="fw">
+                  {Object.entries(rule.frameworks).map(([k, v]) => <span>{k}{v ? ` ${v}` : ''}</span>)}
+                </div>
+                {rule.playbook && (
+                  <a class="pb" href={`${GITHUB}/blob/dev/${rule.playbook}`} target="_blank" rel="noopener">
+                    {rule.playbook.split('/').pop()} <span class="ar">&#8594;</span>
+                  </a>
+                )}
+              </details>
+            </div>
+          );
+        })}
+      </div>
+      <div class="rules-empty" id="rulesEmpty" hidden>
+        <h2>No rules match those filters.</h2>
+        <p>Try a shorter search, another domain or clear every filter.</p>
+        <button class="btn btn-dark" id="emptyClear" type="button">Show all rules</button>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  const search = document.getElementById('ruleSearch') as HTMLInputElement;
+  const domainSel = document.getElementById('domainFilter') as HTMLSelectElement;
+  const countEl = document.getElementById('rulesCount');
+  const emptyEl = document.getElementById('rulesEmpty');
+  const clear = document.getElementById('clearFilters') as HTMLButtonElement;
+  const emptyClear = document.getElementById('emptyClear') as HTMLButtonElement;
+  const cards = Array.from(document.querySelectorAll('#ruleGrid .rcard')) as HTMLElement[];
+  const sevBtns = Array.from(document.querySelectorAll('.sevbtn')) as HTMLButtonElement[];
+  let sev = 'ALL';
+
+  function apply(): void {
+    const q = search.value.trim().toLowerCase();
+    const dom = domainSel.value;
+    let shown = 0;
+    for (const card of cards) {
+      const ok =
+        (sev === 'ALL' || card.dataset.sev === sev) &&
+        (dom === 'ALL' || card.dataset.domain === dom) &&
+        (!q || (card.dataset.hay ?? '').includes(q));
+      card.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    }
+    if (countEl) countEl.textContent = `SHOWING ${shown} OF ${cards.length} RULES`;
+    if (emptyEl) emptyEl.hidden = shown !== 0;
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (sev !== 'ALL') params.set('severity', sev);
+    if (dom !== 'ALL') params.set('domain', dom);
+    history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}`);
+  }
+
+  function clearAll(): void {
+    search.value = '';
+    domainSel.value = 'ALL';
+    sev = 'ALL';
+    sevBtns.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.sev === 'ALL')));
+    apply();
+    search.focus();
+  }
+
+  const initial = new URLSearchParams(location.search);
+  search.value = initial.get('q') ?? '';
+  const initialDomain = initial.get('domain');
+  if (initialDomain && Array.from(domainSel.options).some((option) => option.value === initialDomain)) domainSel.value = initialDomain;
+  const initialSeverity = initial.get('severity');
+  if (initialSeverity && ['HIGH', 'MEDIUM', 'LOW'].includes(initialSeverity)) sev = initialSeverity;
+  sevBtns.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.sev === sev)));
+
+  search.addEventListener('input', apply);
+  domainSel.addEventListener('change', apply);
+  clear.addEventListener('click', clearAll);
+  emptyClear.addEventListener('click', clearAll);
+  search.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') clearAll();
+  });
+  sevBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      sev = btn.dataset.sev ?? 'ALL';
+      sevBtns.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      apply();
+    });
+  });
+  apply();
+</script>

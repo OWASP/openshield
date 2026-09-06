@@ -1,1 +1,9 @@
-.vercel
+# Astro build output
+dist/
+.astro/
+node_modules/
+
+# The root .gitignore ignores "lib/" at any depth, which would silently
+# exclude src/lib/ from version control. Re-include it explicitly.
+!src/lib/
+!src/lib/**
