@@ -2,27 +2,52 @@
   "framework": "NCSC UK PQC Migration Guidance",
   "version": "2025",
   "published": "2025-03",
+  "mapping_pack_version": "1.0.0",
+  "mapping_pack_status": "current",
+  "mapping_pack_source": "OpenShield compliance mapping pack, authored against NCSC UK PQC migration guidance (2025). Technical-evidence mapping only.",
+  "mapping_pack_published": "2026-08-22",
   "controls": {
     "AZ-PQC-001": {
       "control_id": "NCSC-PQC-DISCOVERY",
       "control_name": "Discover quantum-vulnerable network cryptography",
       "description": "Identify internet-facing services that depend on classical public-key cryptography, assess the lifetime of protected data, and include their TLS configurations in the organisation's PQC migration plan.",
       "framework": "NCSC UK PQC Migration Guidance",
-      "url": "https://www.ncsc.gov.uk/guidance/pqc-migration-timelines"
+      "url": "https://www.ncsc.gov.uk/guidance/pqc-migration-timelines",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "https://www.ncsc.gov.uk/guidance/pqc-migration-timelines",
+      "rationale": "NCSC UK PQC Migration Guidance control NCSC-PQC-DISCOVERY ('Discover quantum-vulnerable network cryptography') directly specifies the quantum-safe migration practice that OpenShield rule AZ-PQC-001 evaluates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PQC-002": {
       "control_id": "NCSC-PQC-PRIORITY",
       "control_name": "Prioritise migration of critical cryptographic keys",
       "description": "Inventory RSA and elliptic-curve keys, identify their system and supplier dependencies, and migrate keys protecting critical or long-lived data as a highest-priority activity.",
       "framework": "NCSC UK PQC Migration Guidance",
-      "url": "https://www.ncsc.gov.uk/guidance/pqc-migration-timelines"
+      "url": "https://www.ncsc.gov.uk/guidance/pqc-migration-timelines",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "https://www.ncsc.gov.uk/guidance/pqc-migration-timelines",
+      "rationale": "NCSC UK PQC Migration Guidance control NCSC-PQC-PRIORITY ('Prioritise migration of critical cryptographic keys') directly specifies the quantum-safe migration practice that OpenShield rule AZ-PQC-002 evaluates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PQC-003": {
       "control_id": "NCSC-PQC-PKI",
       "control_name": "Plan migration of public key infrastructure",
       "description": "Discover certificates and trust dependencies that rely on quantum-vulnerable signatures, then plan a staged migration that supports cryptographic agility and ecosystem readiness.",
       "framework": "NCSC UK PQC Migration Guidance",
-      "url": "https://www.ncsc.gov.uk/guidance/pqc-migration-timelines"
+      "url": "https://www.ncsc.gov.uk/guidance/pqc-migration-timelines",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "https://www.ncsc.gov.uk/guidance/pqc-migration-timelines",
+      "rationale": "NCSC UK PQC Migration Guidance control NCSC-PQC-PKI ('Plan migration of public key infrastructure') directly specifies the quantum-safe migration practice that OpenShield rule AZ-PQC-003 evaluates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   }
 }

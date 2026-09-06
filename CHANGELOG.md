@@ -1,9 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- Add all ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate.
-
 All notable changes to OpenShield are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -13,6 +9,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate
 - Azure Network Layer Assurance API with 20-domain coverage, network-rule classification, and authoritative IP forwarding and direct Internet route checks
 - Azure Resource Graph inventory snapshots as the first OpenShield Evidence Graph foundation
 - Azure Data Link Layer Assurance API with LLC and MAC coverage plus ExpressRoute Direct MACsec checks

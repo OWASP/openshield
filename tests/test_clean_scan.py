@@ -13,6 +13,7 @@ def _db() -> DatabaseManager:
     """Return a DatabaseManager with a mock DSN (no real connection used)."""
     db = DatabaseManager.__new__(DatabaseManager)
     db.dsn = "postgresql://mock/mock"
+    db.subscription_id = "subscription-1"
     db.conn = None
     return db
 
@@ -69,11 +70,25 @@ def test_get_findings_clean_scan_returns_empty_list():
 # ── get_score ─────────────────────────────────────────────────────────────────
 
 
+def _mock_score_cursor(scan_row, severity_rows):
+    """get_score() now issues two sequential queries on one cursor: a scan-
+    existence check (fetchone) and, only if a scan was found, the severity
+    breakdown (fetchall). A single rows list can no longer stand in for both,
+    since a real completed scan with zero findings and no completed scan at
+    all must be distinguishable."""
+    cur = MagicMock()
+    cur.__enter__ = lambda s: s
+    cur.__exit__ = MagicMock(return_value=False)
+    cur.fetchone.return_value = scan_row
+    cur.fetchall.return_value = severity_rows
+    return cur
+
+
 def test_get_score_uses_completed_status():
     """get_score() must scope to status='completed', not total_findings > 0."""
     db = _db()
     conn = MagicMock()
-    cur = _mock_cursor([])
+    cur = _mock_score_cursor(None, [])
     conn.cursor.return_value = cur
 
     with patch.object(db, "_get_conn", return_value=conn):
@@ -81,6 +96,7 @@ def test_get_score_uses_completed_status():
 
     executed_sql = conn.cursor.return_value.execute.call_args[0][0]
     assert "status = 'completed'" in executed_sql
+    assert conn.cursor.return_value.execute.call_args[0][1] == ("subscription-1",)
     assert "total_findings" not in executed_sql
 
 
@@ -88,26 +104,45 @@ def test_get_score_is_100_after_clean_scan():
     """A clean scan (no findings) must yield a perfect score of 100."""
     db = _db()
     conn = MagicMock()
-    cur = _mock_cursor([])
+    cur = _mock_score_cursor((1,), [])
     conn.cursor.return_value = cur
 
     with patch.object(db, "_get_conn", return_value=conn):
         score = db.get_score()
 
-    assert score == 100
+    assert score == {"status": "OK", "score": 100, "max_score": 100}
 
 
 def test_get_score_does_not_include_old_scan_findings():
     """After a clean scan, old HIGH findings must not deduct points."""
     db = _db()
     conn = MagicMock()
-    cur = _mock_cursor([])
+    cur = _mock_score_cursor((1,), [])
     conn.cursor.return_value = cur
 
     with patch.object(db, "_get_conn", return_value=conn):
         score = db.get_score()
 
-    assert score == 100
+    assert score == {"status": "OK", "score": 100, "max_score": 100}
+
+
+def test_get_score_no_completed_scan_returns_no_scan_data_not_a_pass():
+    """No completed scan at all must never be reported as a perfect (or any)
+    score - that would present the absence of evidence as a clean pass, the
+    same class of bug fixed in get_compliance_score() for issue #302."""
+    db = _db()
+    conn = MagicMock()
+    cur = _mock_score_cursor(None, [])
+    conn.cursor.return_value = cur
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        score = db.get_score()
+
+    assert score["status"] == "NO_SCAN_DATA"
+    assert score["score"] is None
+    # Only the scan-existence check should have run - a NO_SCAN_DATA result
+    # must not also execute (and discard) the findings/severity query.
+    assert conn.cursor.return_value.execute.call_count == 1
 
 
 # ── get_compliance_score ──────────────────────────────────────────────────────
@@ -119,6 +154,7 @@ def test_get_compliance_score_scopes_to_latest_scan():
     db = _db()
     conn = MagicMock()
     cur = _mock_cursor([])
+    cur.fetchone.return_value = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
     conn.cursor.return_value = cur
 
     with patch.object(db, "_get_conn", return_value=conn):
@@ -139,9 +175,16 @@ def test_get_compliance_score_scopes_to_latest_scan():
             with patch.object(Path, "exists", return_value=True):
                 db.get_compliance_score("cis")
 
-    executed_sql = conn.cursor.return_value.execute.call_args[0][0]
-    assert "status = 'completed'" in executed_sql
-    assert "total_findings" not in executed_sql
+    # get_compliance_score() issues two queries: first it resolves the latest
+    # completed scan, then it looks up findings scoped to that resolved
+    # scan_id — so "status = 'completed'" and the findings lookup are on
+    # different statements, not one combined query.
+    executed_statements = [call[0][0] for call in conn.cursor.return_value.execute.call_args_list]
+    assert any("status = 'completed'" in sql for sql in executed_statements)
+    findings_sql = executed_statements[-1]
+    assert "FROM findings" in findings_sql
+    assert "scan_id = %s" in findings_sql
+    assert "total_findings" not in findings_sql
 
 
 def test_get_compliance_score_all_pass_after_clean_scan():
@@ -153,6 +196,7 @@ def test_get_compliance_score_all_pass_after_clean_scan():
         [],
         evaluation_rows=[("AZ-STOR-001", "PASS"), ("AZ-NET-001", "PASS")],
     )
+    cur.fetchone.return_value = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
     conn.cursor.return_value = cur
 
     import json
@@ -190,6 +234,7 @@ def test_get_compliance_score_no_evaluation_rows_is_unknown_not_pass():
     db = _db()
     conn = MagicMock()
     cur = _mock_cursor([], evaluation_rows=[])
+    cur.fetchone.return_value = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
     conn.cursor.return_value = cur
 
     import json
@@ -223,6 +268,7 @@ def test_get_compliance_score_remediated_rule_shows_pass():
     db = _db()
     conn = MagicMock()
     cur = _mock_cursor([], evaluation_rows=[("AZ-STOR-001", "PASS")])
+    cur.fetchone.return_value = {"scan_id": "scan-2", "compliance_mapping_snapshot": None}
     conn.cursor.return_value = cur
 
     import json
@@ -250,6 +296,13 @@ def test_get_compliance_score_remediated_rule_shows_pass():
 def test_get_compliance_score_reports_worst_critical_failure_without_inventing_pass_severity():
     db = _db()
     conn = MagicMock()
+    # get_compliance_score() issues two queries on this connection: a
+    # scan-existence check (RealDictCursor, fetchone) and, only once a scan
+    # is confirmed to exist, the severity/category grouping below (a plain
+    # cursor, fetchall - see the comment on that query for why it isn't
+    # RealDictCursor too). conn.cursor(...) returns the same mock either way,
+    # so fetchone must be configured with a real scan row, independently of
+    # the grouped rows fetchall returns.
     cur = _mock_cursor(
         [
             ("AZ-STOR-001", "HIGH", "Storage", 1),
@@ -257,6 +310,7 @@ def test_get_compliance_score_reports_worst_critical_failure_without_inventing_p
         ],
         evaluation_rows=[("AZ-STOR-001", "FAIL"), ("AZ-NET-001", "PASS")],
     )
+    cur.fetchone.return_value = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
     conn.cursor.return_value = cur
 
     import io
@@ -288,6 +342,15 @@ def test_get_compliance_score_reports_worst_critical_failure_without_inventing_p
         "severity": "CRITICAL",
         "category": "Storage",
         "resources": 3,
+        # fake_framework's controls carry no evidence-schema fields, so
+        # these all fall back to their defaults.
+        "mapping_type": "supporting",
+        "evidence_type": None,
+        "primary_source": None,
+        "rationale": None,
+        "owner": None,
+        "review_status": None,
+        "review_date": None,
     }
     assert controls["AZ-NET-001"]["status"] == "PASS"
     assert controls["AZ-NET-001"]["severity"] is None

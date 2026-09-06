@@ -6,12 +6,26 @@
     "AZ-STOR-001": {
       "control_id": "3.5",
       "control_name": "Ensure that 'Public access level' is set to Private for blob containers",
-      "description": "Disabling public access level for blob containers prevents anonymous unauthenticated access to Azure Blob storage. This setting eliminates the risk of inadvertent or unauthorized public data exposure."
+      "description": "Disabling public access level for blob containers prevents anonymous unauthenticated access to Azure Blob storage. This setting eliminates the risk of inadvertent or unauthorized public data exposure.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 3.5",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 3.5 ('Ensure that 'Public access level' is set to Private for blob containers') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-STOR-001 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-002": {
       "control_id": "3.1",
       "control_name": "Ensure that 'Secure transfer required' is set to 'Enabled'",
-      "description": "Enabling 'Secure transfer required' on a storage account ensures that all requests made to the storage account use HTTPS. Any requests using HTTP are rejected, protecting data in transit from eavesdropping and man-in-the-middle attacks."
+      "description": "Enabling 'Secure transfer required' on a storage account ensures that all requests made to the storage account use HTTPS. Any requests using HTTP are rejected, protecting data in transit from eavesdropping and man-in-the-middle attacks.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 3.1",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 3.1 ('Ensure that 'Secure transfer required' is set to 'Enabled'') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-STOR-002 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-006": {
       "control_id": "N/A-STOR-006",
@@ -33,532 +47,1333 @@
       "control_name": "Required Blob Container Immutability Missing",
       "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation."
     },
-    "AZ-DB-005": {"control_id": "N/A-DB-005", "control_name": "SQL Server Microsoft Entra-Only Authentication Not Enforced", "description": "Service-specific OpenShield control."},
-    "AZ-DB-006": {"control_id": "N/A-DB-006", "control_name": "SQL Vulnerability Assessment Not Configured", "description": "Service-specific OpenShield control."},
-    "AZ-DB-007": {"control_id": "N/A-DB-007", "control_name": "SQL Auditing Retention Below Minimum", "description": "Service-specific OpenShield control."},
-    "AZ-COSMOS-001": {"control_id": "N/A-COSMOS-001", "control_name": "Cosmos DB Local Authentication Enabled", "description": "Service-specific OpenShield control."},
-    "AZ-COSMOS-002": {"control_id": "N/A-COSMOS-002", "control_name": "Cosmos DB Public Network Access Enabled", "description": "Service-specific OpenShield control."},
-    "AZ-CACHE-001": {"control_id": "N/A-CACHE-001", "control_name": "Managed Cache Public or Non-TLS Access", "description": "Service-specific OpenShield control."},
+    "AZ-DB-005": {
+      "control_id": "N/A-DB-005",
+      "control_name": "SQL Server Microsoft Entra-Only Authentication Not Enforced",
+      "description": "Service-specific OpenShield control."
+    },
+    "AZ-DB-006": {
+      "control_id": "N/A-DB-006",
+      "control_name": "SQL Vulnerability Assessment Not Configured",
+      "description": "Service-specific OpenShield control."
+    },
+    "AZ-DB-007": {
+      "control_id": "N/A-DB-007",
+      "control_name": "SQL Auditing Retention Below Minimum",
+      "description": "Service-specific OpenShield control."
+    },
+    "AZ-COSMOS-001": {
+      "control_id": "N/A-COSMOS-001",
+      "control_name": "Cosmos DB Local Authentication Enabled",
+      "description": "Service-specific OpenShield control."
+    },
+    "AZ-COSMOS-002": {
+      "control_id": "N/A-COSMOS-002",
+      "control_name": "Cosmos DB Public Network Access Enabled",
+      "description": "Service-specific OpenShield control."
+    },
+    "AZ-CACHE-001": {
+      "control_id": "N/A-CACHE-001",
+      "control_name": "Managed Cache Public or Non-TLS Access",
+      "description": "Service-specific OpenShield control."
+    },
     "AZ-NET-001": {
       "control_id": "6.2",
       "control_name": "Ensure that SSH access from the Internet is evaluated and restricted",
-      "description": "Network security groups should not allow unrestricted SSH access from the internet. Restricting inbound SSH access reduces attack surface and prevents unauthorized access attempts, brute-force attacks, and exploitation of SSH service vulnerabilities."
+      "description": "Network security groups should not allow unrestricted SSH access from the internet. Restricting inbound SSH access reduces attack surface and prevents unauthorized access attempts, brute-force attacks, and exploitation of SSH service vulnerabilities.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 6.2",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 6.2 ('Ensure that SSH access from the Internet is evaluated and restricted') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-001 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-002": {
       "control_id": "6.3",
       "control_name": "Ensure that RDP access from the Internet is evaluated and restricted",
-      "description": "Network security groups should not permit unrestricted inbound RDP from the internet. Open RDP ports are a leading cause of ransomware infections and credential-based attacks. Access should be restricted to specific trusted IP ranges or removed in favour of Azure Bastion."
+      "description": "Network security groups should not permit unrestricted inbound RDP from the internet. Open RDP ports are a leading cause of ransomware infections and credential-based attacks. Access should be restricted to specific trusted IP ranges or removed in favour of Azure Bastion.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 6.3",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 6.3 ('Ensure that RDP access from the Internet is evaluated and restricted') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-002 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-003": {
       "control_id": "9.3",
       "control_name": "Ensure that HTTPS access from the Internet is evaluated and restricted",
-      "description": "Network security groups should not allow unrestricted inbound access on port 443 from the internet. Public web services should be fronted by an Application Gateway with WAF rather than exposing port 443 directly via NSG rules."
+      "description": "Network security groups should not allow unrestricted inbound access on port 443 from the internet. Public web services should be fronted by an Application Gateway with WAF rather than exposing port 443 directly via NSG rules.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 9.3",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 9.3 ('Ensure that HTTPS access from the Internet is evaluated and restricted') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-003 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-004": {
       "control_id": "9.2",
       "control_name": "Ensure that Network Security Groups have rules configured",
-      "description": "Network Security Groups with no custom rules configured provide no meaningful access control and rely entirely on Azure default rules. Explicit rules following least privilege should be defined for all NSGs."
+      "description": "Network Security Groups with no custom rules configured provide no meaningful access control and rely entirely on Azure default rules. Explicit rules following least privilege should be defined for all NSGs.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 9.2",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 9.2 ('Ensure that Network Security Groups have rules configured') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-004 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-005": {
       "control_id": "9.4",
       "control_name": "Ensure that DDoS Protection Standard is enabled on all Virtual Networks",
-      "description": "Azure DDoS Protection Standard provides enhanced DDoS mitigation capabilities for Azure resources. Virtual networks hosting production workloads should have DDoS Protection Standard enabled."
+      "description": "Azure DDoS Protection Standard provides enhanced DDoS mitigation capabilities for Azure resources. Virtual networks hosting production workloads should have DDoS Protection Standard enabled.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 9.4",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 9.4 ('Ensure that DDoS Protection Standard is enabled on all Virtual Networks') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-005 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-006": {
       "control_id": "9.1",
       "control_name": "Ensure that unassociated public IP addresses are removed",
-      "description": "Public IP addresses not associated with any resource represent unnecessary attack surface and cost. Unassociated public IPs should be deleted or documented and tagged for review."
+      "description": "Public IP addresses not associated with any resource represent unnecessary attack surface and cost. Unassociated public IPs should be deleted or documented and tagged for review.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 9.1",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 9.1 ('Ensure that unassociated public IP addresses are removed') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-006 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-007": {
       "control_id": "9.6",
       "control_name": "Ensure that Web Application Firewall is enabled on Application Gateway",
-      "description": "Application Gateway should have Web Application Firewall enabled in Prevention mode. WAF protects web applications from common exploits including OWASP Top 10 vulnerabilities such as SQL injection and cross-site scripting."
+      "description": "Application Gateway should have Web Application Firewall enabled in Prevention mode. WAF protects web applications from common exploits including OWASP Top 10 vulnerabilities such as SQL injection and cross-site scripting.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 9.6",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 9.6 ('Ensure that Web Application Firewall is enabled on Application Gateway') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-007 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-008": {
       "control_id": "9.7",
       "control_name": "Ensure that Load Balancers have backend pools configured",
-      "description": "Load balancers with no backend pool configured are either misconfigured or leftover resources. They represent unnecessary cost and poor resource hygiene and should be removed or configured correctly."
+      "description": "Load balancers with no backend pool configured are either misconfigured or leftover resources. They represent unnecessary cost and poor resource hygiene and should be removed or configured correctly.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 9.7",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 9.7 ('Ensure that Load Balancers have backend pools configured') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-008 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-009": {
       "control_id": "9.5",
       "control_name": "Ensure that VPN gateways use IKEv2",
-      "description": "VPN gateway connections should use IKEv2 rather than the outdated IKEv1 protocol. IKEv2 provides improved authentication, better performance and built-in NAT traversal support compared to IKEv1."
+      "description": "VPN gateway connections should use IKEv2 rather than the outdated IKEv1 protocol. IKEv2 provides improved authentication, better performance and built-in NAT traversal support compared to IKEv1.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 9.5",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 9.5 ('Ensure that VPN gateways use IKEv2') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-009 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-010": {
       "control_id": "9.10",
       "control_name": "Ensure that all subnets have a Network Security Group attached",
-      "description": "All subnets except gateway subnets should have a Network Security Group attached. Without an NSG at subnet level, resources in the subnet have no network layer access control and are potentially reachable from other subnets or the internet."
+      "description": "All subnets except gateway subnets should have a Network Security Group attached. Without an NSG at subnet level, resources in the subnet have no network layer access control and are potentially reachable from other subnets or the internet.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 9.10",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 9.10 ('Ensure that all subnets have a Network Security Group attached') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-010 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-001": {
       "control_id": "1.24",
       "control_name": "Ensure That No Custom Subscription Owner Roles Are Created",
-      "description": "Service principals or custom roles should not be assigned the Owner role at subscription scope. The Owner role grants full control including the ability to modify access controls. Assignment should follow the principle of least privilege."
+      "description": "Service principals or custom roles should not be assigned the Owner role at subscription scope. The Owner role grants full control including the ability to modify access controls. Assignment should follow the principle of least privilege.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 1.24",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 1.24 ('Ensure That No Custom Subscription Owner Roles Are Created') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-IDN-001 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-002": {
       "control_id": "1.2.4",
       "control_name": "Ensure that 'Multi-Factor Authentication Status' is 'Enabled' for all Privileged Users",
-      "description": "Multi-Factor Authentication requires an individual to present a minimum of two separate forms of authentication before access is granted. MFA should be enforced for all users with administrative privileges via Conditional Access policies."
+      "description": "Multi-Factor Authentication requires an individual to present a minimum of two separate forms of authentication before access is granted. MFA should be enforced for all users with administrative privileges via Conditional Access policies.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 1.2.4",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 1.2.4 ('Ensure that 'Multi-Factor Authentication Status' is 'Enabled' for all Privileged Users') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-IDN-002 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-003": {
       "control_id": "1.15",
       "control_name": "Ensure that 'Guest invite restrictions' is set to 'Only users assigned to specific admin roles can invite guest users'",
-      "description": "Unrestricted guest user invitation settings allow any member of the organisation to invite external users into the tenant without administrative review. This bypasses centralised approval for external identity provisioning and increases the risk of unauthorised access by untrusted parties."
+      "description": "Unrestricted guest user invitation settings allow any member of the organisation to invite external users into the tenant without administrative review. This bypasses centralised approval for external identity provisioning and increases the risk of unauthorised access by untrusted parties.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 1.15",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 1.15 ('Ensure that 'Guest invite restrictions' is set to 'Only users assigned to specific admin roles can invite guest users'') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-IDN-003 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-005": {
       "control_id": "1.3",
       "control_name": "Ensure guest users are reviewed on a monthly basis",
-      "description": "Guest accounts assigned to high privilege roles in Entra ID allow external identities to perform administrative actions in the tenant. CIS 1.3 requires that guest users are reviewed and that privileged access is restricted to internal accounts only. Any guest user holding a role such as Global Administrator, Security Administrator, or User Administrator must have that assignment removed immediately."
+      "description": "Guest accounts assigned to high privilege roles in Entra ID allow external identities to perform administrative actions in the tenant. CIS 1.3 requires that guest users are reviewed and that privileged access is restricted to internal accounts only. Any guest user holding a role such as Global Administrator, Security Administrator, or User Administrator must have that assignment removed immediately.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 1.3",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 1.3 ('Ensure guest users are reviewed on a monthly basis') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-IDN-005 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-006": {
       "control_id": "1.14",
       "control_name": "Ensure that service principal passwords are rotated within 90 days",
-      "description": "Service principal client secrets older than 90 days or with no expiry date represent a persistent credential risk. CIS 1.14 requires that service principal passwords are rotated at least every 90 days. Secrets that never expire remain valid indefinitely if leaked, giving an attacker permanent access to the application and its Azure permissions."
+      "description": "Service principal client secrets older than 90 days or with no expiry date represent a persistent credential risk. CIS 1.14 requires that service principal passwords are rotated at least every 90 days. Secrets that never expire remain valid indefinitely if leaked, giving an attacker permanent access to the application and its Azure permissions.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 1.14",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 1.14 ('Ensure that service principal passwords are rotated within 90 days') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-IDN-006 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-007": {
       "control_id": "1.1",
       "control_name": "Ensure that multi-factor authentication is enabled for all privileged users",
-      "description": "Active users in Entra ID with no MFA methods registered are vulnerable to password-based attacks including spray and phishing. CIS 1.1 requires that MFA is enabled for all users, particularly those with privileged access. Users without MFA registered must be required to enrol before they can access Azure resources."
+      "description": "Active users in Entra ID with no MFA methods registered are vulnerable to password-based attacks including spray and phishing. CIS 1.1 requires that MFA is enabled for all users, particularly those with privileged access. Users without MFA registered must be required to enrol before they can access Azure resources.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 1.1",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 1.1 ('Ensure that multi-factor authentication is enabled for all privileged users') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-IDN-007 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-008": {
       "control_id": "1.23",
       "control_name": "Ensure that custom subscription roles do not exist",
-      "description": "Custom RBAC roles with wildcard actions (*) at subscription scope grant Owner-equivalent permissions and violate the principle of least privilege. CIS 1.23 requires that custom subscription roles do not have wildcard permissions. These roles must be replaced with definitions that specify only the exact actions required for the intended use case."
+      "description": "Custom RBAC roles with wildcard actions (*) at subscription scope grant Owner-equivalent permissions and violate the principle of least privilege. CIS 1.23 requires that custom subscription roles do not have wildcard permissions. These roles must be replaced with definitions that specify only the exact actions required for the intended use case.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 1.23",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 1.23 ('Ensure that custom subscription roles do not exist') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-IDN-008 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-009": {
       "control_id": "5.2.1",
       "control_name": "Ensure that activity log alert exists for Create Policy Assignment",
-      "description": "A subscription without an activity log alert for role assignment changes cannot detect privilege escalation in real time. CIS 5.2.1 requires that activity log alerts exist for administrative operations including role assignment writes. Without this alert, an attacker who elevates their own permissions will go undetected until the next manual review."
+      "description": "A subscription without an activity log alert for role assignment changes cannot detect privilege escalation in real time. CIS 5.2.1 requires that activity log alerts exist for administrative operations including role assignment writes. Without this alert, an attacker who elevates their own permissions will go undetected until the next manual review.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 5.2.1",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 5.2.1 ('Ensure that activity log alert exists for Create Policy Assignment') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-IDN-009 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-001": {
       "control_id": "4.3.1",
       "control_name": "Ensure 'Allow access to Azure services' for PostgreSQL Database Server is disabled",
-      "description": "Disabling public network access on PostgreSQL Database Server prevents public access and reduces the attack surface. Access should be restricted to private networks using VNet service endpoints or private endpoints."
+      "description": "Disabling public network access on PostgreSQL Database Server prevents public access and reduces the attack surface. Access should be restricted to private networks using VNet service endpoints or private endpoints.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 4.3.1",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 4.3.1 ('Ensure 'Allow access to Azure services' for PostgreSQL Database Server is disabled') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-DB-001 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-002": {
       "control_id": "4.1.3",
       "control_name": "Ensure that 'Auditing' Retention is 'greater than 90 days' for SQL servers",
-      "description": "SQL Server audit logs must be enabled and retained for a minimum of 90 days. Enabling auditing provides a record of database events that can be used to detect threats, investigate incidents, and demonstrate compliance."
+      "description": "SQL Server audit logs must be enabled and retained for a minimum of 90 days. Enabling auditing provides a record of database events that can be used to detect threats, investigate incidents, and demonstrate compliance.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 4.1.3",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 4.1.3 ('Ensure that 'Auditing' Retention is 'greater than 90 days' for SQL servers') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-DB-002 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CMP-001": {
       "control_id": "7.1",
       "control_name": "Ensure that Network Security Groups are attached to network interfaces with public IP addresses",
-      "description": "Virtual machines that are reachable from the internet should have Network Security Groups attached to their network interfaces to control and restrict inbound and outbound traffic, reducing the attack surface."
+      "description": "Virtual machines that are reachable from the internet should have Network Security Groups attached to their network interfaces to control and restrict inbound and outbound traffic, reducing the attack surface.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 7.1",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 7.1 ('Ensure that Network Security Groups are attached to network interfaces with public IP addresses') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-CMP-001 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CMP-002": {
       "control_id": "7.2",
       "control_name": "Ensure that 'OS disk' are encrypted",
-      "description": "Virtual machine OS and data disks are using platform-managed encryption only (EncryptionAtRestWithPlatformKey). CIS 7.2 requires disks to be protected using customer-managed keys or Azure Disk Encryption. Platform-managed encryption does not give the organisation control over the encryption keys and does not satisfy this control."
+      "description": "Virtual machine OS and data disks are using platform-managed encryption only (EncryptionAtRestWithPlatformKey). CIS 7.2 requires disks to be protected using customer-managed keys or Azure Disk Encryption. Platform-managed encryption does not give the organisation control over the encryption keys and does not satisfy this control.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 7.2",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 7.2 ('Ensure that 'OS disk' are encrypted') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-CMP-002 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CMP-003": {
       "control_id": "8.2",
       "control_name": "Ensure that 'Endpoint protection solution' is installed on VMs",
-      "description": "The virtual machine does not have a recognised endpoint protection extension installed. CIS 8.2 requires that an approved endpoint protection solution is installed and running on all virtual machines. Without endpoint protection, malware and ransomware can execute without detection."
+      "description": "The virtual machine does not have a recognised endpoint protection extension installed. CIS 8.2 requires that an approved endpoint protection solution is installed and running on all virtual machines. Without endpoint protection, malware and ransomware can execute without detection.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 8.2",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 8.2 ('Ensure that 'Endpoint protection solution' is installed on VMs') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-CMP-003 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CMP-004": {
       "control_id": "8.3",
       "control_name": "Ensure that 'OS patching' is enabled for virtual machines",
-      "description": "The virtual machine does not have automatic OS patching enabled. CIS 8.3 requires that OS patches are applied in a timely manner. Unpatched VMs are vulnerable to known exploits targeting unpatched OS vulnerabilities."
+      "description": "The virtual machine does not have automatic OS patching enabled. CIS 8.3 requires that OS patches are applied in a timely manner. Unpatched VMs are vulnerable to known exploits targeting unpatched OS vulnerabilities.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 8.3",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 8.3 ('Ensure that 'OS patching' is enabled for virtual machines') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-CMP-004 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CMP-007": {
       "control_id": "N/A-CMP-007",
       "control_name": "Just-In-Time (JIT) VM access - Defender for Cloud recommendation, no numbered CIS Azure Foundations 2.0.0 control",
-      "description": "CIS Microsoft Azure Foundations Benchmark 2.0.0 has no numbered recommendation for Just-In-Time VM access (it is a Microsoft Defender for Cloud recommendation), so under the repository's one-CIS-ID-per-rule convention this rule is not assigned a fabricated control id. It is mapped under NIST CSF PR.AC-3, ISO 27001 A.13.1.1, and SOC 2 CC6.6 instead."
+      "description": "CIS Microsoft Azure Foundations Benchmark 2.0.0 has no numbered recommendation for Just-In-Time VM access (it is a Microsoft Defender for Cloud recommendation), so under the repository's one-CIS-ID-per-rule convention this rule is not assigned a fabricated control id. It is mapped under NIST CSF PR.AC-3, ISO 27001 A.13.1.1, and SOC 2 CC6.6 instead.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-CMP-007",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-CMP-007: Just-In-Time (JIT) VM access is a Microsoft Defender for Cloud recommendation, not a numbered CIS Azure Foundations 2.0.0 control) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-001": {
       "control_id": "N/A-KV-001",
       "control_name": "Key Vault soft-delete baseline (covered by the repository's CIS 8.5 purge-protection rule)",
-      "description": "Soft delete is part of CIS Azure Foundations 2.0.0 recommendation 8.5, which is assigned to AZ-KV-004 under the repository's one-CIS-ID-per-rule convention. This overlapping prerequisite check is explicitly not assigned a second numbered mapping."
+      "description": "Soft delete is part of CIS Azure Foundations 2.0.0 recommendation 8.5, which is assigned to AZ-KV-004 under the repository's one-CIS-ID-per-rule convention. This overlapping prerequisite check is explicitly not assigned a second numbered mapping.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-KV-001",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-KV-001: Key Vault soft-delete baseline (covered by the repository's CIS 8.5 purge-protection rule)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-003": {
       "control_id": "3.7",
       "control_name": "Ensure that storage accounts have lifecycle management policies configured",
-      "description": "Storage accounts without lifecycle management policies retain data indefinitely. This increases storage costs, expands the attack surface through accumulation of stale data, and may violate data retention compliance requirements. Lifecycle policies automate the transition and deletion of blobs based on age and access patterns."
+      "description": "Storage accounts without lifecycle management policies retain data indefinitely. This increases storage costs, expands the attack surface through accumulation of stale data, and may violate data retention compliance requirements. Lifecycle policies automate the transition and deletion of blobs based on age and access patterns.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 3.7",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 3.7 ('Ensure that storage accounts have lifecycle management policies configured') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-STOR-003 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-004": {
       "control_id": "3.3",
       "control_name": "Ensure Storage logging is enabled for Blob, Queue, and Table services for read, write, and delete requests",
-      "description": "Enabling diagnostic logging for Azure Storage blob, queue, and table services records read, write, and delete operations. Without logging, unauthorized access, data exfiltration, or destructive operations on storage services cannot be detected or investigated."
+      "description": "Enabling diagnostic logging for Azure Storage blob, queue, and table services records read, write, and delete operations. Without logging, unauthorized access, data exfiltration, or destructive operations on storage services cannot be detected or investigated.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 3.3",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 3.3 ('Ensure Storage logging is enabled for Blob, Queue, and Table services for read, write, and delete requests') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-STOR-004 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-005": {
       "control_id": "3.8",
       "control_name": "Ensure that storage accounts use geo-redundant replication",
-      "description": "Storage accounts configured with locally redundant (LRS) or zone-redundant (ZRS) replication do not replicate data outside the primary region. A regional disaster or prolonged outage could result in data unavailability or data loss. Geo-redundant storage (GRS or GZRS) replicates data asynchronously to a secondary Azure region, protecting against region-wide failures."
+      "description": "Storage accounts configured with locally redundant (LRS) or zone-redundant (ZRS) replication do not replicate data outside the primary region. A regional disaster or prolonged outage could result in data unavailability or data loss. Geo-redundant storage (GRS or GZRS) replicates data asynchronously to a secondary Azure region, protecting against region-wide failures.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 3.8",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 3.8 ('Ensure that storage accounts use geo-redundant replication') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-STOR-005 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-002": {
       "control_id": "8.7",
       "control_name": "Ensure that public network access to Key Vault is disabled",
-      "description": "Azure Key Vault should not allow public network access unless absolutely necessary. Enabling public access increases the attack surface and exposes sensitive secrets, keys, and certificates to potential unauthorized access. Private endpoints should be used to restrict access to trusted networks."
+      "description": "Azure Key Vault should not allow public network access unless absolutely necessary. Enabling public access increases the attack surface and exposes sensitive secrets, keys, and certificates to potential unauthorized access. Private endpoints should be used to restrict access to trusted networks.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 8.7",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 8.7 ('Ensure that public network access to Key Vault is disabled') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-KV-002 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-003": {
       "control_id": "8.4",
       "control_name": "Ensure that logging is enabled for Azure Key Vault",
-      "description": "Azure Key Vault diagnostic logging should be enabled so access to secrets, keys, and certificates is recorded. Without diagnostic logs, unauthorized access attempts and destructive operations cannot be investigated effectively."
+      "description": "Azure Key Vault diagnostic logging should be enabled so access to secrets, keys, and certificates is recorded. Without diagnostic logs, unauthorized access attempts and destructive operations cannot be investigated effectively.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 8.4",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 8.4 ('Ensure that logging is enabled for Azure Key Vault') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-KV-003 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-011": {
       "control_id": "6.5",
       "control_name": "Ensure that Network Watcher is enabled in all regions",
-      "description": "Network Watcher should be enabled in all regions where Azure resources are deployed. Network Watcher provides network monitoring, diagnostics, and logging capabilities essential for investigating network-level incidents."
+      "description": "Network Watcher should be enabled in all regions where Azure resources are deployed. Network Watcher provides network monitoring, diagnostics, and logging capabilities essential for investigating network-level incidents.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 6.5",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 6.5 ('Ensure that Network Watcher is enabled in all regions') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-011 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-012": {
       "control_id": "6.7",
       "control_name": "Ensure that Network Watcher flow logs are enabled for Network Security Groups",
-      "description": "A VNet flow log (or an existing legacy NSG flow log) should cover this virtual network's traffic so it can be audited and investigated. Microsoft blocks new NSG flow log creation as of 2025-06-30 and retires the feature on 2027-09-30, so VNet flow logs are the current, supported mechanism. Without either, lateral movement and suspicious network activity cannot be reconstructed."
+      "description": "A VNet flow log (or an existing legacy NSG flow log) should cover this virtual network's traffic so it can be audited and investigated. Microsoft blocks new NSG flow log creation as of 2025-06-30 and retires the feature on 2027-09-30, so VNet flow logs are the current, supported mechanism. Without either, lateral movement and suspicious network activity cannot be reconstructed.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 6.7",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 6.7 ('Ensure that Network Watcher flow logs are enabled for Network Security Groups') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-012 evaluates this exact setting (VNet flow logs, with the legacy NSG flow log mechanism Microsoft is retiring accepted as a fallback) via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-003": {
       "control_id": "4.3.6",
       "control_name": "Ensure SSL connection is enabled for PostgreSQL Flexible Server",
-      "description": "SSL enforcement should be enabled on PostgreSQL Flexible Server to ensure data in transit is encrypted. Without SSL, database connections transmit data in plaintext, exposing it to interception."
+      "description": "SSL enforcement should be enabled on PostgreSQL Flexible Server to ensure data in transit is encrypted. Without SSL, database connections transmit data in plaintext, exposing it to interception.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 4.3.6",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 4.3.6 ('Ensure SSL connection is enabled for PostgreSQL Flexible Server') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-DB-003 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-004": {
       "control_id": "8.5",
       "control_name": "Ensure the Key Vault is Recoverable",
-      "description": "Azure Key Vaults without purge protection enabled allow permanent deletion of vaults and their secrets, keys, and certificates during the soft-delete retention period. Even with soft delete enabled, a malicious insider or privileged account can purge vault objects before the retention period expires. Enabling purge protection prevents this by blocking purge operations for the full retention period."
+      "description": "Azure Key Vaults without purge protection enabled allow permanent deletion of vaults and their secrets, keys, and certificates during the soft-delete retention period. Even with soft delete enabled, a malicious insider or privileged account can purge vault objects before the retention period expires. Enabling purge protection prevents this by blocking purge operations for the full retention period.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 8.5",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 8.5 ('Ensure the Key Vault is Recoverable') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-KV-004 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-004": {
       "control_id": "4.1.2",
       "control_name": "Ensure that 'Allow access to Azure services' for SQL Servers is disabled",
-      "description": "Enabling 'Allow access to Azure services' on a SQL Server firewall creates a rule that permits any Azure-hosted resource — including services from other tenants — to connect to the server. This significantly increases the attack surface. Access should be restricted to specific trusted IP ranges or private endpoints."
+      "description": "Enabling 'Allow access to Azure services' on a SQL Server firewall creates a rule that permits any Azure-hosted resource — including services from other tenants — to connect to the server. This significantly increases the attack surface. Access should be restricted to specific trusted IP ranges or private endpoints.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 4.1.2",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 4.1.2 ('Ensure that 'Allow access to Azure services' for SQL Servers is disabled') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-DB-004 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-004": {
       "control_id": "1.16",
       "control_name": "Ensure that 'Privileged Identity Management' is used to manage privileged access",
-      "description": "Privileged Identity Management provides time-based and approval-based role activation to mitigate the risk of excessive, unnecessary, or misused access permissions on resources. Without PIM, admin roles are permanently assigned with no just-in-time controls or approval workflows."
+      "description": "Privileged Identity Management provides time-based and approval-based role activation to mitigate the risk of excessive, unnecessary, or misused access permissions on resources. Without PIM, admin roles are permanently assigned with no just-in-time controls or approval workflows.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 1.16",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 1.16 ('Ensure that 'Privileged Identity Management' is used to manage privileged access') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-IDN-004 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-005": {
       "control_id": "N/A-KV-005",
       "control_name": "Key Vault certificate renewal baseline (not directly mapped in CIS Azure Foundations 2.0.0)",
-      "description": "This rule detects certificates expiring within 30 days without automatic renewal. CIS Azure Foundations 2.0.0 contains certificate expiration-date recommendations, but does not directly prescribe this proactive 30-day renewal check, so no numbered mapping is claimed."
+      "description": "This rule detects certificates expiring within 30 days without automatic renewal. CIS Azure Foundations 2.0.0 contains certificate expiration-date recommendations, but does not directly prescribe this proactive 30-day renewal check, so no numbered mapping is claimed.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-KV-005",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-KV-005: Key Vault certificate renewal baseline (not directly mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-006": {
       "control_id": "8.6",
       "control_name": "Ensure that Azure Key Vault Uses Azure RBAC for Data Plane Authorization",
-      "description": "CIS Azure Foundations Benchmark 2.0.0 recommendation 8.6 requires Azure Key Vault to use the Azure RBAC permission model. Key Vaults using legacy access policies lack centrally auditable, scoped role assignments and increase the risk of over-privileged access to secrets, keys, and certificates."
+      "description": "CIS Azure Foundations Benchmark 2.0.0 recommendation 8.6 requires Azure Key Vault to use the Azure RBAC permission model. Key Vaults using legacy access policies lack centrally auditable, scoped role assignments and increase the risk of over-privileged access to secrets, keys, and certificates.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 8.6",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 8.6 ('Ensure that Azure Key Vault Uses Azure RBAC for Data Plane Authorization') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-KV-006 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-013": {
       "control_id": "6.4",
       "control_name": "Ensure that Azure Firewall is enabled on Virtual Networks",
-      "description": "Virtual networks should be protected by an Azure Firewall rather than relying on Network Security Groups alone. Azure Firewall provides centralized, stateful traffic inspection, FQDN and threat-intelligence filtering, and network-wide logging that NSGs cannot offer. VNets without an associated Azure Firewall lack a perimeter inspection and logging layer."
+      "description": "Virtual networks should be protected by an Azure Firewall rather than relying on Network Security Groups alone. Azure Firewall provides centralized, stateful traffic inspection, FQDN and threat-intelligence filtering, and network-wide logging that NSGs cannot offer. VNets without an associated Azure Firewall lack a perimeter inspection and logging layer.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 6.4",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 6.4 ('Ensure that Azure Firewall is enabled on Virtual Networks') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-013 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-014": {
       "control_id": "6.6",
       "control_name": "Ensure that VNet peering connections restrict gateway transit",
-      "description": "VNet peering connections with allowGatewayTransit or useRemoteGateways enabled allow traffic to route between network segments through shared gateways. This can break network segmentation and enable lateral movement between zones that should remain isolated. Peering connections should be reviewed and gateway transit disabled unless explicitly required and documented."
+      "description": "VNet peering connections with allowGatewayTransit or useRemoteGateways enabled allow traffic to route between network segments through shared gateways. This can break network segmentation and enable lateral movement between zones that should remain isolated. Peering connections should be reviewed and gateway transit disabled unless explicitly required and documented.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 6.6",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 6.6 ('Ensure that VNet peering connections restrict gateway transit') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-014 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-015": {
       "control_id": "9.8",
       "control_name": "Ensure public DNS zones do not expose private infrastructure details",
-      "description": "Public DNS zones that contain A records referencing RFC1918 private IP addresses or record names matching internal service keywords (such as admin, vpn, db, or internal) expose the organisation's internal network topology to external parties. CIS 9.8 requires that unnecessary public exposure is minimised. Such records should be removed from public DNS zones and migrated to Azure Private DNS zones linked to the appropriate virtual networks."
+      "description": "Public DNS zones that contain A records referencing RFC1918 private IP addresses or record names matching internal service keywords (such as admin, vpn, db, or internal) expose the organisation's internal network topology to external parties. CIS 9.8 requires that unnecessary public exposure is minimised. Such records should be removed from public DNS zones and migrated to Azure Private DNS zones linked to the appropriate virtual networks.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 9.8",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 9.8 ('Ensure public DNS zones do not expose private infrastructure details') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-NET-015 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PQC-001": {
       "control_id": "9.9",
       "control_name": "Ensure TLS is enforced with quantum-safe configuration",
-      "description": "App Services configured with TLS versions below 1.3 use classical key exchange algorithms vulnerable to Harvest Now Decrypt Later attacks. CIS 9.9 requires that data in transit is protected using current encryption standards. Enforcing TLS 1.3 minimum reduces exposure to quantum-enabled decryption of captured traffic."
+      "description": "App Services configured with TLS versions below 1.3 use classical key exchange algorithms vulnerable to Harvest Now Decrypt Later attacks. CIS 9.9 requires that data in transit is protected using current encryption standards. Enforcing TLS 1.3 minimum reduces exposure to quantum-enabled decryption of captured traffic.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 9.9",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 9.9 ('Ensure TLS is enforced with quantum-safe configuration') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-PQC-001 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PQC-002": {
       "control_id": "8.1",
       "control_name": "Ensure Key Vault keys use quantum-safe algorithms",
-      "description": "Key Vault keys using RSA or ECC algorithms are vulnerable to Shor's algorithm on quantum computers. CIS 8.1 requires that cryptographic key management follows current standards. Keys should be inventoried in a Cryptographic Bill of Materials and migration to post-quantum safe algorithms planned."
+      "description": "Key Vault keys using RSA or ECC algorithms are vulnerable to Shor's algorithm on quantum computers. CIS 8.1 requires that cryptographic key management follows current standards. Keys should be inventoried in a Cryptographic Bill of Materials and migration to post-quantum safe algorithms planned.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 8.1",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 8.1 ('Ensure Key Vault keys use quantum-safe algorithms') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-PQC-002 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PQC-003": {
       "control_id": "8.9",
       "control_name": "Ensure certificates use quantum-safe signature algorithms",
-      "description": "Key Vault certificates signed with RSA or ECDSA are vulnerable to quantum attacks. CIS 8.9 requires that certificate management includes monitoring of algorithm strength. Certificates should be migrated to post-quantum safe signature algorithms such as ML-DSA when CA support is available."
+      "description": "Key Vault certificates signed with RSA or ECDSA are vulnerable to quantum attacks. CIS 8.9 requires that certificate management includes monitoring of algorithm strength. Certificates should be migrated to post-quantum safe signature algorithms such as ML-DSA when CA support is available.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 8.9",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 8.9 ('Ensure certificates use quantum-safe signature algorithms') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-PQC-003 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-001": {
       "control_id": "N/A-AKS-001",
       "control_name": "AKS private cluster baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends private AKS clusters to keep control-plane traffic on private networks. This OpenShield check is intentionally marked not applicable to the repository's CIS Azure Foundations 2.0.0 benchmark rather than claiming an unsupported CIS mapping."
+      "description": "Microsoft recommends private AKS clusters to keep control-plane traffic on private networks. This OpenShield check is intentionally marked not applicable to the repository's CIS Azure Foundations 2.0.0 benchmark rather than claiming an unsupported CIS mapping.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-AKS-001",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-AKS-001: AKS private cluster baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-002": {
       "control_id": "N/A-AKS-002",
       "control_name": "AKS local account baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends disabling AKS local accounts so authentication is governed through Microsoft Entra ID. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft recommends disabling AKS local accounts so authentication is governed through Microsoft Entra ID. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-AKS-002",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-AKS-002: AKS local account baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-003": {
       "control_id": "N/A-AKS-003",
       "control_name": "AKS managed identity baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends managed identities instead of AKS service-principal credentials. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft recommends managed identities instead of AKS service-principal credentials. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-AKS-003",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-AKS-003: AKS managed identity baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-004": {
       "control_id": "N/A-AKS-004",
       "control_name": "AKS Workload Identity baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends Workload Identity for scoped, secretless access from pods to Azure resources. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft recommends Workload Identity for scoped, secretless access from pods to Azure resources. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-AKS-004",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-AKS-004: AKS Workload Identity baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-005": {
       "control_id": "N/A-AKS-005",
       "control_name": "AKS Azure Policy baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends the Azure Policy add-on for centralized Kubernetes governance. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft recommends the Azure Policy add-on for centralized Kubernetes governance. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-AKS-005",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-AKS-005: AKS Azure Policy baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-006": {
       "control_id": "N/A-AKS-006",
       "control_name": "AKS node OS upgrade baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends a managed node OS upgrade channel for timely security patches. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft recommends a managed node OS upgrade channel for timely security patches. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-AKS-006",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-AKS-006: AKS node OS upgrade baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-010": {
       "control_id": "N/A-IDN-010",
       "control_name": "App Registration ownership (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends accountable App Registration ownership. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft recommends accountable App Registration ownership. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-010",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-010: App Registration ownership (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-011": {
       "control_id": "N/A-IDN-011",
       "control_name": "App Registration redirect URI security (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft requires secure redirect URI handling. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft requires secure redirect URI handling. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-011",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-011: App Registration redirect URI security (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-012": {
       "control_id": "N/A-IDN-012",
       "control_name": "OAuth implicit grant security (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends authorization code flow instead of implicit grant. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft recommends authorization code flow instead of implicit grant. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-012",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-012: OAuth implicit grant security (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-013": {
       "control_id": "N/A-IDN-013",
       "control_name": "App Registration password credentials (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends managed identity, federation, or certificates instead of client secrets. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft recommends managed identity, federation, or certificates instead of client secrets. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-013",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-013: App Registration password credentials (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-014": {
       "control_id": "N/A-IDN-014",
       "control_name": "Application-instance property lock (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends locking sensitive service-principal instance properties. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft recommends locking sensitive service-principal instance properties. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-014",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-014: Application-instance property lock (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-015": {
       "control_id": "N/A-IDN-015",
       "control_name": "Managed Identity least privilege (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends least-privilege roles and scopes for managed identities. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+      "description": "Microsoft recommends least-privilege roles and scopes for managed identities. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-IDN-015",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-IDN-015: Managed Identity least privilege (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
-    "AZ-FUNC-001": {"control_id":"N/A-FUNC-001","control_name":"Function App HTTPS enforcement","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific HTTPS control."},
-    "AZ-FUNC-002": {"control_id":"N/A-FUNC-002","control_name":"Function App minimum TLS version","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific TLS control."},
-    "AZ-FUNC-003": {"control_id":"N/A-FUNC-003","control_name":"Function App FTP publishing","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific publishing control."},
-    "AZ-FUNC-004": {"control_id":"N/A-FUNC-004","control_name":"Function App remote debugging","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific debugging control."},
-    "AZ-FUNC-005": {"control_id":"N/A-FUNC-005","control_name":"Function App managed identity","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific identity control."},
-    "AZ-PE-001": {"control_id":"N/A-PE-001","control_name":"Storage public network access","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."},
-    "AZ-PE-002": {"control_id":"N/A-PE-002","control_name":"SQL public network access","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."},
-    "AZ-PE-003": {"control_id":"N/A-PE-003","control_name":"PostgreSQL public network access","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific private-networking control."},
-    "AZ-PE-004": {"control_id":"N/A-PE-004","control_name":"App Service public network access","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."},
-    "AZ-PE-005": {"control_id":"N/A-PE-005","control_name":"Recovery Services public network access","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."},
-    "AZ-PE-006": {"control_id":"N/A-PE-006","control_name":"Private endpoint connection approval","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the private-endpoint connection state."},
-    "AZ-BAK-001": {"control_id":"N/A-BAK-001","control_name":"Backup soft-delete protection","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup recovery control."},
-    "AZ-BAK-002": {"control_id":"N/A-BAK-002","control_name":"Backup vault immutability","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup immutability control."},
-    "AZ-BAK-004": {"control_id":"N/A-BAK-004","control_name":"Backup multi-user authorization","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup authorization control."},
-    "AZ-BAK-006": {"control_id":"N/A-BAK-006","control_name":"Backup security monitoring","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup monitoring control."},
-    "AZ-IDN-016": {"control_id": "N/A-IDN-016", "control_name": "Privileged User Missing Phishing-Resistant MFA", "description": "Service-specific OpenShield control for phishing-resistant MFA enforcement on privileged users."},
-    "AZ-IDN-017": {"control_id": "N/A-IDN-017", "control_name": "Global Administrator Permanently Assigned Outside PIM", "description": "Service-specific OpenShield control for PIM-governed Global Administrator assignments."},
-    "AZ-IDN-018": {"control_id": "N/A-IDN-018", "control_name": "Privileged Role Assigned Outside PIM", "description": "Service-specific OpenShield control requiring all privileged roles to be managed via PIM."},
-    "AZ-IDN-019": {"control_id": "N/A-IDN-019", "control_name": "Stale Privileged Account Retains Active Access", "description": "Service-specific OpenShield control for dormant privileged accounts."},
-    "AZ-IDN-020": {"control_id": "N/A-IDN-020", "control_name": "Emergency Access Accounts Missing or Misconfigured", "description": "Service-specific OpenShield control for break-glass account configuration."},
-    "AZ-IDN-021": {"control_id": "N/A-IDN-021", "control_name": "Legacy Authentication Not Blocked by Conditional Access", "description": "Service-specific OpenShield control for blocking legacy authentication protocols."},
-    "AZ-IDN-022": {"control_id": "N/A-IDN-022", "control_name": "Azure Management Not Protected by Conditional Access", "description": "Service-specific OpenShield control requiring CA protection for Azure management."},
-    "AZ-IDN-023": {"control_id": "N/A-IDN-023", "control_name": "Identity Protection Risk Policies Not Enabled", "description": "Service-specific OpenShield control for Identity Protection risk policy enablement."},
-    "AZ-IDN-024": {"control_id": "N/A-IDN-024", "control_name": "Workload Identities Excluded From Conditional Access", "description": "Service-specific OpenShield control for workload identity CA coverage."},
-    "AZ-IDN-025": {"control_id": "N/A-IDN-025", "control_name": "Privileged Role-Assignable Group Has No Owner", "description": "Service-specific OpenShield control for privileged group ownership governance."},
-
+    "AZ-FUNC-001": {
+      "control_id": "N/A-FUNC-001",
+      "control_name": "Function App HTTPS enforcement",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific HTTPS control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-FUNC-001",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-FUNC-001: Function App HTTPS enforcement) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-FUNC-002": {
+      "control_id": "N/A-FUNC-002",
+      "control_name": "Function App minimum TLS version",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific TLS control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-FUNC-002",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-FUNC-002: Function App minimum TLS version) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-FUNC-003": {
+      "control_id": "N/A-FUNC-003",
+      "control_name": "Function App FTP publishing",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific publishing control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-FUNC-003",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-FUNC-003: Function App FTP publishing) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-FUNC-004": {
+      "control_id": "N/A-FUNC-004",
+      "control_name": "Function App remote debugging",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific debugging control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-FUNC-004",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-FUNC-004: Function App remote debugging) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-FUNC-005": {
+      "control_id": "N/A-FUNC-005",
+      "control_name": "Function App managed identity",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific identity control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-FUNC-005",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-FUNC-005: Function App managed identity) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-PE-001": {
+      "control_id": "N/A-PE-001",
+      "control_name": "Storage public network access",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-PE-001",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-PE-001: Storage public network access) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-PE-002": {
+      "control_id": "N/A-PE-002",
+      "control_name": "SQL public network access",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-PE-002",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-PE-002: SQL public network access) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-PE-003": {
+      "control_id": "N/A-PE-003",
+      "control_name": "PostgreSQL public network access",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific private-networking control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-PE-003",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-PE-003: PostgreSQL public network access) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-PE-004": {
+      "control_id": "N/A-PE-004",
+      "control_name": "App Service public network access",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-PE-004",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-PE-004: App Service public network access) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-PE-005": {
+      "control_id": "N/A-PE-005",
+      "control_name": "Recovery Services public network access",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-PE-005",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-PE-005: Recovery Services public network access) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-PE-006": {
+      "control_id": "N/A-PE-006",
+      "control_name": "Private endpoint connection approval",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the private-endpoint connection state.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-PE-006",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-PE-006: Private endpoint connection approval) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-BAK-001": {
+      "control_id": "N/A-BAK-001",
+      "control_name": "Backup soft-delete protection",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup recovery control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-BAK-001",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-BAK-001: Backup soft-delete protection) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-BAK-002": {
+      "control_id": "N/A-BAK-002",
+      "control_name": "Backup vault immutability",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup immutability control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-BAK-002",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-BAK-002: Backup vault immutability) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-BAK-004": {
+      "control_id": "N/A-BAK-004",
+      "control_name": "Backup multi-user authorization",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup authorization control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-BAK-004",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-BAK-004: Backup multi-user authorization) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-BAK-006": {
+      "control_id": "N/A-BAK-006",
+      "control_name": "Backup security monitoring",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup monitoring control.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-BAK-006",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-BAK-006: Backup security monitoring) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-IDN-016": {
+      "control_id": "N/A-IDN-016",
+      "control_name": "Privileged User Missing Phishing-Resistant MFA",
+      "description": "Service-specific OpenShield control for phishing-resistant MFA enforcement on privileged users."
+    },
+    "AZ-IDN-017": {
+      "control_id": "N/A-IDN-017",
+      "control_name": "Global Administrator Permanently Assigned Outside PIM",
+      "description": "Service-specific OpenShield control for PIM-governed Global Administrator assignments."
+    },
+    "AZ-IDN-018": {
+      "control_id": "N/A-IDN-018",
+      "control_name": "Privileged Role Assigned Outside PIM",
+      "description": "Service-specific OpenShield control requiring all privileged roles to be managed via PIM."
+    },
+    "AZ-IDN-019": {
+      "control_id": "N/A-IDN-019",
+      "control_name": "Stale Privileged Account Retains Active Access",
+      "description": "Service-specific OpenShield control for dormant privileged accounts."
+    },
+    "AZ-IDN-020": {
+      "control_id": "N/A-IDN-020",
+      "control_name": "Emergency Access Accounts Missing or Misconfigured",
+      "description": "Service-specific OpenShield control for break-glass account configuration."
+    },
+    "AZ-IDN-021": {
+      "control_id": "N/A-IDN-021",
+      "control_name": "Legacy Authentication Not Blocked by Conditional Access",
+      "description": "Service-specific OpenShield control for blocking legacy authentication protocols."
+    },
+    "AZ-IDN-022": {
+      "control_id": "N/A-IDN-022",
+      "control_name": "Azure Management Not Protected by Conditional Access",
+      "description": "Service-specific OpenShield control requiring CA protection for Azure management."
+    },
+    "AZ-IDN-023": {
+      "control_id": "N/A-IDN-023",
+      "control_name": "Identity Protection Risk Policies Not Enabled",
+      "description": "Service-specific OpenShield control for Identity Protection risk policy enablement."
+    },
+    "AZ-IDN-024": {
+      "control_id": "N/A-IDN-024",
+      "control_name": "Workload Identities Excluded From Conditional Access",
+      "description": "Service-specific OpenShield control for workload identity CA coverage."
+    },
+    "AZ-IDN-025": {
+      "control_id": "N/A-IDN-025",
+      "control_name": "Privileged Role-Assignable Group Has No Owner",
+      "description": "Service-specific OpenShield control for privileged group ownership governance."
+    },
     "AZ-SC-001": {
       "control_id": "N/A-SC-001",
       "control_name": "Container Registry admin user baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends disabling the Azure Container Registry admin account in favor of individual Microsoft Entra identities. This check has no direct recommendation in CIS Azure Foundations 2.0.0."
+      "description": "Microsoft recommends disabling the Azure Container Registry admin account in favor of individual Microsoft Entra identities. This check has no direct recommendation in CIS Azure Foundations 2.0.0.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SC-001",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SC-001: Container Registry admin user baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-002": {
       "control_id": "N/A-SC-002",
       "control_name": "Container Registry public network baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends restricting Azure Container Registry network access with private endpoints or selected networks. This check has no direct recommendation in CIS Azure Foundations 2.0.0."
+      "description": "Microsoft recommends restricting Azure Container Registry network access with private endpoints or selected networks. This check has no direct recommendation in CIS Azure Foundations 2.0.0.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SC-002",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SC-002: Container Registry public network baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-003": {
       "control_id": "N/A-SC-003",
       "control_name": "Container Registry anonymous pull baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends disabling anonymous pull unless a registry intentionally distributes public images. This check has no direct recommendation in CIS Azure Foundations 2.0.0."
+      "description": "Microsoft recommends disabling anonymous pull unless a registry intentionally distributes public images. This check has no direct recommendation in CIS Azure Foundations 2.0.0.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SC-003",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SC-003: Container Registry anonymous pull baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-004": {
       "control_id": "N/A-SC-004",
       "control_name": "Container Registry retention and quarantine baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft documents retention and quarantine policies for managing untagged and potentially unsafe artifacts. This combined check has no direct recommendation in CIS Azure Foundations 2.0.0."
+      "description": "Microsoft documents retention and quarantine policies for managing untagged and potentially unsafe artifacts. This combined check has no direct recommendation in CIS Azure Foundations 2.0.0.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SC-004",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SC-004: Container Registry retention and quarantine baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-005": {
       "control_id": "N/A-SC-005",
       "control_name": "Terraform state container access baseline (not directly mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Terraform state can contain sensitive infrastructure data and must not be anonymously readable. The repository does not claim a direct CIS recommendation because this rule specifically identifies Terraform state rather than evaluating every blob container."
+      "description": "Terraform state can contain sensitive infrastructure data and must not be anonymously readable. The repository does not claim a direct CIS recommendation because this rule specifically identifies Terraform state rather than evaluating every blob container.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SC-005",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SC-005: Terraform state container access baseline (not directly mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-006": {
       "control_id": "N/A-SC-006",
       "control_name": "Terraform state recovery baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends blob versioning and soft delete to recover Terraform state from accidental or malicious changes. This combined Terraform-specific check has no direct recommendation in CIS Azure Foundations 2.0.0."
+      "description": "Microsoft recommends blob versioning and soft delete to recover Terraform state from accidental or malicious changes. This combined Terraform-specific check has no direct recommendation in CIS Azure Foundations 2.0.0.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SC-006",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SC-006: Terraform state recovery baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-007": {
       "control_id": "N/A-SC-007",
       "control_name": "Pipeline service connection scope baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends least-privilege scopes for Azure DevOps service connections. Azure DevOps pipeline connection scope is outside the direct recommendations in CIS Azure Foundations 2.0.0."
+      "description": "Microsoft recommends least-privilege scopes for Azure DevOps service connections. Azure DevOps pipeline connection scope is outside the direct recommendations in CIS Azure Foundations 2.0.0.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SC-007",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SC-007: Pipeline service connection scope baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-008": {
       "control_id": "N/A-SC-008",
       "control_name": "Pipeline workload identity federation baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft recommends workload identity federation instead of stored service-principal secrets for Azure DevOps service connections. This check has no direct recommendation in CIS Azure Foundations 2.0.0."
+      "description": "Microsoft recommends workload identity federation instead of stored service-principal secrets for Azure DevOps service connections. This check has no direct recommendation in CIS Azure Foundations 2.0.0.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SC-008",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SC-008: Pipeline workload identity federation baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DL-001": {
       "control_id": "N/A-DL-001",
       "control_name": "ExpressRoute Direct MACsec baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft supports MACsec for encrypting ExpressRoute Direct physical links. CIS Azure Foundations 2.0.0 has no direct recommendation for ExpressRoute Direct MACsec."
+      "description": "Microsoft supports MACsec for encrypting ExpressRoute Direct physical links. CIS Azure Foundations 2.0.0 has no direct recommendation for ExpressRoute Direct MACsec.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-DL-001",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-DL-001: ExpressRoute Direct MACsec baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DL-002": {
       "control_id": "N/A-DL-002",
       "control_name": "ExpressRoute Direct XPN MACsec baseline (not mapped in CIS Azure Foundations 2.0.0)",
-      "description": "Microsoft requires the XPN cipher for MACsec on 100-Gbps ExpressRoute Direct ports. CIS Azure Foundations 2.0.0 has no direct recommendation for this link-layer setting."
+      "description": "Microsoft requires the XPN cipher for MACsec on 100-Gbps ExpressRoute Direct ports. CIS Azure Foundations 2.0.0 has no direct recommendation for this link-layer setting.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-DL-002",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-DL-002: ExpressRoute Direct XPN MACsec baseline (not mapped in CIS Azure Foundations 2.0.0)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-016": {
       "control_id": "N/A-NET-016",
       "control_name": "Network interface IP forwarding review (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Azure recommends disabling NIC IP forwarding unless the interface belongs to a reviewed routing function, but CIS Azure Foundations 2.0.0 does not assign this check a direct recommendation number."
+      "description": "Azure recommends disabling NIC IP forwarding unless the interface belongs to a reviewed routing function, but CIS Azure Foundations 2.0.0 does not assign this check a direct recommendation number.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-016",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-016: Network interface IP forwarding review (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-017": {
       "control_id": "N/A-NET-017",
       "control_name": "Direct Internet default route review (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Azure exposes and documents user-defined Internet next hops, but CIS Azure Foundations 2.0.0 does not assign this route check a direct recommendation number."
+      "description": "Azure exposes and documents user-defined Internet next hops, but CIS Azure Foundations 2.0.0 does not assign this route check a direct recommendation number.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-017",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-017: Direct Internet default route review (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-018": {
       "control_id": "N/A-NET-018",
       "control_name": "Private Endpoint public access baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private connectivity should replace unnecessary public PaaS exposure; CIS Azure Foundations 2.0.0 has no universal control covering every supported Private Link target."
+      "description": "Private connectivity should replace unnecessary public PaaS exposure; CIS Azure Foundations 2.0.0 has no universal control covering every supported Private Link target.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-018",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-018: Private Endpoint public access baseline (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-019": {
       "control_id": "N/A-NET-019",
       "control_name": "Private Endpoint connection approval baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private Endpoint connections must be approved to provide the intended private path; no universal CIS Azure Foundations 2.0.0 recommendation covers this state."
+      "description": "Private Endpoint connections must be approved to provide the intended private path; no universal CIS Azure Foundations 2.0.0 recommendation covers this state.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-019",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-019: Private Endpoint connection approval baseline (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-020": {
       "control_id": "N/A-NET-020",
       "control_name": "Private Endpoint DNS association baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private Endpoints require service-appropriate private DNS integration; CIS Azure Foundations 2.0.0 has no universal recommendation for this association."
-    },
-    "AZ-NET-021": {
-      "control_id": "N/A-NET-021",
-      "control_name": "Private Endpoint custom DNS configuration baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private Endpoint custom DNS configuration should associate service names with private addresses. This is ARM configuration evidence, not an effective-resolution probe; CIS Azure Foundations 2.0.0 has no universal recommendation for it."
-    },
-    "AZ-NET-022": {
-      "control_id": "N/A-NET-022",
-      "control_name": "Critical PaaS public exposure baseline (no universal CIS Azure Foundations 2.0.0 control)",
-      "description": "Critical PaaS resources should use private access or an approved exception; CIS Azure Foundations 2.0.0 provides service-specific rather than universal coverage."
-    },
-    "AZ-NET-023": {
-      "control_id": "N/A-NET-023",
-      "control_name": "Azure Firewall threat intelligence enforcement baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Deny mode blocks traffic involving known malicious addresses and domains; CIS Azure Foundations 2.0.0 has no direct recommendation for this mode."
-    },
-    "AZ-NET-024": {
-      "control_id": "N/A-NET-024",
-      "control_name": "Application Gateway WAF Prevention mode baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Prevention mode blocks matching application attacks; CIS Azure Foundations 2.0.0 has no direct recommendation for the gateway mode."
-    },
-    "AZ-NET-025": {
-      "control_id": "N/A-NET-025",
-      "control_name": "Application Gateway WAF diagnostic logging baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "SKU-supported Application Gateway diagnostic logs support perimeter monitoring. Performance logging is required on v1; v2 exposes performance telemetry through metrics. CIS Azure Foundations 2.0.0 has no direct universal recommendation for these categories."
-    },
-    "AZ-NET-026": {
-      "control_id": "N/A-NET-026",
-      "control_name": "Current WAF managed rules and bot protection baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Current base and bot managed rule sets protect the application perimeter; CIS Azure Foundations 2.0.0 has no direct rule-set-version recommendation."
-    },
-    "AZ-NET-027": {
-      "control_id": "N/A-NET-027",
-      "control_name": "Internet-facing application rate limiting baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Rate limiting protects public applications from abusive request volume; CIS Azure Foundations 2.0.0 has no direct Application Gateway rate-rule recommendation."
-    },
-    "AZ-SECOPS-001": {
-      "control_id": "5.1.1",
-      "control_name": "Ensure that a 'Diagnostic Setting' exists",
-      "description": "The subscription's Activity Log has no diagnostic setting exporting it to an organisation-approved central destination. CIS 5.1.1 requires a diagnostic setting exporting the Activity Log so administrative, security, and policy events are retained beyond the platform default and available for centralized analysis."
-    },
-    "AZ-SECOPS-002": {
-      "control_id": "5.1.2",
-      "control_name": "Ensure Diagnostic Setting captures appropriate categories",
-      "description": "An Activity Log diagnostic setting exists but does not enable every required category (Administrative, Security, Policy, ServiceHealth). CIS 5.1.2 requires the diagnostic setting to capture all appropriate categories, not just an arbitrary subset."
-    },
-    "AZ-SECOPS-003": {
-      "control_id": "5.4",
-      "control_name": "Ensure that Azure Monitor Resource Logging is Enabled for All Services that Support it",
-      "description": "A critical resource (as defined by the organisation's security-operations policy) has no diagnostic setting exporting to an approved destination. CIS 5.4 requires resource-level logging to be enabled for all services that support it so activity on individual resources is captured, not just subscription-level events."
-    },
-    "AZ-SECOPS-004": {
-      "control_id": "N/A-SECOPS-004",
-      "control_name": "Security log retention below organisation minimum",
-      "description": "A Storage Account log export's retention_policy is disabled or set below the organisation's minimum retention requirement. The CIS Azure Foundations Benchmark addresses diagnostic-setting existence (5.1.1) and category coverage (5.1.2) as distinct numbered controls but does not assign its own control ID to the specific retention-duration value, so no single CIS control maps 1:1 to this rule."
-    },
-    "AZ-SECOPS-005": {
-      "control_id": "N/A-SECOPS-005",
-      "control_name": "Security logs stored only in a workload-administrator-modifiable destination",
-      "description": "A critical resource's only log export destination sits in the same resource group as the workload, so an administrator of that workload can alter or delete the exported logs. The CIS Azure Foundations Benchmark does not have a numbered control for log-destination ownership or tamper-protection separation of duties."
-    },
-    "AZ-SECOPS-006": {
-      "control_id": "N/A-SECOPS-006",
-      "control_name": "Required Microsoft Defender for Cloud plan not enabled",
-      "description": "An organisation-required Microsoft Defender for Cloud plan is not set to the 'Standard' pricing tier. CIS assigns each Defender plan its own leaf control (e.g. 2.1.1 Servers, 2.1.7 Storage, 2.1.4 Azure SQL Databases); because this rule evaluates whichever plans the organisation configures as required, no single fixed CIS control ID applies at the rule level (the matching per-plan CIS control is recorded on each finding's metadata instead)."
-    },
-    "AZ-SECOPS-007": {
-      "control_id": "2.1.13",
-      "control_name": "Ensure that Microsoft Defender Recommendation for 'Apply system updates' status is 'Completed'",
-      "description": "A High-severity Microsoft Defender for Cloud recommendation remains Unhealthy beyond the organisation's remediation SLA. CIS 2.1.13 requires Defender recommendations to reach a 'Completed'/remediated status rather than being left open indefinitely; this rule generalizes that expectation to all High-severity recommendations against an organisation-defined SLA rather than only the update-management recommendation."
-    },
-    "AZ-SECOPS-008": {
-      "control_id": "N/A-SECOPS-008",
-      "control_name": "Required Microsoft Sentinel data connector disconnected or unhealthy",
-      "description": "A required Microsoft Sentinel data connector is missing or has no enabled data type on a Sentinel-onboarded workspace. The CIS Azure Foundations Benchmark is an infrastructure-configuration benchmark and does not include SIEM/XDR operational controls such as Sentinel connector health."
-    },
-    "AZ-SECOPS-009": {
-      "control_id": "N/A-SECOPS-009",
-      "control_name": "Sentinel missing required high-severity analytics coverage",
-      "description": "A Sentinel-onboarded workspace has no enabled High-severity analytics rule covering an organisation-required detection use case. The CIS Azure Foundations Benchmark does not evaluate SIEM detection content or analytics coverage."
-    },
-    "AZ-SECOPS-010": {
-      "control_id": "2.1.20",
-      "control_name": "Ensure That 'Notify about alerts with the following severity' is Set to 'High'",
-      "description": "No enabled Azure Monitor action group with a notification receiver exists, and no Sentinel automation rule routes incidents onward. CIS 2.1.20 requires Defender security alerts to notify a monitored destination; this rule generalizes that requirement to the concrete Azure notification primitive (action groups) and the Sentinel-native incident routing mechanism (automation rules)."
-    },
-    "AZ-NET-018": {
-      "control_id": "N/A-NET-018",
-      "control_name": "Private Endpoint public access baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private connectivity should replace unnecessary public PaaS exposure; CIS Azure Foundations 2.0.0 has no universal control covering every supported Private Link target."
-    },
-    "AZ-NET-019": {
-      "control_id": "N/A-NET-019",
-      "control_name": "Private Endpoint connection approval baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private Endpoint connections must be approved to provide the intended private path; no universal CIS Azure Foundations 2.0.0 recommendation covers this state."
-    },
-    "AZ-NET-020": {
-      "control_id": "N/A-NET-020",
-      "control_name": "Private Endpoint DNS association baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private Endpoints require service-appropriate private DNS integration; CIS Azure Foundations 2.0.0 has no universal recommendation for this association."
+      "description": "Private Endpoints require service-appropriate private DNS integration; CIS Azure Foundations 2.0.0 has no universal recommendation for this association.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-020",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-020: Private Endpoint DNS association baseline (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-021": {
       "control_id": "N/A-NET-021",
       "control_name": "Private Endpoint FQDN resolution baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private Endpoint names should resolve to private addresses; CIS Azure Foundations 2.0.0 has no universal recommendation for this resolution evidence."
+      "description": "Private Endpoint names should resolve to private addresses; CIS Azure Foundations 2.0.0 has no universal recommendation for this resolution evidence.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-021",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-021: Private Endpoint FQDN resolution baseline (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-022": {
       "control_id": "N/A-NET-022",
       "control_name": "Critical PaaS public exposure baseline (no universal CIS Azure Foundations 2.0.0 control)",
-      "description": "Critical PaaS resources should use private access or an approved exception; CIS Azure Foundations 2.0.0 provides service-specific rather than universal coverage."
+      "description": "Critical PaaS resources should use private access or an approved exception; CIS Azure Foundations 2.0.0 provides service-specific rather than universal coverage.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-022",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-022: Critical PaaS public exposure baseline (no universal CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-023": {
       "control_id": "N/A-NET-023",
       "control_name": "Azure Firewall threat intelligence enforcement baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "AlertAndDeny blocks traffic involving known malicious addresses and domains; CIS Azure Foundations 2.0.0 has no direct recommendation for this mode."
+      "description": "AlertAndDeny blocks traffic involving known malicious addresses and domains; CIS Azure Foundations 2.0.0 has no direct recommendation for this mode.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-023",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-023: Azure Firewall threat intelligence enforcement baseline (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-024": {
       "control_id": "N/A-NET-024",
       "control_name": "Application Gateway WAF Prevention mode baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Prevention mode blocks matching application attacks; CIS Azure Foundations 2.0.0 has no direct recommendation for the gateway mode."
+      "description": "Prevention mode blocks matching application attacks; CIS Azure Foundations 2.0.0 has no direct recommendation for the gateway mode.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-024",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-024: Application Gateway WAF Prevention mode baseline (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-025": {
       "control_id": "N/A-NET-025",
       "control_name": "Application Gateway WAF diagnostic logging baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Access, performance, and firewall logs support perimeter monitoring; CIS Azure Foundations 2.0.0 has no direct universal recommendation for all categories."
+      "description": "Access, performance, and firewall logs support perimeter monitoring; CIS Azure Foundations 2.0.0 has no direct universal recommendation for all categories.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-025",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-025: Application Gateway WAF diagnostic logging baseline (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-026": {
       "control_id": "N/A-NET-026",
       "control_name": "Current WAF managed rules and bot protection baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Current base and bot managed rule sets protect the application perimeter; CIS Azure Foundations 2.0.0 has no direct rule-set-version recommendation."
+      "description": "Current base and bot managed rule sets protect the application perimeter; CIS Azure Foundations 2.0.0 has no direct rule-set-version recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-026",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-026: Current WAF managed rules and bot protection baseline (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-027": {
       "control_id": "N/A-NET-027",
       "control_name": "Internet-facing application rate limiting baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Rate limiting protects public applications from abusive request volume; CIS Azure Foundations 2.0.0 has no direct Application Gateway rate-rule recommendation."
+      "description": "Rate limiting protects public applications from abusive request volume; CIS Azure Foundations 2.0.0 has no direct Application Gateway rate-rule recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-NET-027",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-NET-027: Internet-facing application rate limiting baseline (no direct CIS Azure Foundations 2.0.0 control)) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-SECOPS-001": {
+      "control_id": "5.1.1",
+      "control_name": "Ensure that a 'Diagnostic Setting' exists",
+      "description": "The subscription's Activity Log has no diagnostic setting exporting it to an organisation-approved central destination. CIS 5.1.1 requires a diagnostic setting exporting the Activity Log so administrative, security, and policy events are retained beyond the platform default and available for centralized analysis.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 5.1.1",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 5.1.1 ('Ensure that a 'Diagnostic Setting' exists') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-SECOPS-001 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-SECOPS-002": {
+      "control_id": "5.1.2",
+      "control_name": "Ensure Diagnostic Setting captures appropriate categories",
+      "description": "An Activity Log diagnostic setting exists but does not enable every required category (Administrative, Security, Policy, ServiceHealth). CIS 5.1.2 requires the diagnostic setting to capture all appropriate categories, not just an arbitrary subset.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 5.1.2",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 5.1.2 ('Ensure Diagnostic Setting captures appropriate categories') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-SECOPS-002 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-SECOPS-003": {
+      "control_id": "5.4",
+      "control_name": "Ensure that Azure Monitor Resource Logging is Enabled for All Services that Support it",
+      "description": "A critical resource (as defined by the organisation's security-operations policy) has no diagnostic setting exporting to an approved destination. CIS 5.4 requires resource-level logging to be enabled for all services that support it so activity on individual resources is captured, not just subscription-level events.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 5.4",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 5.4 ('Ensure that Azure Monitor Resource Logging is Enabled for All Services that Support it') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-SECOPS-003 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-SECOPS-004": {
+      "control_id": "N/A-SECOPS-004",
+      "control_name": "Security log retention below organisation minimum",
+      "description": "A Storage Account log export's retention_policy is disabled or set below the organisation's minimum retention requirement. The CIS Azure Foundations Benchmark addresses diagnostic-setting existence (5.1.1) and category coverage (5.1.2) as distinct numbered controls but does not assign its own control ID to the specific retention-duration value, so no single CIS control maps 1:1 to this rule.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SECOPS-004",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SECOPS-004: Security log retention below organisation minimum) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-SECOPS-005": {
+      "control_id": "N/A-SECOPS-005",
+      "control_name": "Security logs stored only in a workload-administrator-modifiable destination",
+      "description": "A critical resource's only log export destination sits in the same resource group as the workload, so an administrator of that workload can alter or delete the exported logs. The CIS Azure Foundations Benchmark does not have a numbered control for log-destination ownership or tamper-protection separation of duties.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SECOPS-005",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SECOPS-005: Security logs stored only in a workload-administrator-modifiable destination) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-SECOPS-006": {
+      "control_id": "N/A-SECOPS-006",
+      "control_name": "Required Microsoft Defender for Cloud plan not enabled",
+      "description": "An organisation-required Microsoft Defender for Cloud plan is not set to the 'Standard' pricing tier. CIS assigns each Defender plan its own leaf control (e.g. 2.1.1 Servers, 2.1.7 Storage, 2.1.4 Azure SQL Databases); because this rule evaluates whichever plans the organisation configures as required, no single fixed CIS control ID applies at the rule level (the matching per-plan CIS control is recorded on each finding's metadata instead).",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SECOPS-006",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SECOPS-006: Required Microsoft Defender for Cloud plan not enabled) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-SECOPS-007": {
+      "control_id": "2.1.13",
+      "control_name": "Ensure that Microsoft Defender Recommendation for 'Apply system updates' status is 'Completed'",
+      "description": "A High-severity Microsoft Defender for Cloud recommendation remains Unhealthy beyond the organisation's remediation SLA. CIS 2.1.13 requires Defender recommendations to reach a 'Completed'/remediated status rather than being left open indefinitely; this rule generalizes that expectation to all High-severity recommendations against an organisation-defined SLA rather than only the update-management recommendation.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 2.1.13",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 2.1.13 ('Ensure that Microsoft Defender Recommendation for 'Apply system updates' status is 'Completed'') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-SECOPS-007 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-SECOPS-008": {
+      "control_id": "N/A-SECOPS-008",
+      "control_name": "Required Microsoft Sentinel data connector disconnected or unhealthy",
+      "description": "A required Microsoft Sentinel data connector is missing or has no enabled data type on a Sentinel-onboarded workspace. The CIS Azure Foundations Benchmark is an infrastructure-configuration benchmark and does not include SIEM/XDR operational controls such as Sentinel connector health.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SECOPS-008",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SECOPS-008: Required Microsoft Sentinel data connector disconnected or unhealthy) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-SECOPS-009": {
+      "control_id": "N/A-SECOPS-009",
+      "control_name": "Sentinel missing required high-severity analytics coverage",
+      "description": "A Sentinel-onboarded workspace has no enabled High-severity analytics rule covering an organisation-required detection use case. The CIS Azure Foundations Benchmark does not evaluate SIEM detection content or analytics coverage.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-SECOPS-009",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-SECOPS-009: Sentinel missing required high-severity analytics coverage) - this rule's evidence is not counted as a CIS pass/fail because there is no corresponding CIS requirement for it to be evidence of.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-SECOPS-010": {
+      "control_id": "2.1.20",
+      "control_name": "Ensure That 'Notify about alerts with the following severity' is Set to 'High'",
+      "description": "No enabled Azure Monitor action group with a notification receiver exists, and no Sentinel automation rule routes incidents onward. CIS 2.1.20 requires Defender security alerts to notify a monitored destination; this rule generalizes that requirement to the concrete Azure notification primitive (action groups) and the Sentinel-native incident routing mechanism (automation rules).",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 2.1.20",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 control 2.1.20 ('Ensure That 'Notify about alerts with the following severity' is Set to 'High'') is a specific, automatable Azure configuration requirement. OpenShield rule AZ-SECOPS-010 evaluates this exact setting via the Azure Resource Manager/Graph API, so its PASS/FAIL result is direct technical evidence for this control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   }
 }

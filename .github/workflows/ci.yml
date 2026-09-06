@@ -367,6 +367,19 @@ jobs:
               print(f"All compliance controls map to existing rule files. ({len(existing_ids)} rules checked)")
           PYEOF
 
+      # ── CHECK 8: Compliance mapping-pack semantics validation ─────────
+      # Every control must carry evidence-based mapping metadata, not just
+      # exist in the file (issue #302). This is what actually stops a
+      # future PR from force-mapping a rule into a framework with no
+      # rationale for the relationship, or leaving a synthetic non-mapping
+      # misclassified as direct technical evidence. Logic lives in
+      # .github/scripts/validate_mapping_pack.py so it's unit-testable
+      # (tests/test_mapping_pack_validation.py) rather than only exercised
+      # here, embedded in workflow YAML.
+      - name: Compliance mapping semantics validation
+        id: mapping_semantics_check
+        run: python .github/scripts/validate_mapping_pack.py
+
   # ── Secret scanning (Gitleaks CLI, no gitleaks-action license needed) ─────
   secret-scan:
     name: Secret Scan (Gitleaks)
@@ -647,6 +660,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Check Alembic revision graph has exactly one head
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_db"
+        # A migration branched from the same down_revision as another
+        # unmerged PR's migration (a fork) is invisible to a single PR's own
+        # CI run - each PR only has its own migration file, so `alembic
+        # upgrade head` succeeds in isolation. It's only detectable once both
+        # land on the same branch. This check catches that state explicitly
+        # instead of leaving `alembic upgrade head` to fail unhelpfully on
+        # whichever branch merges second.
+        run: |
+          HEAD_COUNT=$(alembic heads | grep -c '(head)')
+          if [ "$HEAD_COUNT" -ne 1 ]; then
+            echo "Alembic revision graph has $HEAD_COUNT heads, expected exactly 1:"
+            alembic heads
+            exit 1
+          fi
+          echo "Alembic revision graph has exactly one head."
+
       - name: Apply database migrations
         env:
           DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_db"
@@ -690,6 +722,9 @@ jobs:
 
       - name: Run severity contract tests
         run: npm run test:severity
+
+      - name: Run score/compliance null-state tests
+        run: node src/utils/api.test.mjs
 
       - name: Run accessibility and internationalization checks
         run: npm run test:a11y && npm run test:i18n

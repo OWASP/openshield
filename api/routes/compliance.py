@@ -2,10 +2,10 @@
 
 import logging
 import os
-from flask import Blueprint, g, jsonify
+from flask import Blueprint, g, jsonify, request
 
 from api.models.finding import DatabaseManager
-from api.validation import VALIDATION_ERROR_MESSAGE, ValidationError, choice
+from api.validation import VALIDATION_ERROR_MESSAGE, ValidationError, choice, uuid_string
 
 compliance_bp = Blueprint("compliance", __name__)
 logger = logging.getLogger(__name__)
@@ -25,17 +25,31 @@ def _get_db() -> DatabaseManager:
 
 @compliance_bp.get("/api/compliance/<framework>")
 def get_compliance(framework: str):
-    """Return pass/fail compliance breakdown for a framework.
+    """Return technical-evidence coverage against a framework mapping pack.
 
     Supported frameworks: cis, nist, iso27001, soc2, ncsc_pqc, enisa_pqc
 
-    Returns control-level pass/fail status mapped to current open findings.
+    This is versioned technical evidence coverage from the most recent
+    completed scan, not a certification or a claim of full framework
+    compliance. Each control also reports mapping_type, evidence_type,
+    primary_source, rationale, owner and review_status; controls whose
+    mapping_type is not_applicable or organizational are excluded from
+    score_percent. If no completed scan exists yet, status is NO_SCAN_DATA
+    and no PASS/FAIL is reported.
     """
     try:
         framework = choice(framework, "framework", SUPPORTED_FRAMEWORKS, case="lower")
 
+        # Scope to a subscription so a shared-database deployment never
+        # returns another subscription's latest scan/score. Falls back to
+        # this deployment's configured default subscription, matching the
+        # same AZURE_SUBSCRIPTION_ID fallback POST /api/scans uses.
+        subscription_id = request.args.get("subscription_id") or os.environ.get("AZURE_SUBSCRIPTION_ID")
+        if subscription_id:
+            subscription_id = uuid_string(subscription_id, "subscription_id")
+
         db = _get_db()
-        result = db.get_compliance_score(framework)
+        result = db.get_compliance_score(framework, subscription_id=subscription_id)
 
         if "error" in result:
             return jsonify(result), 500
