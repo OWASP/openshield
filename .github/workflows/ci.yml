@@ -697,10 +697,7 @@ jobs:
       - name: Build
         run: npm run build
 
-  # ── Public website build + rendered-output verification ─────────────────
-  # This job is part of CI Summary so the protected merge gate covers the
-  # Astro site. The separate website workflow remains responsible for Pages
-  # artifact upload and deployment after a merge to dev.
+  # Website validation joins CI Summary; website.yml handles Pages deployment.
   website:
     name: Website (Astro build + verification)
     runs-on: ubuntu-latest
