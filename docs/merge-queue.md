@@ -5,11 +5,19 @@ GitHub Actions remains the CI system. Mergify reads pull-request state,
 waits for all conditions to be met, rebases each PR onto the current `dev`
 HEAD, and merges it only after CI passes on the updated state.
 
+This configuration is inactive until the Mergify GitHub App is installed
+and authorized for this repository. The `.mergify.yml` file has no effect
+before installation.
+
 ## Eligibility
+
+The queue applies only to pull requests that target the `dev` branch.
+PRs targeting any other branch are not affected by this configuration.
 
 A pull request enters the queue automatically when all of the following
 are true:
 
+- The PR targets the `dev` branch
 - `CI Summary` check is successful (all GitHub Actions CI jobs passed)
 - `DCO sign-off` check is successful
 - `dependency-review` check is successful
@@ -37,8 +45,7 @@ Use one `Depends-On:` line per dependency. Mergify holds the PR in the queue
 until every declared dependency is merged, then re-evaluates it against the
 latest `dev` state.
 
-Replace the placeholder in the PR template with `none` when there are no
-dependencies:
+Leave the placeholder as `none` when there are no dependencies:
 
 ```
 Depends-On: none
@@ -46,23 +53,22 @@ Depends-On: none
 
 Do not delete the section. It makes dependency state visible to reviewers.
 
-## awaiting-author label
+If a dependency PR is closed without merging, Mergify will hold your PR
+indefinitely. To unblock it, edit the PR description and remove or replace
+the `Depends-On:` line for that closed PR, then update the branch to
+trigger re-evaluation.
 
-Mergify applies the `awaiting-author` label automatically when a reviewer
-submits a `CHANGES_REQUESTED` review. The label is removed automatically
-when all change requests are resolved.
+## awaiting-author label and inactive-author process
 
-Maintainers use this label to identify PRs that are blocked on the author
-rather than on review availability.
+Mergify applies `awaiting-author` automatically when a reviewer submits a
+`CHANGES_REQUESTED` review. No manual step is needed.
 
-## Inactive-author process
+If the author remains inactive after the label is applied:
 
-1. A maintainer applies `awaiting-author` after required changes are
-   requested and the author is inactive for several days.
-2. After five working days of inactivity, a maintainer may take over the
-   branch, open a replacement PR, or remove a dependency that review
-   confirms is unnecessary.
-3. The decision is recorded in the PR before changing ownership or
+1. After five working days, a maintainer notes the inactivity in the PR
+   and may take over the branch, open a replacement PR, or remove a
+   dependency that review confirms is unnecessary.
+2. The decision is recorded in the PR before changing ownership or
    dependency state.
 
 ## GitHub branch protection
