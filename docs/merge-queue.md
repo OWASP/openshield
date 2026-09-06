@@ -71,6 +71,20 @@ If the author remains inactive after the label is applied:
 2. The decision is recorded in the PR before changing ownership or
    dependency state.
 
+## Approval freshness
+
+Approvals are dismissed automatically when a new commit is pushed to a
+pull request targeting `dev`. This includes both author-pushed commits and
+bot-created rebases (for example, when Mergify rebases your PR onto the
+latest `dev` HEAD).
+
+After each dismissal, at least one reviewer must re-approve before Mergify
+can queue or merge the PR. This means the approval in `merge_conditions`
+always reflects the state of the actual code that will land on `dev`.
+
+If your PR gets rebased while waiting in the queue, expect your approval
+to be dismissed and the PR to return to "needs review" state.
+
 ## GitHub branch protection
 
 Mergify does not replace or weaken GitHub branch protection. It operates
