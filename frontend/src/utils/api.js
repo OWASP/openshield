@@ -14,18 +14,111 @@ const getToken = () => localStorage.getItem('jwt_token');
 const setToken = (tok) => localStorage.setItem('jwt_token', tok);
 
 // ── Core fetch ─────────────────────────────────────────────────────────────
-async function apiFetch(path, options = {}) {
-  const token = getToken();
-  const res = await fetch(`${API_BASE}/api${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-  if (!res.ok) throw new Error(`API ${res.status} ${res.statusText}`);
-  return res.json();
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
+
+export class ApiRequestError extends Error {
+  constructor(message, { code, cause } = {}) {
+    super(message, cause === undefined ? undefined : { cause });
+    this.name = 'ApiRequestError';
+    this.code = code;
+  }
+}
+
+export class ApiTimeoutError extends ApiRequestError {
+  constructor(timeoutMs, cause) {
+    super(`API request timed out after ${timeoutMs}ms`, { code: 'TIMEOUT', cause });
+    this.name = 'ApiTimeoutError';
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+export class ApiCancellationError extends ApiRequestError {
+  constructor(cause) {
+    super('API request was cancelled', { code: 'CANCELLED', cause });
+    this.name = 'ApiCancellationError';
+  }
+}
+
+export class ApiHttpError extends ApiRequestError {
+  constructor(response) {
+    super(`API ${response.status} ${response.statusText}`, { code: 'HTTP_ERROR' });
+    this.name = 'ApiHttpError';
+    this.status = response.status;
+    this.statusText = response.statusText;
+  }
+}
+
+export class ApiNetworkError extends ApiRequestError {
+  constructor(cause) {
+    super('API request failed due to a network error', { code: 'NETWORK_ERROR', cause });
+    this.name = 'ApiNetworkError';
+  }
+}
+
+function isOptionalDataError(err) {
+  return err instanceof ApiHttpError
+    || err instanceof ApiNetworkError
+    || err instanceof ApiTimeoutError;
+}
+
+export async function apiFetch(path, options = {}) {
+  const {
+    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+    signal: callerSignal,
+    headers,
+    ...fetchOptions
+  } = options;
+  const controller = new AbortController();
+  let abortSource = null;
+  let responseReceived = false;
+  let timeoutId;
+
+  const abortFromCaller = () => {
+    if (abortSource === null) abortSource = 'caller';
+    if (!controller.signal.aborted) controller.abort();
+  };
+
+  if (callerSignal?.aborted) {
+    abortFromCaller();
+  } else {
+    callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
+  }
+
+  if (timeoutMs != null) {
+    if (!Number.isFinite(timeoutMs) || timeoutMs < 0) {
+      callerSignal?.removeEventListener('abort', abortFromCaller);
+      throw new TypeError('timeoutMs must be a non-negative finite number or null');
+    }
+    timeoutId = setTimeout(() => {
+      if (abortSource === null) abortSource = 'timeout';
+      if (!controller.signal.aborted) controller.abort();
+    }, timeoutMs);
+  }
+
+  try {
+    const token = getToken();
+    const res = await fetch(`${API_BASE}/api${path}`, {
+      ...fetchOptions,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(headers || {}),
+      },
+    });
+    responseReceived = true;
+    if (!res.ok) throw new ApiHttpError(res);
+    return await res.json();
+  } catch (err) {
+    if (abortSource === 'timeout') throw new ApiTimeoutError(timeoutMs, err);
+    if (abortSource === 'caller') throw new ApiCancellationError(err);
+    if (err instanceof ApiRequestError) throw err;
+    if (!responseReceived) throw new ApiNetworkError(err);
+    throw err;
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+    callerSignal?.removeEventListener('abort', abortFromCaller);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -281,78 +374,88 @@ export const api = {
   },
 
   // ── Score  GET /api/score ──────────────────────────────────────────────────
-  getScore: async () => normalizeScore(await apiFetch('/score')),
+  getScore: async (options = {}) => normalizeScore(await apiFetch('/score', options)),
 
   // ── CVE Summary  GET /api/score/cve-summary ───────────────────────────────
-  getCVESummary: async () => {
-    try { return await apiFetch('/score/cve-summary'); }
-    catch { return null; }
+  getCVESummary: async (options = {}) => {
+    try { return await apiFetch('/score/cve-summary', options); }
+    catch (err) {
+      if (isOptionalDataError(err)) return null;
+      throw err;
+    }
   },
 
   // ── Findings  GET /api/findings ────────────────────────────────────────────
-  getFindings: async (filters = {}) => {
+  getFindings: async (filters = {}, options = {}) => {
     const params = new URLSearchParams(Object.entries(filters).filter(([, v]) => v != null && v !== ''));
-    const data = await apiFetch(`/findings${params.toString() ? '?' + params : ''}`);
+    const data = await apiFetch(`/findings${params.toString() ? '?' + params : ''}`, options);
     return (data.findings || data).map(normalizeFinding);
   },
 
   // ── Single finding  GET /api/findings/:id ─────────────────────────────────
-  getFinding: async (id) => normalizeFinding(await apiFetch(`/findings/${id}`)),
+  getFinding: async (id, options = {}) => normalizeFinding(await apiFetch(`/findings/${id}`, options)),
 
   // ── Playbook  GET /api/findings/:id/playbook ───────────────────────────────
-  getPlaybook: async (id) => {
-    try { return normalizePlaybook(await apiFetch(`/findings/${id}/playbook`)); }
-    catch { return { portalSteps: [], cliCommands: [], validationSteps: [], references: [] }; }
+  getPlaybook: async (id, options = {}) => {
+    try { return normalizePlaybook(await apiFetch(`/findings/${id}/playbook`, options)); }
+    catch (err) {
+      if (isOptionalDataError(err)) {
+        return { portalSteps: [], cliCommands: [], validationSteps: [], references: [] };
+      }
+      throw err;
+    }
   },
 
   // ── Resources (Discovery)  GET /api/resources ─────────────────────────────
-  getResources: async () => normalizeResourcesResponse(await apiFetch('/resources')),
-  getResourceSummary: async () => { const d = await api.getResources(); return d.summary; },
+  getResources: async (options = {}) => normalizeResourcesResponse(await apiFetch('/resources', options)),
+  getResourceSummary: async (options = {}) => { const d = await api.getResources(options); return d.summary; },
 
   // ── Prioritization  GET /api/prioritization ────────────────────────────────
-  getPrioritization: async () => normalizePrioritizationResponse(await apiFetch('/prioritization')),
-  getPriorityMatrix: async () => { const d = await api.getPrioritization(); return d.matrix; },
-  getRiskRankings:   async () => { const d = await api.getPrioritization(); return d.rankings; },
+  getPrioritization: async (options = {}) => normalizePrioritizationResponse(await apiFetch('/prioritization', options)),
+  getPriorityMatrix: async (options = {}) => { const d = await api.getPrioritization(options); return d.matrix; },
+  getRiskRankings:   async (options = {}) => { const d = await api.getPrioritization(options); return d.rankings; },
 
   // ── Drift  GET /api/drift ──────────────────────────────────────────────────
-  getDrift: async () => normalizeDriftResponse(await apiFetch('/drift')),
-  getDriftEvents: async () => { const d = await api.getDrift(); return d.events; },
+  getDrift: async (options = {}) => normalizeDriftResponse(await apiFetch('/drift', options)),
+  getDriftEvents: async (options = {}) => { const d = await api.getDrift(options); return d.events; },
 
   // ── Scans  GET /api/scans ──────────────────────────────────────────────────
-  getScans: async () => normalizeScans(await apiFetch('/scans')),
+  getScans: async (options = {}) => normalizeScans(await apiFetch('/scans', options)),
 
   // ── Trigger scan  POST /api/scans/trigger ─────────────────────────────────
-  triggerScan: async (subscriptionId) => apiFetch('/scans/trigger', {
+  triggerScan: async (subscriptionId, options = {}) => apiFetch('/scans/trigger', {
+    ...options,
     method: 'POST',
     body: JSON.stringify(subscriptionId ? { subscription_id: subscriptionId } : {}),
   }),
 
   // ── Single scan  GET /api/scans/:id (falls back to list) ──────────────────
-  getScan: async (scanId) => {
-    try { return await apiFetch(`/scans/${scanId}`); }
-    catch {
-      const data = await apiFetch('/scans');
+  getScan: async (scanId, options = {}) => {
+    try { return await apiFetch(`/scans/${scanId}`, options); }
+    catch (err) {
+      if (!(err instanceof ApiHttpError)) throw err;
+      const data = await apiFetch('/scans', options);
       return normalizeScans(data).scans.find((s) => s.scan_id === scanId) ?? null;
     }
   },
 
   // ── Compliance  GET /api/compliance/<framework> ────────────────────────────
-  getComplianceCIS:      async () => apiFetch('/compliance/cis'),
-  getComplianceNIST:     async () => apiFetch('/compliance/nist'),
-  getComplianceISO27001: async () => apiFetch('/compliance/iso27001'),
-  getComplianceSOC2:     async () => apiFetch('/compliance/soc2'),
+  getComplianceCIS:      async (options = {}) => apiFetch('/compliance/cis', options),
+  getComplianceNIST:     async (options = {}) => apiFetch('/compliance/nist', options),
+  getComplianceISO27001: async (options = {}) => apiFetch('/compliance/iso27001', options),
+  getComplianceSOC2:     async (options = {}) => apiFetch('/compliance/soc2', options),
 
-  getCompliance: async () => {
+  getCompliance: async (options = {}) => {
     const [cis, nist, iso, soc2, scansRaw] = await Promise.all([
-      apiFetch('/compliance/cis'),
-      apiFetch('/compliance/nist'),
-      apiFetch('/compliance/iso27001'),
-      apiFetch('/compliance/soc2'),
-      apiFetch('/scans'),
+      apiFetch('/compliance/cis', options),
+      apiFetch('/compliance/nist', options),
+      apiFetch('/compliance/iso27001', options),
+      apiFetch('/compliance/soc2', options),
+      apiFetch('/scans', options),
     ]);
     return buildComplianceFromFrameworks(cis, nist, iso, soc2, normalizeScans(scansRaw).scans);
   },
-  getFrameworks: async () => { const d = await api.getCompliance(); return d.frameworks; },
+  getFrameworks: async (options = {}) => { const d = await api.getCompliance(options); return d.frameworks; },
 
   // ── JWT helpers ────────────────────────────────────────────────────────────
   setToken,

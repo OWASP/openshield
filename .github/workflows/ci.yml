@@ -682,8 +682,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run aiSettings tests
-        run: node src/utils/aiApi.test.mjs
+      - name: Run API utility tests
+        run: node src/utils/api.test.mjs && node src/utils/scanPolling.test.mjs && node src/utils/aiApi.test.mjs
 
       - name: Run dashboard load-state tests
         run: node src/hooks/usePageData.test.mjs
