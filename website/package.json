@@ -9,7 +9,7 @@
     "preview": "astro preview",
     "configure:cms": "node scripts/configure-cms.mjs",
     "verify": "node scripts/verify-site.mjs",
-    "check": "npm run build && DECAP_GITHUB_APP_ID=0123456789LOCALTEST npm run configure:cms && npm run verify"
+    "check": "npm run build && DECAP_GITHUB_APP_ID= npm run configure:cms && npm run verify && npm run build && DECAP_GITHUB_APP_ID=0123456789LOCALTEST npm run configure:cms && npm run verify"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.12",

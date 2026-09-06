@@ -51,27 +51,31 @@ const index = fs.existsSync(path.join(dist, 'index.html'))
 if (!index.includes('Illustrative output')) failures.push('homepage does not label sample scan output');
 
 const cmsConfigPath = path.join(dist, 'admin', 'config.yml');
-const cmsConfig = fs.existsSync(cmsConfigPath) ? fs.readFileSync(cmsConfigPath, 'utf8') : '';
-if (!cmsConfig) failures.push('generated CMS config is missing');
-if (cmsConfig.includes('local_backend:')) failures.push('generated CMS config enables the local authentication backend');
-if (!/^\s*app_id:\s*[A-Za-z0-9]{12,128}\s*$/m.test(cmsConfig)) failures.push('generated CMS config has no valid OAuth Client ID');
-
 const adminPath = path.join(dist, 'admin', 'index.html');
-const admin = fs.existsSync(adminPath) ? fs.readFileSync(adminPath, 'utf8') : '';
-const cmsAssets = [
-  {
-    url: 'https://cdn.jsdelivr.net/npm/decap-cms@3.16.0/dist/cms.css',
-    integrity: 'sha384-Ofw8+GuqbDe5y3beeOCG2GTh2pI9R6JEHecNYDHWLntqMcH/IrzpKCsGt070FUmc',
-  },
-  {
-    url: 'https://cdn.jsdelivr.net/npm/decap-cms@3.16.0/dist/decap-cms.min.js',
-    integrity: 'sha384-WFBlw1ZGvgE9W2ia0r2gJPu3HOVweIpoHCGmlm3f/9J2OURAjzuJ/lV55gUd4By4',
-  },
-];
-for (const asset of cmsAssets) {
-  if (!admin.includes(`href="${asset.url}" integrity="${asset.integrity}" crossorigin="anonymous"`)
-    && !admin.includes(`src="${asset.url}" integrity="${asset.integrity}" crossorigin="anonymous"`)) {
-    failures.push(`CMS asset ${asset.url} does not use its verified SRI digest and anonymous CORS`);
+const hasCmsConfig = fs.existsSync(cmsConfigPath);
+const hasAdminShell = fs.existsSync(adminPath);
+if (hasCmsConfig !== hasAdminShell) failures.push('generated CMS artifact is incomplete');
+if (hasCmsConfig && hasAdminShell) {
+  const cmsConfig = fs.readFileSync(cmsConfigPath, 'utf8');
+  if (cmsConfig.includes('local_backend:')) failures.push('generated CMS config enables the local authentication backend');
+  if (!/^\s*app_id:\s*[A-Za-z0-9]{12,128}\s*$/m.test(cmsConfig)) failures.push('generated CMS config has no valid OAuth Client ID');
+
+  const admin = fs.readFileSync(adminPath, 'utf8');
+  const cmsAssets = [
+    {
+      url: 'https://cdn.jsdelivr.net/npm/decap-cms@3.16.0/dist/cms.css',
+      integrity: 'sha384-Ofw8+GuqbDe5y3beeOCG2GTh2pI9R6JEHecNYDHWLntqMcH/IrzpKCsGt070FUmc',
+    },
+    {
+      url: 'https://cdn.jsdelivr.net/npm/decap-cms@3.16.0/dist/decap-cms.min.js',
+      integrity: 'sha384-WFBlw1ZGvgE9W2ia0r2gJPu3HOVweIpoHCGmlm3f/9J2OURAjzuJ/lV55gUd4By4',
+    },
+  ];
+  for (const asset of cmsAssets) {
+    if (!admin.includes(`href="${asset.url}" integrity="${asset.integrity}" crossorigin="anonymous"`)
+      && !admin.includes(`src="${asset.url}" integrity="${asset.integrity}" crossorigin="anonymous"`)) {
+      failures.push(`CMS asset ${asset.url} does not use its verified SRI digest and anonymous CORS`);
+    }
   }
 }
 

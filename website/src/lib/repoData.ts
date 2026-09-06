@@ -235,14 +235,17 @@ export interface ReleaseEntry {
 
 function releaseHistory(): ReleaseEntry[] {
   const changelog = fs.readFileSync(path.join(repoRoot, 'CHANGELOG.md'), 'utf8');
+  const references = new Map(
+    [...changelog.matchAll(/^\[(\d+\.\d+\.\d+)\]:\s*(\S+)/gm)]
+      .map((match) => [match[1], match[2]]),
+  );
   return [...changelog.matchAll(/^##\s*\[(\d+\.\d+\.\d+)\]\s*-\s*(\d{4}-\d{2}-\d{2})/gm)]
     .map((match) => {
       const version = match[1];
-      const reference = changelog.match(new RegExp(`^\\[${version.replace(/\./g, '\\.')}\\]:\\s*(\\S+)`, 'm'));
       return {
         tag: `v${version}`,
         date: match[2],
-        href: reference?.[1] ?? `https://github.com/openshield-org/openshield/releases/tag/v${version}`,
+        href: references.get(version) ?? `https://github.com/openshield-org/openshield/releases/tag/v${version}`,
       };
     });
 }

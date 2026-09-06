@@ -7,8 +7,9 @@ const configPath = path.join(root, 'dist', 'admin', 'config.yml');
 const clientId = process.env.DECAP_GITHUB_APP_ID?.trim();
 
 if (!clientId) {
-  console.error('DECAP_GITHUB_APP_ID is required. Add the GitHub OAuth Client ID as a repository variable.');
-  process.exit(1);
+  fs.rmSync(path.dirname(configPath), { recursive: true, force: true });
+  console.log('DECAP_GITHUB_APP_ID is not configured; omitted the optional CMS from the generated site.');
+  process.exit(0);
 }
 
 if (!/^[A-Za-z0-9]{12,128}$/.test(clientId)) {

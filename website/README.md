@@ -61,8 +61,9 @@ such as `frame-ancestors` require a configurable hosting edge.
    - Homepage URL: `https://openshield-org.github.io/openshield/admin/`
    - Authorization callback URL: `https://api.netlify.com/auth/done`
 3. Add its public Client ID as an Actions repository variable named
-   `DECAP_GITHUB_APP_ID`. Do not store a client secret. The build fails closed
-   when this variable is absent or malformed.
+   `DECAP_GITHUB_APP_ID`. Do not store a client secret. A missing variable
+   cleanly omits the optional `/admin/` route; a malformed configured value
+   fails the build.
 4. Require the `Build site` status check in the protection rules for `dev` and
    `main`. This prevents a site-breaking repository change from being merged.
 
