@@ -18,9 +18,12 @@ A pull request enters the queue automatically when all of the following
 are true:
 
 - The PR targets the `dev` branch
-- `CI Summary` check is successful (all GitHub Actions CI jobs passed)
+- `CI Summary` check is successful (aggregates all jobs in `ci.yml`)
 - `DCO sign-off` check is successful
 - `dependency-review` check is successful
+- `CodeQL` check is successful
+- `Analyze (python)` check is successful
+- `Analyze (javascript)` check is successful
 - At least one approving review exists and is current for the latest push
 - No active `CHANGES_REQUESTED` review exists
 - All review conversations are resolved
@@ -31,10 +34,10 @@ Mergify processes one pull request at a time. It rebases the queued PR onto
 the latest `dev` and runs CI again before merging, so the branch is always
 tested against what is actually on `dev` at merge time.
 
-`CI Summary` covers all required GitHub Actions jobs. Once PR #329 merges,
-it will also include the Astro website build and rendered-site verification,
-so the website gate is satisfied through `CI Summary` with no separate
-condition needed.
+`CI Summary` covers all jobs inside `ci.yml`. Once PR #329 merges, it will
+also include the Astro website build and rendered-site verification. CodeQL
+runs in a separate workflow (`codeql.yml`) and is not part of `CI Summary`,
+which is why it is listed explicitly above.
 
 ## Keeping a PR out of the queue
 
