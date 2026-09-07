@@ -619,6 +619,56 @@
       "control_id": "A.13.1.1",
       "control_name": "Network controls",
       "description": "Rate limiting protects internet-facing application entry points."
+    },
+    "AZ-GOV-001": {
+      "control_id": "A.5.15",
+      "control_name": "Subscription Outside Approved Management Group Hierarchy",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-002": {
+      "control_id": "A.5.1",
+      "control_name": "Required Security Policy Initiative Missing",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-003": {
+      "control_id": "A.5.1",
+      "control_name": "Preventive Policy Uses Non-Enforcing Effect",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-004": {
+      "control_id": "A.5.1",
+      "control_name": "Policy Exemption Missing Governance Metadata",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-005": {
+      "control_id": "A.8.9",
+      "control_name": "Critical Production Resource Missing Deletion Lock",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-006": {
+      "control_id": "A.5.18",
+      "control_name": "Excessive Subscription Owner Assignments",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-007": {
+      "control_id": "A.5.18",
+      "control_name": "Privileged Access Assigned at Broad Scope",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-008": {
+      "control_id": "A.5.9",
+      "control_name": "Undocumented Resource Provider Registered",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-009": {
+      "control_id": "A.5.9",
+      "control_name": "Production Resource Missing Ownership Metadata",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-010": {
+      "control_id": "A.8.8",
+      "control_name": "Security Configuration Drift Exceeds SLA",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
     }
   }
 }

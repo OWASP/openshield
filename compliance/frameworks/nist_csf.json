@@ -619,6 +619,56 @@
       "control_id": "PR.PT-4",
       "control_name": "Communications and control networks are protected",
       "description": "Rate-limit rules protect internet-facing applications from abusive request volume."
+    },
+    "AZ-GOV-001": {
+      "control_id": "PR.AC-4",
+      "control_name": "Subscription Outside Approved Management Group Hierarchy",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-002": {
+      "control_id": "PR.IP-1",
+      "control_name": "Required Security Policy Initiative Missing",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-003": {
+      "control_id": "PR.IP-1",
+      "control_name": "Preventive Policy Uses Non-Enforcing Effect",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-004": {
+      "control_id": "PR.IP-1",
+      "control_name": "Policy Exemption Missing Governance Metadata",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-005": {
+      "control_id": "PR.IP-3",
+      "control_name": "Critical Production Resource Missing Deletion Lock",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-006": {
+      "control_id": "PR.AC-4",
+      "control_name": "Excessive Subscription Owner Assignments",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-007": {
+      "control_id": "PR.AC-4",
+      "control_name": "Privileged Access Assigned at Broad Scope",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-008": {
+      "control_id": "PR.IP-1",
+      "control_name": "Undocumented Resource Provider Registered",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-009": {
+      "control_id": "ID.AM-1",
+      "control_name": "Production Resource Missing Ownership Metadata",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
+    },
+    "AZ-GOV-010": {
+      "control_id": "DE.CM-8",
+      "control_name": "Security Configuration Drift Exceeds SLA",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs."
     }
   }
 }

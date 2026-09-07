@@ -1,6 +1,6 @@
 ﻿# Rules Reference
 
-OpenShield currently ships 90 Azure scan rules. This table is generated from the module-level constants in `scanner/rules/`.
+OpenShield currently ships 105 Azure scan rules. This table is generated from the module-level constants in `scanner/rules/`.
 
 | Rule ID | Name | Severity | Category | CIS | NIST | ISO 27001 |
 |---|---|---|---|---|---|---|
@@ -114,6 +114,31 @@ OpenShield currently ships 90 Azure scan rules. This table is generated from the
 | AZ-SC-006 | Terraform State Storage Account Missing Versioning or Soft Delete | HIGH | Supply Chain | N/A-SC-006 | PR.IP-4 | A.12.3.1 |
 | AZ-SC-007 | Pipeline Service Connection Scoped to Subscription | HIGH | Supply Chain | N/A-SC-007 | PR.AC-4 | A.9.2.3 |
 | AZ-SC-008 | Pipeline Service Connection Uses Password Instead of Federated Credential | MEDIUM | Supply Chain | N/A-SC-008 | PR.AC-1 | A.9.4.3 |
+| AZ-DL-001 | ExpressRoute Direct Link Does Not Use MACsec | HIGH | Data Link | N/A-DL-001 | PR.DS-2 | A.13.1.1 |
+| AZ-DL-002 | High-Speed ExpressRoute Direct Link Uses Non-XPN MACsec | MEDIUM | Data Link | N/A-DL-002 | PR.DS-2 | A.13.1.1 |
+| AZ-KV-006 | Key Vault Using Legacy Access Policies Instead of Azure RBAC | MEDIUM | KeyVault | 8.6 | PR.AC-4 | A.9.2.3 |
+| AZ-NET-016 | Network Interface Has IP Forwarding Enabled | MEDIUM | Network | N/A-NET-016 | SC-7 | A.13.1.1 |
+| AZ-NET-017 | User-Defined Default Route Uses Direct Internet Next Hop | MEDIUM | Network | N/A-NET-017 | SC-7 | A.13.1.1 |
+| AZ-SECOPS-001 | Subscription Activity Log Not Exported to an Approved Central Destination | HIGH | Security Operations | 5.1.1 | PR.PT-1 | A.12.4.1 |
+| AZ-SECOPS-002 | Required Activity Log Categories Missing From Central Export | HIGH | Security Operations | 5.1.2 | PR.PT-1 | A.12.4.1 |
+| AZ-SECOPS-003 | Critical Resource Missing Required Diagnostic Settings | HIGH | Security Operations | 5.4 | DE.AE-3 | A.12.4.1 |
+| AZ-SECOPS-004 | Security Logs Have Insufficient Retention | MEDIUM | Security Operations | N/A-SECOPS-004 | PR.PT-1 | A.12.4.1 |
+| AZ-SECOPS-005 | Security Logs Stored Only in a Destination the Workload Administrator Can Modify | HIGH | Security Operations | N/A-SECOPS-005 | PR.DS-6 | A.12.4.2 |
+| AZ-SECOPS-006 | Required Microsoft Defender for Cloud Plan Not Enabled | HIGH | Security Operations | N/A-SECOPS-006 | DE.CM-8 | A.12.6.1 |
+| AZ-SECOPS-007 | High-Risk Defender Recommendation Unresolved Beyond SLA | HIGH | Security Operations | 2.1.13 | RS.MI-3 | A.12.6.1 |
+| AZ-SECOPS-008 | Required Microsoft Sentinel Data Connector Disconnected or Unhealthy | HIGH | Security Operations | N/A-SECOPS-008 | DE.AE-3 | A.12.4.1 |
+| AZ-SECOPS-009 | Sentinel Missing Required High-Severity Analytics Coverage | HIGH | Security Operations | N/A-SECOPS-009 | DE.CM-1 | A.12.4.1 |
+| AZ-SECOPS-010 | Security Alerts Have No Monitored Incident-Response Destination | HIGH | Security Operations | 2.1.20 | RS.CO-2 | A.16.1.2 |
+| AZ-GOV-001 | Subscription Outside Approved Management Group Hierarchy | HIGH | Governance | N/A-GOV-001 | PR.AC-4 | A.5.15 |
+| AZ-GOV-002 | Required Security Policy Initiative Missing | HIGH | Governance | N/A-GOV-002 | PR.IP-1 | A.5.1 |
+| AZ-GOV-003 | Preventive Policy Uses Non-Enforcing Effect | HIGH | Governance | N/A-GOV-003 | PR.IP-1 | A.5.1 |
+| AZ-GOV-004 | Policy Exemption Missing Governance Metadata | MEDIUM | Governance | N/A-GOV-004 | PR.IP-1 | A.5.1 |
+| AZ-GOV-005 | Critical Production Resource Missing Deletion Lock | HIGH | Governance | N/A-GOV-005 | PR.IP-3 | A.8.9 |
+| AZ-GOV-006 | Excessive Subscription Owner Assignments | HIGH | Governance | N/A-GOV-006 | PR.AC-4 | A.5.18 |
+| AZ-GOV-007 | Privileged Access Assigned at Broad Scope | HIGH | Governance | N/A-GOV-007 | PR.AC-4 | A.5.18 |
+| AZ-GOV-008 | Undocumented Resource Provider Registered | MEDIUM | Governance | N/A-GOV-008 | PR.IP-1 | A.5.9 |
+| AZ-GOV-009 | Production Resource Missing Ownership Metadata | MEDIUM | Governance | N/A-GOV-009 | ID.AM-1 | A.5.9 |
+| AZ-GOV-010 | Security Configuration Drift Exceeds SLA | HIGH | Governance | N/A-GOV-010 | DE.CM-8 | A.8.8 |
 
 SOC 2 mappings are maintained in `compliance/frameworks/soc2.json`.
 
