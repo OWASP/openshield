@@ -81,7 +81,7 @@ OpenShield currently ships 90 Azure scan rules. This table is generated from the
 | AZ-STOR-009 | Required Blob Container Immutability Missing | HIGH | Storage | N/A-STOR-009 | N/A-STOR-009 | N/A-STOR-009 |
 | AZ-DB-005 | SQL Server Microsoft Entra-Only Authentication Not Enforced | HIGH | Database | N/A-DB-005 | PR.AC-6 | A.9.4.2 |
 | AZ-DB-006 | SQL Vulnerability Assessment Not Configured | HIGH | Database | N/A-DB-006 | DE.CM-8 | A.12.6.1 |
-| AZ-DB-007 | SQL Auditing Retention Below Minimum | MEDIUM | Database | N/A-DB-007 | A.12.4.1 | A.12.4.1 |
+| AZ-DB-007 | SQL Auditing Retention Below Minimum | MEDIUM | Database | N/A-DB-007 | PR.PT-1 | A.12.4.1 |
 | AZ-COSMOS-001 | Cosmos DB Local Authentication Enabled | HIGH | Database | N/A-COSMOS-001 | PR.AC-6 | A.9.4.2 |
 | AZ-COSMOS-002 | Cosmos DB Public Network Access Enabled | HIGH | Network | N/A-COSMOS-002 | PR.AC-5 | A.13.1.1 |
 | AZ-CACHE-001 | Managed Cache Public or Non-TLS Access | HIGH | Network | N/A-CACHE-001 | PR.AC-5 | A.13.1.1 |

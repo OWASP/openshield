@@ -35,7 +35,7 @@
     },
     "AZ-DB-005": {"control_id": "PR.AC-6", "control_name": "Identity proofing and authentication", "description": "SQL authentication is restricted to approved Entra identities."},
     "AZ-DB-006": {"control_id": "DE.CM-8", "control_name": "Vulnerability scans are performed", "description": "Required SQL vulnerability assessment is configured."},
-    "AZ-DB-007": {"control_id": "A.12.4.1", "control_name": "Event logging", "description": "SQL audit logs are retained according to policy."},
+    "AZ-DB-007": {"control_id": "PR.PT-1", "control_name": "Audit/log records are determined, documented, implemented, and reviewed", "description": "SQL audit logs are retained for at least 90 days in accordance with the defined audit policy."},
     "AZ-COSMOS-001": {"control_id": "PR.AC-6", "control_name": "Identity proofing and authentication", "description": "Cosmos authentication is restricted to approved Entra identities."},
     "AZ-COSMOS-002": {"control_id": "PR.AC-5", "control_name": "Network integrity is protected", "description": "Cosmos public network access is restricted according to policy."},
     "AZ-CACHE-001": {"control_id": "PR.AC-5", "control_name": "Network integrity is protected", "description": "Managed cache access is private and uses approved TLS."},
