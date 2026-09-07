@@ -70,30 +70,28 @@ queue_rules:
       - -label=blocked
 
 pull_request_rules:
-  # Dismiss all stale reviews (both approvals and changes-requested) on
-  # every push to a dev-targeted PR. The approval precondition is
-  # intentionally absent: if it were present, a reviewer who requested
-  # changes and then went offline would leave a stale CHANGES_REQUESTED
-  # verdict that survives the author's fix push (zero approvals at that
-  # moment), permanently blocking #changes-requested-reviews-by=0 with
-  # no way to clear it except pushing again after approvals exist.
-  # Without the precondition, every author push clears all stale verdicts
-  # regardless of the current approval count.
+  # Dismiss stale approvals when a new commit is pushed to a dev-targeted PR.
+  # CHANGES_REQUESTED reviews are intentionally NOT dismissed (changes_requested
+  # is explicitly set to false). A reviewer's objection must survive the
+  # contributor's push and be cleared only by the reviewer re-reviewing, or
+  # by a maintainer manually dismissing it via GitHub after verifying the fix
+  # (see the inactive-reviewer process in docs/merge-queue.md).
+  # Auto-dismissing CHANGES_REQUESTED reviews would allow any push followed
+  # by a third-party approval to silently erase a blocking concern without
+  # the original reviewer ever checking the fix.
   #
-  # Dismissing a review does not resolve its comment threads. Unresolved
-  # threads continue to block via #review-threads-unresolved=0 until a
-  # human resolves them, and the reviewer can re-request changes after
-  # re-reviewing. This rule fires on author pushes and on Mergify's own
-  # queue rebases: a queued PR whose base moves is ejected and needs a
-  # fresh approval before it re-enters the queue.
-  - name: dismiss stale reviews on new push
+  # Reviewers: use inline conversation threads for every blocking concern.
+  # Threads survive this dismissal and continue to block via
+  # #review-threads-unresolved=0, giving an independent gate beyond the
+  # review verdict itself.
+  - name: dismiss stale approvals on new push
     conditions:
       - base=dev
     actions:
       dismiss_reviews:
         approved: true
-        changes_requested: true
-        message: "A new commit was pushed. All reviews were dismissed. Please re-review before this PR can merge."
+        changes_requested: false
+        message: "A new commit was pushed. Please re-review and re-approve before this PR can merge."
 
   # Queue an eligible PR automatically once all conditions are met.
   # Entry conditions mirror merge_conditions so only fully green PRs

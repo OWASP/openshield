@@ -100,20 +100,39 @@ If the author remains inactive after the label is applied:
 
 ## Approval freshness
 
-Every push to a dev-targeted PR dismisses all existing reviews, both
-approvals and `CHANGES_REQUESTED` verdicts. This applies to author-pushed
-commits and to Mergify's own queue rebases (when Mergify rebases your PR
-onto the latest `dev` HEAD before merging).
+When a contributor pushes a new commit to a dev-targeted PR, all existing
+approvals are dismissed automatically. `CHANGES_REQUESTED` reviews are NOT
+dismissed: a reviewer's objection survives the push and continues to block
+`#changes-requested-reviews-by=0` until the reviewer themselves re-reviews
+and clears it, or a maintainer manually dismisses it via GitHub (see
+inactive-reviewer process below).
 
-After each dismissal, at least one reviewer must re-approve before Mergify
-can queue or merge the PR. Dismissing a review does not resolve its comment
-threads: unresolved threads continue to block via the
-`#review-threads-unresolved=0` condition until a human resolves them, and a
-reviewer can re-request changes after re-reviewing.
+This means every approval in `merge_conditions` always reflects the code
+that will actually land on `dev`, and no blocking concern can be erased by
+a push followed by a third-party approval.
 
-If your PR gets rebased while waiting in the queue, expect all reviews to be
-dismissed and the PR to return to "needs review" state before it can
+If your PR gets rebased while waiting in the queue, expect your approval to
+be dismissed and the PR to return to "needs review" state before it can
 re-enter the queue.
+
+**For reviewers:** use inline conversation threads for every blocking
+concern, not just the review summary body. Inline threads survive approval
+dismissal and block independently via `#review-threads-unresolved=0`, so
+your concern is protected even if another reviewer later approves.
+
+## Inactive-reviewer process
+
+If a reviewer left `CHANGES_REQUESTED` and has not responded after the
+contributor pushed a fix:
+
+1. After three working days with no response, the contributor tags the
+   reviewer and a maintainer in the PR comments.
+2. If there is still no response after two more working days, a maintainer
+   reads the original review, verifies that the fix addresses the concern,
+   and manually dismisses the stale review via GitHub with a comment
+   recording what was checked and why the fix is accepted.
+3. The decision is recorded in the PR before any dismissal so the reasoning
+   is auditable.
 
 ## GitHub branch protection
 
