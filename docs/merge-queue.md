@@ -18,12 +18,18 @@ A pull request enters the queue automatically when all of the following
 are true:
 
 - The PR targets the `dev` branch
-- `CI Summary` check is successful (aggregates all jobs in `ci.yml`)
+- `CI Summary` check is successful (aggregates all jobs in `ci.yml`,
+  including the Astro website build and rendered-site verification)
 - `DCO sign-off` check is successful
 - `dependency-review` check is successful
 - `CodeQL` check is successful
 - `Analyze (python)` check is successful
 - `Analyze (javascript)` check is successful
+- `Build site` check is successful
+- `Terraform fmt / validate / plan` check is successful, or the PR does
+  not touch any files under `infra/terraform/` (the check only runs for
+  terraform-touching PRs, so a plain `check-success` condition would stall
+  every other PR)
 - At least one approving review exists and is current for the latest push
 - No active `CHANGES_REQUESTED` review exists
 - All review conversations are resolved
@@ -34,10 +40,13 @@ Mergify processes one pull request at a time. It rebases the queued PR onto
 the latest `dev` and runs CI again before merging, so the branch is always
 tested against what is actually on `dev` at merge time.
 
-`CI Summary` covers all jobs inside `ci.yml`. Once PR #329 merges, it will
-also include the Astro website build and rendered-site verification. CodeQL
-runs in a separate workflow (`codeql.yml`) and is not part of `CI Summary`,
-which is why it is listed explicitly above.
+`CI Summary` covers all jobs inside `ci.yml`. `CodeQL` and `Build site` run
+in separate workflows (`codeql.yml` and `website.yml`) and are not part of
+`CI Summary`, which is why they are listed explicitly above. The external
+Semgrep app checks are deliberately not gated: their coverage duplicates the
+`SAST (Semgrep)` job already in `CI Summary`, and gating third-party app
+checks would stall the queue if the app is ever uninstalled or its plan
+changes.
 
 ## Keeping a PR out of the queue
 
@@ -91,17 +100,20 @@ If the author remains inactive after the label is applied:
 
 ## Approval freshness
 
-Approvals are dismissed automatically when a new commit is pushed to a
-pull request targeting `dev`. This includes both author-pushed commits and
-bot-created rebases (for example, when Mergify rebases your PR onto the
-latest `dev` HEAD).
+Every push to a dev-targeted PR dismisses all existing reviews, both
+approvals and `CHANGES_REQUESTED` verdicts. This applies to author-pushed
+commits and to Mergify's own queue rebases (when Mergify rebases your PR
+onto the latest `dev` HEAD before merging).
 
 After each dismissal, at least one reviewer must re-approve before Mergify
-can queue or merge the PR. This means the approval in `merge_conditions`
-always reflects the state of the actual code that will land on `dev`.
+can queue or merge the PR. Dismissing a review does not resolve its comment
+threads: unresolved threads continue to block via the
+`#review-threads-unresolved=0` condition until a human resolves them, and a
+reviewer can re-request changes after re-reviewing.
 
-If your PR gets rebased while waiting in the queue, expect your approval
-to be dismissed and the PR to return to "needs review" state.
+If your PR gets rebased while waiting in the queue, expect all reviews to be
+dismissed and the PR to return to "needs review" state before it can
+re-enter the queue.
 
 ## GitHub branch protection
 
