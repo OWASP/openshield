@@ -25,13 +25,29 @@ queue_rules:
     # above, this gives a fully serial merge queue.
     batch_size: 1
 
+    # Dequeue a PR whose required checks have not posted within this
+    # window instead of stalling the entire queue indefinitely. The
+    # default ("auto") applies no timeout until enough queue history has
+    # been gathered, so a stuck check on the very first queued PR would
+    # block every subsequent PR forever.
+    checks_timeout: 2 hours
+
     # These conditions must hold at the moment Mergify merges the PR.
     # Mergify re-evaluates them after rebasing onto the current dev HEAD.
     #
-    # CI Summary aggregates the jobs inside ci.yml. Once PR #329 merges it
-    # also covers the Astro website build and rendered-site verification.
-    # CodeQL runs in a separate workflow (codeql.yml) and is NOT included in
-    # CI Summary, so it is gated explicitly below.
+    # CI Summary aggregates all jobs inside ci.yml, including the Astro
+    # website build and rendered-site verification added by PR #329
+    # (now on dev). CodeQL runs in a separate workflow (codeql.yml) and
+    # is NOT included in CI Summary, so it is gated explicitly below.
+    # Build site is gated explicitly for belt-and-braces coverage: it
+    # runs unconditionally on every dev-targeted PR (no paths filter)
+    # so it cannot stall the queue.
+    #
+    # External Semgrep app checks (Semgrep OSS, semgrep-cloud-platform/scan)
+    # are deliberately not gated: their coverage duplicates the SAST
+    # (Semgrep) job already gated through CI Summary, and third-party app
+    # checks can vanish if the app is uninstalled or its plan changes,
+    # which would stall the queue permanently.
     merge_conditions:
       - check-success=CI Summary
       - check-success=DCO sign-off
@@ -39,6 +55,14 @@ queue_rules:
       - check-success=CodeQL
       - check-success=Analyze (python)
       - check-success=Analyze (javascript)
+      - check-success=Build site
+      # terraform-plan only runs for PRs touching infra/terraform/**. An
+      # unconditional check-success would stall every non-terraform PR
+      # forever. This condition passes when the PR touches no terraform
+      # files; otherwise the check must be green.
+      - or:
+          - -files~=^infra/terraform/
+          - check-success=Terraform fmt / validate / plan
       - "#approved-reviews-by>=1"
       - "#changes-requested-reviews-by=0"
       - "#review-threads-unresolved=0"
@@ -46,30 +70,48 @@ queue_rules:
       - -label=blocked
 
 pull_request_rules:
-  # Dismiss approvals when a new commit is pushed to a dev-targeted PR.
-  # This ensures the approval in merge_conditions always reflects the
-  # latest push and cannot be satisfied by a pre-push review.
-  # Note: this rule fires on any push, including bot-created rebases.
-  # Reviewers must re-approve after each push before the PR can re-enter
-  # the queue.
-  - name: dismiss stale approvals on new push
+  # Dismiss all stale reviews (both approvals and changes-requested) on
+  # every push to a dev-targeted PR. The approval precondition is
+  # intentionally absent: if it were present, a reviewer who requested
+  # changes and then went offline would leave a stale CHANGES_REQUESTED
+  # verdict that survives the author's fix push (zero approvals at that
+  # moment), permanently blocking #changes-requested-reviews-by=0 with
+  # no way to clear it except pushing again after approvals exist.
+  # Without the precondition, every author push clears all stale verdicts
+  # regardless of the current approval count.
+  #
+  # Dismissing a review does not resolve its comment threads. Unresolved
+  # threads continue to block via #review-threads-unresolved=0 until a
+  # human resolves them, and the reviewer can re-request changes after
+  # re-reviewing. This rule fires on author pushes and on Mergify's own
+  # queue rebases: a queued PR whose base moves is ejected and needs a
+  # fresh approval before it re-enters the queue.
+  - name: dismiss stale reviews on new push
     conditions:
       - base=dev
-      - "#approved-reviews-by>=1"
     actions:
       dismiss_reviews:
         approved: true
-        message: "A new commit was pushed. Please re-review before this PR can merge."
+        changes_requested: true
+        message: "A new commit was pushed. All reviews were dismissed. Please re-review before this PR can merge."
 
   # Queue an eligible PR automatically once all conditions are met.
-  # The PR is rebased onto the latest dev HEAD before merge so CI runs
-  # against the actual post-merge state.
+  # Entry conditions mirror merge_conditions so only fully green PRs
+  # enter the queue. A PR admitted while a check is still pending
+  # occupies the single queue slot and stalls every PR behind it.
   - name: add to merge queue when eligible
     conditions:
       - base=dev
       - check-success=CI Summary
       - check-success=DCO sign-off
       - check-success=dependency-review
+      - check-success=CodeQL
+      - check-success=Analyze (python)
+      - check-success=Analyze (javascript)
+      - check-success=Build site
+      - or:
+          - -files~=^infra/terraform/
+          - check-success=Terraform fmt / validate / plan
       - "#approved-reviews-by>=1"
       - "#changes-requested-reviews-by=0"
       - "#review-threads-unresolved=0"
