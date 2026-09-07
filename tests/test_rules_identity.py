@@ -351,6 +351,25 @@ def test_idn_007_noncompliant_user_without_mfa_returns_finding(mock_azure, subsc
     assert findings[0]["resource_name"] == "No MFA User"
 
 
+def test_idn_007_disabled_user_without_mfa_returns_no_findings(mock_azure, subscription_id, monkeypatch):
+    """A disabled user account without MFA registered must not be flagged —
+    the rule targets active users only, since a disabled account cannot be
+    used to sign in regardless of its MFA state."""
+    regs = {
+        "value": [
+            {
+                "id": "u2",
+                "userDisplayName": "Disabled No MFA User",
+                "userPrincipalName": "disabled@x.com",
+                "isEnabled": False,
+                "isMfaRegistered": False,
+            }
+        ]
+    }
+    _install_router(monkeypatch, [("credentialUserRegistrationDetails", _Resp(regs))])
+    assert az_idn_007.scan(mock_azure, subscription_id) == []
+
+
 # ── AZ-IDN-008: custom RBAC role with wildcard permissions ──────────────────
 
 
