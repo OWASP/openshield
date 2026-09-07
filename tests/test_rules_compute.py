@@ -12,6 +12,7 @@ import scanner.rules.az_cmp_001 as az_cmp_001
 import scanner.rules.az_cmp_002 as az_cmp_002
 import scanner.rules.az_cmp_003 as az_cmp_003
 import scanner.rules.az_cmp_004 as az_cmp_004
+import scanner.rules.az_cmp_005 as az_cmp_005
 import scanner.rules.az_cmp_007 as az_cmp_007
 from tests.helpers.mock_azure import make_resource
 
@@ -587,3 +588,85 @@ def test_cmp_007_subnet_level_nsg_exposure_is_flagged(mock_azure, subscription_i
     assert len(findings) == 1
     assert findings[0]["resource_name"] == "vm-subnet"
     assert findings[0]["metadata"]["open_management_ports"] == ["22"]
+
+
+# ── AZ-CMP-005: VM without Trusted Launch (Secure Boot + vTPM) ───────────────
+#
+# A VM's list_all() representation does not carry its Hyper-V generation, so the
+# rule resolves the OS disk's hyper_v_generation to tell Gen2 (Trusted-Launch
+# capable) apart from Gen1 (NOT_APPLICABLE). These fixtures mirror that: a
+# security_profile carrying security_type/uefi_settings on the VM, and an OS disk
+# whose hyper_v_generation is "V1"/"V2" resolved via mock_azure.set_disk().
+
+
+def _security_profile(security_type="TrustedLaunch", secure_boot=True, vtpm=True, with_uefi=True):
+    uefi = make_resource(secure_boot_enabled=secure_boot, v_tpm_enabled=vtpm) if with_uefi else None
+    return make_resource(security_type=security_type, uefi_settings=uefi)
+
+
+def _vm_with_osdisk(name, disk_name, security_profile=None):
+    return make_resource(
+        id=_vm_id(name),
+        name=name,
+        security_profile=security_profile,
+        storage_profile=make_resource(os_disk=make_resource(managed_disk=_managed_disk(disk_name)), data_disks=[]),
+    )
+
+
+def test_cmp_005_compliant_trusted_launch_returns_no_findings(mock_azure, subscription_id):
+    """A Gen2 VM with TrustedLaunch + Secure Boot + vTPM is compliant."""
+    vm = _vm_with_osdisk("vm-tl", "disk-tl", _security_profile())
+    mock_azure.set_virtual_machines([vm])
+    mock_azure.set_disk(_disk_id("disk-tl"), make_resource(hyper_v_generation="V2"))
+    assert az_cmp_005.scan(mock_azure, subscription_id) == []
+
+
+def test_cmp_005_noncompliant_gen2_without_trusted_launch_returns_one_finding(mock_azure, subscription_id):
+    """A Gen2 VM (OS disk hyper_v_generation V2) with no security profile must be flagged."""
+    vm = _vm_with_osdisk("vm-gen2", "disk-gen2", security_profile=None)
+    mock_azure.set_virtual_machines([vm])
+    mock_azure.set_disk(_disk_id("disk-gen2"), make_resource(hyper_v_generation="V2"))
+    findings = az_cmp_005.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    f = findings[0]
+    assert _REQUIRED_FIELDS.issubset(f.keys())
+    assert f["rule_id"] == "AZ-CMP-005"
+    assert f["severity"] == "MEDIUM"
+    assert f["resource_name"] == "vm-gen2"
+    assert f["metadata"]["hyper_v_generation"] == "V2"
+
+
+def test_cmp_005_trusted_launch_declared_but_vtpm_off_flags_without_disk_lookup(mock_azure, subscription_id):
+    """security_type=TrustedLaunch is Gen2-only, so a vTPM-off VM is a confirmable finding
+    even when the OS disk cannot be resolved (no set_disk call here)."""
+    vm = _vm_with_osdisk("vm-partial", "disk-partial", _security_profile(secure_boot=True, vtpm=False))
+    mock_azure.set_virtual_machines([vm])
+    findings = az_cmp_005.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["metadata"]["v_tpm_enabled"] is False
+    assert findings[0]["metadata"]["secure_boot_enabled"] is True
+
+
+def test_cmp_005_gen1_vm_is_not_applicable_returns_no_findings(mock_azure, subscription_id):
+    """A Gen1 VM (OS disk hyper_v_generation V1) cannot use Trusted Launch and must not be flagged."""
+    vm = _vm_with_osdisk("vm-gen1", "disk-gen1", security_profile=None)
+    mock_azure.set_virtual_machines([vm])
+    mock_azure.set_disk(_disk_id("disk-gen1"), make_resource(hyper_v_generation="V1"))
+    assert az_cmp_005.scan(mock_azure, subscription_id) == []
+
+
+def test_cmp_005_unknown_generation_is_not_flagged(mock_azure, subscription_id):
+    """When the OS disk cannot be read (generation unknown) and no Trusted Launch is declared,
+    the VM must not be flagged — an unreadable disk could be Gen1, which is NOT_APPLICABLE."""
+    vm = _vm_with_osdisk("vm-unknown", "disk-missing", security_profile=None)
+    mock_azure.set_virtual_machines([vm])
+    # No set_disk call: get_disk() returns None.
+    assert az_cmp_005.scan(mock_azure, subscription_id) == []
+
+
+def test_cmp_005_confidential_vm_is_out_of_scope_returns_no_findings(mock_azure, subscription_id):
+    """Confidential VMs provide Secure Boot and vTPM by construction and are not flagged."""
+    vm = _vm_with_osdisk("vm-cvm", "disk-cvm", _security_profile(security_type="ConfidentialVM"))
+    mock_azure.set_virtual_machines([vm])
+    mock_azure.set_disk(_disk_id("disk-cvm"), make_resource(hyper_v_generation="V2"))
+    assert az_cmp_005.scan(mock_azure, subscription_id) == []

@@ -164,6 +164,11 @@
       "control_name": "Remote access is managed",
       "description": "A VM has management ports (SSH/RDP) open to the internet with no Just-In-Time VM access policy covering them. PR.AC-3 requires that remote access is managed. JIT restricts management-port access to approved, time-boxed requests instead of leaving the ports standing open."
     },
+    "AZ-CMP-005": {
+      "control_id": "PR.DS-6",
+      "control_name": "Integrity checking mechanisms are used to verify software, firmware, and information integrity",
+      "description": "A Generation 2 virtual machine does not have Trusted Launch (Secure Boot and vTPM) fully enabled. PR.DS-6 requires integrity checking mechanisms to verify software and firmware integrity. Secure Boot ensures only signed boot components run and the vTPM measures boot integrity, protecting against boot-level tampering, bootkits, and rootkits that persist beneath the OS."
+    },
     "AZ-KV-001": {
       "control_id": "PR.IP-4",
       "control_name": "Backups of information are conducted, maintained, and tested",

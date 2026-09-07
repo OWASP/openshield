@@ -179,6 +179,11 @@
       "control_name": "Restricts Access from Outside the Network Boundary",
       "description": "A VM has management ports (SSH/RDP) open to the internet with no Just-In-Time VM access policy covering them. CC6.6 requires that access from outside the network boundary is restricted. JIT opens management ports only for approved, time-boxed requests instead of continuously."
     },
+    "AZ-CMP-005": {
+      "control_id": "CC6.8",
+      "control_name": "Prevents or Detects Unauthorized Software",
+      "description": "A Generation 2 virtual machine does not have Trusted Launch (Secure Boot and vTPM) fully enabled. CC6.8 requires controls that prevent or detect the introduction of unauthorized software. Secure Boot prevents unsigned boot components from executing and the vTPM attests boot integrity, blocking boot-level malware from loading and persisting beneath the OS."
+    },
     "AZ-KV-001": {
       "control_id": "A1.2",
       "control_name": "Environmental Threats and Recovery",
