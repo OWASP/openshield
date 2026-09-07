@@ -1,0 +1,141 @@
+# .mergify.yml
+# Merge-queue configuration for the OpenShield dev branch.
+#
+# This file is inactive until the Mergify GitHub App is installed and
+# authorized for this repository. GitHub Actions remains the CI system.
+# Mergify reads pull-request state and operates the queue; it does not
+# run CI, replace existing workflows, or bypass GitHub branch protection.
+#
+# Related: https://github.com/openshield-org/openshield/issues/334
+
+# Limit speculative checks globally so at most one PR is tested at a time.
+# This enforces serial behaviour across the queue.
+merge_queue:
+  max_parallel_checks: 1
+
+queue_rules:
+  - name: default
+    # Restrict queue entry to PRs targeting dev, including manual
+    # @mergifyio queue commands. Without this, a maintainer could
+    # manually queue a PR targeting any branch.
+    queue_conditions:
+      - base=dev
+
+    # One PR merged per operation. Combined with max_parallel_checks: 1
+    # above, this gives a fully serial merge queue.
+    batch_size: 1
+
+    # Dequeue a PR whose required checks have not posted within this
+    # window instead of stalling the entire queue indefinitely. The
+    # default ("auto") applies no timeout until enough queue history has
+    # been gathered, so a stuck check on the very first queued PR would
+    # block every subsequent PR forever.
+    checks_timeout: 2 hours
+
+    # These conditions must hold at the moment Mergify merges the PR.
+    # Mergify re-evaluates them after rebasing onto the current dev HEAD.
+    #
+    # CI Summary aggregates all jobs inside ci.yml, including the Astro
+    # website build and rendered-site verification added by PR #329
+    # (now on dev). CodeQL runs in a separate workflow (codeql.yml) and
+    # is NOT included in CI Summary, so it is gated explicitly below.
+    # Build site is gated explicitly for belt-and-braces coverage: it
+    # runs unconditionally on every dev-targeted PR (no paths filter)
+    # so it cannot stall the queue.
+    #
+    # External Semgrep app checks (Semgrep OSS, semgrep-cloud-platform/scan)
+    # are deliberately not gated: their coverage duplicates the SAST
+    # (Semgrep) job already gated through CI Summary, and third-party app
+    # checks can vanish if the app is uninstalled or its plan changes,
+    # which would stall the queue permanently.
+    merge_conditions:
+      - check-success=CI Summary
+      - check-success=DCO sign-off
+      - check-success=dependency-review
+      - check-success=CodeQL
+      - check-success=Analyze (python)
+      - check-success=Analyze (javascript)
+      - check-success=Build site
+      # terraform-plan only runs for PRs touching infra/terraform/**. An
+      # unconditional check-success would stall every non-terraform PR
+      # forever. This condition passes when the PR touches no terraform
+      # files; otherwise the check must be green.
+      - or:
+          - -files~=^infra/terraform/
+          - check-success=Terraform fmt / validate / plan
+      - "#approved-reviews-by>=1"
+      - "#changes-requested-reviews-by=0"
+      - "#review-threads-unresolved=0"
+      - -draft
+      - -label=blocked
+
+pull_request_rules:
+  # Dismiss stale approvals when a new commit is pushed to a dev-targeted PR.
+  # CHANGES_REQUESTED reviews are intentionally NOT dismissed (changes_requested
+  # is explicitly set to false). A reviewer's objection must survive the
+  # contributor's push and be cleared only by the reviewer re-reviewing, or
+  # by a maintainer manually dismissing it via GitHub after verifying the fix
+  # (see the inactive-reviewer process in docs/merge-queue.md).
+  # Auto-dismissing CHANGES_REQUESTED reviews would allow any push followed
+  # by a third-party approval to silently erase a blocking concern without
+  # the original reviewer ever checking the fix.
+  #
+  # Reviewers: use inline conversation threads for every blocking concern.
+  # Threads survive this dismissal and continue to block via
+  # #review-threads-unresolved=0, giving an independent gate beyond the
+  # review verdict itself.
+  - name: dismiss stale approvals on new push
+    conditions:
+      - base=dev
+    actions:
+      dismiss_reviews:
+        approved: true
+        changes_requested: false
+        message: "A new commit was pushed. Please re-review and re-approve before this PR can merge."
+
+  # Queue an eligible PR automatically once all conditions are met.
+  # Entry conditions mirror merge_conditions so only fully green PRs
+  # enter the queue. A PR admitted while a check is still pending
+  # occupies the single queue slot and stalls every PR behind it.
+  - name: add to merge queue when eligible
+    conditions:
+      - base=dev
+      - check-success=CI Summary
+      - check-success=DCO sign-off
+      - check-success=dependency-review
+      - check-success=CodeQL
+      - check-success=Analyze (python)
+      - check-success=Analyze (javascript)
+      - check-success=Build site
+      - or:
+          - -files~=^infra/terraform/
+          - check-success=Terraform fmt / validate / plan
+      - "#approved-reviews-by>=1"
+      - "#changes-requested-reviews-by=0"
+      - "#review-threads-unresolved=0"
+      - -draft
+      - -label=blocked
+    actions:
+      queue:
+        name: default
+
+  # Apply awaiting-author when a reviewer has requested changes.
+  - name: label awaiting-author when changes are requested
+    conditions:
+      - base=dev
+      - "#changes-requested-reviews-by>0"
+    actions:
+      label:
+        add:
+          - awaiting-author
+
+  # Remove awaiting-author once all change requests are resolved.
+  - name: remove awaiting-author when no changes are requested
+    conditions:
+      - base=dev
+      - label=awaiting-author
+      - "#changes-requested-reviews-by=0"
+    actions:
+      label:
+        remove:
+          - awaiting-author
