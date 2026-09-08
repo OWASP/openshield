@@ -22,6 +22,10 @@ pytestmark = pytest.mark.skipif(
 
 # The revision immediately before scan admission is introduced.
 _BEFORE_ADMISSION = "f2b6d8e1a4c9"
+# The dev head this branch builds on, i.e. the state a deployment upgrades from.
+_BEFORE_LEASES = "3f59f83a5253"
+_LEASES = "e4f7a9b2c6d8"
+_HEAD = "d4a8c1e6b2f9"
 _ADMISSION = "a7c5e9d2f1b4"
 _ACTIVE_INDEX = "uq_scans_one_active_per_subscription"
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -242,3 +246,131 @@ def test_an_invalid_index_left_by_a_failed_build_is_replaced_not_inherited():
 
         _upgrade(dsn, _ADMISSION)
         assert _index_is_valid(dsn, _ACTIVE_INDEX) is True
+
+
+# ── Partial-execution safety ────────────────────────────────────────────────
+#
+# alembic/env.py does not use transaction_per_migration, so the whole upgrade
+# shares one transaction -- but every autocommit_block() commits it. DDL
+# issued before a concurrent index build is therefore already durable when
+# that build fails, while alembic_version still names the previous revision.
+# The retry must be able to walk back over its own committed work.
+
+
+def _current_revision(dsn: str) -> str:
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT version_num FROM alembic_version")
+            return cur.fetchone()[0]
+
+
+def _invalidate_index(dsn: str, name: str) -> None:
+    """Reproduce the index an interrupted CONCURRENTLY build leaves behind."""
+    conn = psycopg2.connect(dsn)
+    conn.autocommit = True
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE pg_index SET indisvalid = false WHERE indexrelid = %s::regclass", (name,))
+    finally:
+        conn.close()
+
+
+def test_upgrade_reruns_after_a_partial_lease_migration():
+    """Columns committed by a failed run must not block the retry.
+
+    e4f7a9b2c6d8 adds its columns, then builds two indexes concurrently. If
+    that build fails the columns are already committed, so a plain add_column
+    on retry died with "column already exists" before reaching any recovery.
+    """
+    with _scratch_database() as dsn:
+        _upgrade(dsn, _BEFORE_LEASES)
+        # Exactly what the failed run had committed: the columns, no version bump.
+        with psycopg2.connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute("ALTER TABLE scans ADD COLUMN lease_owner TEXT")
+                cur.execute("ALTER TABLE scans ADD COLUMN lease_expires_at TIMESTAMPTZ")
+                cur.execute("ALTER TABLE scans ADD COLUMN last_heartbeat_at TIMESTAMPTZ")
+                cur.execute("ALTER TABLE scans ADD COLUMN fencing_token BIGINT NOT NULL DEFAULT 0")
+        assert _current_revision(dsn) == _BEFORE_LEASES
+
+        _upgrade(dsn, "head")
+
+        assert _current_revision(dsn) == _HEAD
+        assert _index_is_valid(dsn, "idx_scans_pending_started_at") is True
+
+
+def test_upgrade_rebuilds_an_index_left_invalid_by_an_interrupted_build():
+    """An INVALID index owns its name but can never serve a query.
+
+    CREATE INDEX ... IF NOT EXISTS would keep it, so each build drops the name
+    first. The retry has to end with a valid index, not the broken one.
+    """
+    with _scratch_database() as dsn:
+        _upgrade(dsn, _BEFORE_LEASES)
+        with psycopg2.connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute("ALTER TABLE scans ADD COLUMN lease_owner TEXT")
+                cur.execute("ALTER TABLE scans ADD COLUMN lease_expires_at TIMESTAMPTZ")
+                cur.execute("ALTER TABLE scans ADD COLUMN last_heartbeat_at TIMESTAMPTZ")
+                cur.execute("ALTER TABLE scans ADD COLUMN fencing_token BIGINT NOT NULL DEFAULT 0")
+                cur.execute(
+                    "CREATE INDEX idx_scans_pending_started_at ON scans (started_at ASC) WHERE status = 'pending'"
+                )
+        _invalidate_index(dsn, "idx_scans_pending_started_at")
+        assert _index_is_valid(dsn, "idx_scans_pending_started_at") is False
+
+        _upgrade(dsn, "head")
+
+        assert _current_revision(dsn) == _HEAD
+        assert _index_is_valid(dsn, "idx_scans_pending_started_at") is True
+
+
+def test_upgrade_reruns_after_a_partial_enrichment_jobs_migration():
+    """A committed table from a failed run must not block the retry either."""
+    with _scratch_database() as dsn:
+        _upgrade(dsn, _ADMISSION)
+        # c9e1a5b7d3f2 creates enrichment_jobs, then builds its indexes
+        # concurrently; the table survives a failure in that block.
+        with psycopg2.connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE enrichment_jobs (
+                        job_id UUID PRIMARY KEY,
+                        scan_id UUID NOT NULL UNIQUE REFERENCES scans(scan_id),
+                        status TEXT NOT NULL DEFAULT 'pending',
+                        lease_owner TEXT,
+                        lease_expires_at TIMESTAMPTZ,
+                        last_heartbeat_at TIMESTAMPTZ,
+                        fencing_token BIGINT NOT NULL DEFAULT 0,
+                        attempt_count INTEGER NOT NULL DEFAULT 0,
+                        next_retry_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        checkpoint INTEGER NOT NULL DEFAULT 0,
+                        error_message TEXT,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        completed_at TIMESTAMPTZ,
+                        CONSTRAINT ck_enrichment_jobs_status
+                            CHECK (status IN ('pending', 'running', 'completed', 'failed'))
+                    )
+                    """
+                )
+        assert _current_revision(dsn) == _ADMISSION
+
+        _upgrade(dsn, "head")
+
+        assert _current_revision(dsn) == _HEAD
+        assert _index_is_valid(dsn, "idx_enrichment_jobs_pending_retry") is True
+
+
+def test_upgrade_from_the_dev_head_reaches_a_single_head():
+    """The documented deployment path: current dev -> this branch."""
+    with _scratch_database() as dsn:
+        _upgrade(dsn, _BEFORE_LEASES)
+        assert _current_revision(dsn) == _BEFORE_LEASES
+        _upgrade(dsn, "head")
+        assert _current_revision(dsn) == _HEAD
+        # The #263 coverage table from dev survives this branch's migrations.
+        with psycopg2.connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT to_regclass('rule_evaluations')")
+                assert cur.fetchone()[0] is not None

@@ -20,31 +20,41 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Create one resumable enrichment job per scan."""
-    op.create_table(
-        "enrichment_jobs",
-        sa.Column("job_id", postgresql.UUID(), nullable=False),
-        sa.Column("scan_id", postgresql.UUID(), nullable=False),
-        sa.Column("status", sa.Text(), nullable=False, server_default=sa.text("'pending'")),
-        sa.Column("lease_owner", sa.Text(), nullable=True),
-        sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("last_heartbeat_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("fencing_token", sa.BigInteger(), nullable=False, server_default=sa.text("0")),
-        sa.Column("attempt_count", sa.Integer(), nullable=False, server_default=sa.text("0")),
-        sa.Column(
-            "next_retry_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
-        ),
-        sa.Column("checkpoint", sa.Integer(), nullable=False, server_default=sa.text("0")),
-        sa.Column("error_message", sa.Text(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
-        ),
-        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(["scan_id"], ["scans.scan_id"], name="enrichment_jobs_scan_id_fkey"),
-        sa.PrimaryKeyConstraint("job_id", name="enrichment_jobs_pkey"),
-        sa.UniqueConstraint("scan_id", name="uq_enrichment_jobs_scan_id"),
-        sa.CheckConstraint("status IN ('pending', 'running', 'completed', 'failed')", name="ck_enrichment_jobs_status"),
-    )
+    # autocommit_block() below commits the table before the concurrent index
+    # builds run, so a failure there leaves the table behind with
+    # alembic_version unchanged. Skip the create on a retry rather than
+    # failing on "relation already exists" before the index recovery.
+    if not sa.inspect(op.get_bind()).has_table("enrichment_jobs"):
+        op.create_table(
+            "enrichment_jobs",
+            sa.Column("job_id", postgresql.UUID(), nullable=False),
+            sa.Column("scan_id", postgresql.UUID(), nullable=False),
+            sa.Column("status", sa.Text(), nullable=False, server_default=sa.text("'pending'")),
+            sa.Column("lease_owner", sa.Text(), nullable=True),
+            sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("last_heartbeat_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("fencing_token", sa.BigInteger(), nullable=False, server_default=sa.text("0")),
+            sa.Column("attempt_count", sa.Integer(), nullable=False, server_default=sa.text("0")),
+            sa.Column(
+                "next_retry_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+            ),
+            sa.Column("checkpoint", sa.Integer(), nullable=False, server_default=sa.text("0")),
+            sa.Column("error_message", sa.Text(), nullable=True),
+            sa.Column(
+                "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+            ),
+            sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+            sa.ForeignKeyConstraint(["scan_id"], ["scans.scan_id"], name="enrichment_jobs_scan_id_fkey"),
+            sa.PrimaryKeyConstraint("job_id", name="enrichment_jobs_pkey"),
+            sa.UniqueConstraint("scan_id", name="uq_enrichment_jobs_scan_id"),
+            sa.CheckConstraint(
+                "status IN ('pending', 'running', 'completed', 'failed')", name="ck_enrichment_jobs_status"
+            ),
+        )
     with op.get_context().autocommit_block():
+        # Drop first so an INVALID index left by an interrupted build is
+        # rebuilt rather than kept (see the note in e4f7a9b2c6d8).
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_enrichment_jobs_pending_retry")
         op.execute(
             """
             CREATE INDEX CONCURRENTLY idx_enrichment_jobs_pending_retry
@@ -52,6 +62,7 @@ def upgrade() -> None:
             WHERE status = 'pending'
             """
         )
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_enrichment_jobs_running_lease")
         op.execute(
             """
             CREATE INDEX CONCURRENTLY idx_enrichment_jobs_running_lease
