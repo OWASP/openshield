@@ -2,12 +2,10 @@
 
 import logging
 import os
-import hashlib
-import json
 import uuid
 from flask import Blueprint, g, jsonify, request
 
-from api.models.finding import DatabaseManager, ScanAdmissionConflict, ScanQuotaExceeded
+from api.models.finding import DatabaseManager, ScanQuotaExceeded
 from api.validation import (
     VALIDATION_ERROR_MESSAGE,
     ValidationError,
@@ -117,14 +115,16 @@ def trigger_scan():
             logger.warning("Scan trigger rejected: subscription %s is not on the authorized allowlist", subscription_id)
             return jsonify({"error": "Subscription is not authorized for this deployment"}), 403
 
+        # A trigger's only semantic input is subscription_id, and an
+        # Idempotency-Key is scoped to one subscription (see
+        # docs/api-reference.md). Two requests carrying the same key under the
+        # same subscription are therefore always the same logical request,
+        # which is why admission needs no separate request fingerprint.
         idempotency_key = request.headers.get("Idempotency-Key")
         if idempotency_key is not None:
             idempotency_key = idempotency_key.strip()
             if not idempotency_key or len(idempotency_key) > 200:
                 return jsonify({"error": "Idempotency-Key must be between 1 and 200 characters"}), 400
-        request_fingerprint = hashlib.sha256(
-            json.dumps({"subscription_id": subscription_id}, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        ).hexdigest()
         scan_id = str(uuid.uuid4())
 
         try:
@@ -133,11 +133,8 @@ def trigger_scan():
                 scan_id,
                 subscription_id,
                 idempotency_key=idempotency_key,
-                request_fingerprint=request_fingerprint,
                 max_scans_per_hour=_configured_hourly_quota(),
             )
-        except ScanAdmissionConflict:
-            return jsonify({"error": "Idempotency-Key is already associated with a different request."}), 409
         except ScanQuotaExceeded:
             return jsonify({"error": "Scan quota exceeded for this subscription."}), 429
         except Exception as exc:
