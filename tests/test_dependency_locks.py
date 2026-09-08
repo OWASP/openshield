@@ -49,6 +49,10 @@ def test_ci_checks_locks_and_installs_the_development_lock():
     rule_steps = "\n".join(step.get("run", "") for step in jobs["rule-validation"]["steps"])
     assert "scripts/lock_dependencies.py --check" in rule_steps
     assert "--require-hashes --only-binary=:all: -r requirements-lock.txt" in rule_steps
+    lock_step = next(step for step in jobs["rule-validation"]["steps"] if step["name"] == "Verify dependency locks")
+    assert 'LOCK_TOOL_ENV="${RUNNER_TEMP}/openshield-lock-tools"' in lock_step["run"]
+    assert 'python -m venv "$LOCK_TOOL_ENV"' in lock_step["run"]
+    assert "python -m venv .lock-tools" not in lock_step["run"]
     for job in ("lint", "backend-tests"):
         steps = "\n".join(step.get("run", "") for step in jobs[job]["steps"])
         assert "--require-hashes --only-binary=:all: -r requirements-dev.txt" in steps

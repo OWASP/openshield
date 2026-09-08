@@ -61,9 +61,10 @@ jobs:
 
       - name: Verify dependency locks
         run: |
-          python -m venv .lock-tools
-          .lock-tools/bin/python -m pip install --require-hashes --only-binary=:all: -r requirements-lock.txt
-          .lock-tools/bin/python scripts/lock_dependencies.py --check
+          LOCK_TOOL_ENV="${RUNNER_TEMP}/openshield-lock-tools"
+          python -m venv "$LOCK_TOOL_ENV"
+          "$LOCK_TOOL_ENV/bin/python" -m pip install --require-hashes --only-binary=:all: -r requirements-lock.txt
+          "$LOCK_TOOL_ENV/bin/python" scripts/lock_dependencies.py --check
 
       # ── CHECK 1: Python syntax on all rule files ───────────────────────
       - name: Python syntax check (rule files)
