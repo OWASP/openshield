@@ -36,10 +36,6 @@ class LostLease(RuntimeError):
     """Raised when a worker no longer owns the scan it is trying to update."""
 
 
-class ScanAdmissionConflict(RuntimeError):
-    """Raised when an idempotency key is reused for different scan semantics."""
-
-
 class ScanQuotaExceeded(RuntimeError):
     """Raised when an explicitly configured subscription scan quota is exhausted."""
 
@@ -937,7 +933,6 @@ class DatabaseManager:
         subscription_id: str,
         *,
         idempotency_key: Optional[str] = None,
-        request_fingerprint: Optional[str] = None,
         max_scans_per_hour: int = 0,
     ) -> tuple[Dict[str, Any], bool]:
         """Atomically admit one scan or return its durable logical predecessor.
@@ -962,11 +957,11 @@ class DatabaseManager:
                     )
                     existing = cur.fetchone()
                     if existing:
-                        existing = dict(existing)
-                        if existing.get("request_fingerprint") != request_fingerprint:
-                            raise ScanAdmissionConflict("Idempotency-Key was reused with different request semantics")
+                        # The key is scoped to this subscription and a trigger
+                        # carries no other semantic input, so a hit here is
+                        # always a replay of the same logical request.
                         conn.commit()
-                        return existing, False
+                        return dict(existing), False
 
                 cur.execute(
                     """
@@ -1002,9 +997,9 @@ class DatabaseManager:
                     """
                     INSERT INTO scans (
                         scan_id, subscription_id, started_at, status, attempt_count,
-                        idempotency_key, request_fingerprint
+                        idempotency_key
                     )
-                    VALUES (%s, %s, %s, 'pending', 0, %s, %s)
+                    VALUES (%s, %s, %s, 'pending', 0, %s)
                     RETURNING *
                     """,
                     (
@@ -1012,7 +1007,6 @@ class DatabaseManager:
                         subscription_id,
                         datetime.now(timezone.utc).isoformat(),
                         idempotency_key,
-                        request_fingerprint,
                     ),
                 )
                 admitted = dict(cur.fetchone())

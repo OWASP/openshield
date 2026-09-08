@@ -63,7 +63,6 @@ def _assert_one_active_scan_per_subscription() -> None:
 def upgrade() -> None:
     """Persist idempotency semantics and prevent more than one active scan."""
     op.add_column("scans", sa.Column("idempotency_key", sa.Text(), nullable=True))
-    op.add_column("scans", sa.Column("request_fingerprint", sa.Text(), nullable=True))
 
     # Checked before either index is built so a blocked upgrade leaves the
     # schema exactly as it was, with the added columns unused and harmless.
@@ -96,5 +95,4 @@ def downgrade() -> None:
     with op.get_context().autocommit_block():
         op.execute(f"DROP INDEX CONCURRENTLY IF EXISTS {_ACTIVE_INDEX}")
         op.execute(f"DROP INDEX CONCURRENTLY IF EXISTS {_KEY_INDEX}")
-    op.drop_column("scans", "request_fingerprint")
     op.drop_column("scans", "idempotency_key")

@@ -215,7 +215,7 @@ Request body (optional — falls back to `AZURE_SUBSCRIPTION_ID`):
 Admission is serialized per subscription and enforced by the database, so concurrent and replayed triggers converge on one logical scan rather than creating duplicates:
 
 - **At most one active scan per subscription.** While a `pending` or `running` scan exists, a further trigger returns that existing scan instead of queueing another.
-- **`Idempotency-Key` (optional request header, 1–200 characters).** A repeat of the same key for the same subscription returns the original scan. The key is scoped to the subscription; the same key under a different subscription is a different request.
+- **`Idempotency-Key` (optional request header, 1–200 characters).** A repeat of the same key for the same subscription returns the original scan. The key is scoped to the subscription; the same key under a different subscription is a different request. A trigger carries no request input other than `subscription_id`, so a key that resolves to an existing scan is always a replay of the same logical request and there is no changed-payload conflict to report.
 - **`OPENSHIELD_MAX_SCANS_PER_SUBSCRIPTION_PER_HOUR`** adds an optional hourly admission quota. Unset or `0` (the default) applies no time-window limit; the one-active-scan rule still applies.
 
 ### Responses
@@ -226,7 +226,6 @@ Admission is serialized per subscription and enforced by the database, so concur
 | `200 OK` | The request resolved to an existing logical scan — an `Idempotency-Key` replay of the same request, or a trigger while a scan is already active for the subscription. | `scan_id`, `status` (the existing scan's `pending`/`running`), `message: "Existing logical scan returned."` |
 | `400 Bad Request` | Malformed body, invalid `subscription_id`, missing subscription, or an `Idempotency-Key` outside 1–200 characters. | `error` |
 | `403 Forbidden` | `subscription_id` is not on the `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS` allowlist. | `error` |
-| `409 Conflict` | The `Idempotency-Key` was reused with a different request payload. | `error: "Idempotency-Key is already associated with a different request."` |
 | `429 Too Many Requests` | The configured hourly quota for this subscription is exhausted. | `error: "Scan quota exceeded for this subscription."` |
 
 New scan (`202`):
