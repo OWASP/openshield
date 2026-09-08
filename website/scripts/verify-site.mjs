@@ -53,7 +53,7 @@ for (const file of htmlFiles) {
     if (/\bsrc=/i.test(attrs)) continue;
     const type = attrs.match(/\btype=["']?([^"'\s>]+)/i)?.[1]?.toLowerCase() || '';
     if (type === 'application/json' || type === 'application/ld+json' || type === 'speculationrules') continue;
-    if (body) failures.push(`${relative} has an inline <script> that script-src 'self' will block on the deployed site`);
+    if (body) failures.push(`${relative} has an inline script element that script-src 'self' will block on the deployed site`);
   }
   // Only directives a <meta http-equiv> CSP actually enforces. frame-ancestors
   // is deliberately absent: browsers ignore it in a meta policy, and GitHub
