@@ -39,7 +39,29 @@ for (const file of htmlFiles) {
   if (!scriptPolicy || scriptPolicy.includes('unsafe-inline')) {
     failures.push(`${relative} allows inline script execution in its Content-Security-Policy`);
   }
-  for (const directive of ['object-src \'none\'', 'base-uri \'self\'', 'form-action \'self\'', 'frame-ancestors \'self\'']) {
+  // script-src 'self' with no 'unsafe-inline'/nonce/hash means the browser
+  // silently blocks any inline <script> on the deployed site. Checking the CSP
+  // string alone would pass while the page is actually broken, so assert the
+  // built HTML carries no executable inline script - every script must be an
+  // external same-origin file (data blocks like application/json and
+  // application/ld+json are not executed and are fine). Astro is configured
+  // (build.assetsInlineLimit: 0) to emit hoisted scripts as files for exactly
+  // this reason.
+  for (const tag of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    const attrs = tag[1];
+    const body = tag[2].trim();
+    if (/\bsrc=/i.test(attrs)) continue;
+    const type = attrs.match(/\btype=["']?([^"'\s>]+)/i)?.[1]?.toLowerCase() || '';
+    if (type === 'application/json' || type === 'application/ld+json' || type === 'speculationrules') continue;
+    if (body) failures.push(`${relative} has an inline <script> that script-src 'self' will block on the deployed site`);
+  }
+  // Only directives a <meta http-equiv> CSP actually enforces. frame-ancestors
+  // is deliberately absent: browsers ignore it in a meta policy, and GitHub
+  // Pages cannot set the HTTP response header that would make it effective, so
+  // asserting its presence here would report clickjacking protection that does
+  // not exist. That protection has to come from a real edge/header if the site
+  // ever moves to configurable hosting.
+  for (const directive of ['object-src \'none\'', 'base-uri \'self\'', 'form-action \'self\'']) {
     if (!csp.includes(directive)) failures.push(`${relative} is missing CSP directive ${directive}`);
   }
   for (const match of html.matchAll(/href="([^"]+)"/g)) {
