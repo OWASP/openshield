@@ -2,6 +2,7 @@
 
 import os
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -89,6 +90,28 @@ class ScanRows:
                     (scan_id,),
                 )
                 return cur.fetchall()
+
+    def make_stale(self, scan_id: str, attempt_count) -> None:
+        """Put a scan into 'running' with an expired lease and a chosen budget.
+
+        attempt_count=None reproduces a row that predates the column.
+        """
+        with psycopg2.connect(self.dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE scans
+                    SET status = 'running',
+                        attempt_count = %s,
+                        fencing_token = 5,
+                        lease_owner = 'dead-worker',
+                        claimed_at = CURRENT_TIMESTAMP - INTERVAL '1 hour',
+                        last_heartbeat_at = CURRENT_TIMESTAMP - INTERVAL '1 hour',
+                        lease_expires_at = CURRENT_TIMESTAMP - INTERVAL '1 second'
+                    WHERE scan_id = %s
+                    """,
+                    (attempt_count, scan_id),
+                )
 
     def rearm(self, scan_id: str, owner: str, fencing_token: int) -> None:
         """Simulate duplicate delivery of the same claimed result for persistence tests."""
@@ -476,3 +499,122 @@ def test_replayed_delivery_keeps_evaluations_linked_to_the_same_finding(scan_row
     # finding id: the upsert reused the row instead of deleting and recreating.
     assert first == second
     assert scan_rows.finding_count(scan_id) == 1
+
+
+# ── Stale recovery is atomic, non-blocking, and counts attempts consistently ──
+
+
+def test_concurrent_stale_recovery_transitions_each_scan_once(scan_rows):
+    """Two workers contending over one stale scan: exactly one recovers it.
+
+    Both threads meet at a barrier so they genuinely overlap inside
+    recover_stale_scans rather than running one after the other.
+    """
+    scan_id, _ = scan_rows.create()
+    scan_rows.make_stale(scan_id, 1)
+
+    barrier = threading.Barrier(2)
+    recovered: dict[str, int] = {}
+
+    def worker(name: str) -> None:
+        db = DatabaseManager(scan_rows.dsn)
+        try:
+            barrier.wait()
+            recovered[name] = db.recover_stale_scans(max_attempts=3)
+        finally:
+            db.close()
+
+    threads = [threading.Thread(target=worker, args=(f"w{i}",)) for i in (1, 2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    scan = scan_rows.scan(scan_id)
+    assert scan["status"] == "pending"
+    assert scan["lease_owner"] is None
+    # The scan is requeued once, not handed to both recoverers.
+    assert sum(recovered.values()) == 1
+
+    # And the requeued scan can still only be claimed by a single owner,
+    # whose token strictly advances past the dead worker's.
+    first = _claim(scan_rows.dsn, "owner-1", scan_id)
+    second = _claim(scan_rows.dsn, "owner-2", scan_id)
+    assert first is not None and second is None
+    # The dead worker held token 5; the new owner's token strictly advances,
+    # so the old claimant's fenced writes can never be accepted again.
+    assert first["fencing_token"] > 5
+
+
+def test_stale_recovery_skips_rows_another_transaction_holds(scan_rows):
+    """One locked row must not stall recovery of every other stale scan.
+
+    recover_stale_scans runs at the top of each worker iteration, so waiting
+    on a locked row would hold up scan claiming and enrichment behind it.
+    """
+    blocked_id, _ = scan_rows.create()
+    others = [scan_rows.create()[0] for _ in range(3)]
+    for scan_id in [blocked_id, *others]:
+        scan_rows.make_stale(scan_id, 1)
+
+    holder = psycopg2.connect(scan_rows.dsn)
+    holding = threading.Event()
+    release = threading.Event()
+
+    def hold() -> None:
+        with holder.cursor() as cur:
+            cur.execute("SELECT scan_id FROM scans WHERE scan_id = %s FOR UPDATE", (blocked_id,))
+            holding.set()
+            release.wait(timeout=10)
+        holder.rollback()
+
+    thread = threading.Thread(target=hold)
+    thread.start()
+    try:
+        holding.wait(timeout=10)
+        started = time.perf_counter()
+        _recover(scan_rows.dsn)
+        elapsed = time.perf_counter() - started
+    finally:
+        release.set()
+        thread.join()
+        holder.close()
+
+    # Returned promptly instead of waiting on the lock holder.
+    assert elapsed < 2.0
+    # The unlocked scans were recovered; the locked one was left alone.
+    for scan_id in others:
+        assert scan_rows.scan(scan_id)["status"] == "pending"
+    assert scan_rows.scan(blocked_id)["status"] == "running"
+
+
+def test_recovery_retries_until_the_attempt_budget_is_actually_spent(scan_rows):
+    """attempt_count counts claims already started, and both branches agree.
+
+    The fail and retry branches previously defaulted a NULL attempt_count
+    differently (1 vs 0), so a row predating the column was retired one run
+    early instead of getting its full budget.
+    """
+    # A row from before attempt_count existed still gets its first run.
+    legacy_id, _ = scan_rows.create()
+    scan_rows.make_stale(legacy_id, None)
+    _recover(scan_rows.dsn, max_attempts=1)
+    assert scan_rows.scan(legacy_id)["status"] == "pending"
+
+    # One claim spends that budget, and only then is it terminal.
+    assert _claim(scan_rows.dsn, "worker-a", legacy_id) is not None
+    scan_rows.expire(legacy_id)
+    _recover(scan_rows.dsn, max_attempts=1)
+    assert scan_rows.scan(legacy_id)["status"] == "failed"
+
+    # The boundary holds for ordinary rows too: attempts below the limit are
+    # requeued, and reaching the limit is terminal.
+    below_id, _ = scan_rows.create()
+    scan_rows.make_stale(below_id, 2)
+    _recover(scan_rows.dsn, max_attempts=3)
+    assert scan_rows.scan(below_id)["status"] == "pending"
+
+    at_limit_id, _ = scan_rows.create()
+    scan_rows.make_stale(at_limit_id, 3)
+    _recover(scan_rows.dsn, max_attempts=3)
+    assert scan_rows.scan(at_limit_id)["status"] == "failed"

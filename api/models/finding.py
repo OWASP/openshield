@@ -1147,48 +1147,62 @@ class DatabaseManager:
     def recover_stale_scans(self, max_attempts: int = 3) -> int:
         """Recover scans only after their renewable leases have expired.
 
-        Stale scans are returned to pending while retry attempts remain. Once a
-        scan has reached max_attempts, it is marked failed so it cannot loop
-        forever on bad credentials or persistent Azure errors.
+        ``attempt_count`` counts claims that have already been *started*:
+        :meth:`claim_next_pending_scan` increments it as part of the same
+        statement that takes the lease, so a scan being executed for the
+        first time already reads 1.  A stale scan is therefore returned to
+        ``pending`` while ``attempt_count < max_attempts`` and is failed once
+        it reaches that limit, giving every scan exactly ``max_attempts``
+        executions.  Rows predating the column read NULL and are treated as
+        zero attempts so they get the full budget rather than being retired a
+        run early.
+
+        Selection and transition are one statement.  The CTE takes
+        ``FOR UPDATE SKIP LOCKED`` so a row another worker is already
+        recovering (or executing) is stepped over instead of waited on: this
+        runs at the top of every worker iteration, so blocking here would
+        stall claiming and enrichment behind one stuck row.
         """
         conn = self._get_conn()
         try:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    UPDATE scans
-                    SET status = 'failed',
+                    WITH stale AS (
+                        SELECT scan_id, COALESCE(attempt_count, 0) AS attempts
+                        FROM scans
+                        WHERE status = 'running'
+                          AND lease_expires_at < CURRENT_TIMESTAMP
+                        ORDER BY lease_expires_at ASC
+                        FOR UPDATE SKIP LOCKED
+                    )
+                    UPDATE scans AS s
+                    SET status = CASE WHEN stale.attempts >= %(max_attempts)s THEN 'failed' ELSE 'pending' END,
+                        claimed_at = CASE WHEN stale.attempts >= %(max_attempts)s THEN s.claimed_at END,
+                        last_heartbeat_at = CASE
+                            WHEN stale.attempts >= %(max_attempts)s THEN s.last_heartbeat_at
+                        END,
                         lease_owner = NULL,
                         lease_expires_at = NULL,
-                        error_message = 'Scan exceeded maximum retry attempts after worker interruption.'
-                    WHERE status = 'running'
-                      AND COALESCE(attempt_count, 1) >= %s
-                      AND lease_expires_at < CURRENT_TIMESTAMP
+                        error_message = CASE
+                            WHEN stale.attempts >= %(max_attempts)s
+                            THEN 'Scan exceeded maximum retry attempts after worker interruption.'
+                            ELSE 'Scan worker interrupted before completion. Queued for retry.'
+                        END
+                    FROM stale
+                    WHERE s.scan_id = stale.scan_id
+                    RETURNING s.status
                     """,
-                    (max_attempts,),
+                    {"max_attempts": max_attempts},
                 )
-                failed_count = cur.rowcount
-
-                cur.execute(
-                    """
-                    UPDATE scans
-                    SET status = 'pending',
-                        claimed_at = NULL,
-                        lease_owner = NULL,
-                        lease_expires_at = NULL,
-                        error_message = 'Scan worker interrupted before completion. Queued for retry.'
-                    WHERE status = 'running'
-                      AND COALESCE(attempt_count, 0) < %s
-                      AND lease_expires_at < CURRENT_TIMESTAMP
-                    """,
-                    (max_attempts,),
-                )
-                retry_count = cur.rowcount
+                statuses = [row[0] for row in cur.fetchall()]
             conn.commit()
         except Exception:
             self.rollback(conn)
             raise
-        total_count = failed_count + retry_count
+        failed_count = statuses.count("failed")
+        retry_count = statuses.count("pending")
+        total_count = len(statuses)
         if total_count > 0:
             logger.info(
                 "Recovered %d stale 'running' scans (%d retried, %d failed)",
