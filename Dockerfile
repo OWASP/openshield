@@ -11,7 +11,8 @@ RUN pip install --no-cache-dir --upgrade \
         pip==26.1.2 \
         setuptools==83.0.0 \
         wheel==0.46.3 && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --require-hashes --only-binary=:all: -r requirements.txt && \
+    pip check
 
 COPY . .
 

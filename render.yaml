@@ -36,7 +36,7 @@ services:
     runtime: python
     branch: dev
     autoDeployTrigger: "off"
-    buildCommand: pip install -r requirements.txt
+    buildCommand: "pip install --require-hashes --only-binary=:all: -r requirements.txt && pip check"
     startCommand: ./startup.sh
     healthCheckPath: /health
     envVars:
@@ -68,7 +68,7 @@ services:
     runtime: python
     branch: dev
     autoDeployTrigger: "off"
-    buildCommand: pip install -r requirements.txt
+    buildCommand: "pip install --require-hashes --only-binary=:all: -r requirements.txt && pip check"
     startCommand: python -m scanner.worker
     envVars:
       - key: OPENSHIELD_ENV
@@ -98,7 +98,7 @@ services:
     runtime: python
     branch: main
     autoDeployTrigger: "off"
-    buildCommand: pip install -r requirements.txt
+    buildCommand: "pip install --require-hashes --only-binary=:all: -r requirements.txt && pip check"
     startCommand: ./startup.sh
     healthCheckPath: /health
     envVars:
@@ -130,7 +130,7 @@ services:
     runtime: python
     branch: main
     autoDeployTrigger: "off"
-    buildCommand: pip install -r requirements.txt
+    buildCommand: "pip install --require-hashes --only-binary=:all: -r requirements.txt && pip check"
     startCommand: python -m scanner.worker
     envVars:
       - key: OPENSHIELD_ENV
