@@ -15,12 +15,30 @@ def _db(dsn="postgresql://mock/mock"):
     return db
 
 
-def _mock_cursor(fetchone_return=None, fetchall_return=None):
+def _mock_cursor(fetchone_return=None, fetchall_return=None, evaluation_rows=None):
+    """A context-manager cursor mock.
+
+    get_compliance_score() issues, in order: a scan-lookup (fetchone), a
+    findings-by-severity query, then a rule_evaluations query. fetchall is
+    routed by the SQL of the most recent execute() so the findings rows and
+    the evaluation rows (rule_id, status) tuples don't get crossed.
+    """
     cur = MagicMock()
     cur.__enter__ = lambda s: s
     cur.__exit__ = MagicMock(return_value=False)
     cur.fetchone.return_value = fetchone_return
-    cur.fetchall.return_value = fetchall_return or []
+    findings = fetchall_return or []
+    evaluations = evaluation_rows or []
+    state = {"last_sql": ""}
+
+    def _execute(sql, *args, **kwargs):
+        state["last_sql"] = sql
+
+    def _fetchall():
+        return evaluations if "rule_evaluations" in state["last_sql"] else findings
+
+    cur.execute.side_effect = _execute
+    cur.fetchall.side_effect = _fetchall
     return cur
 
 
@@ -98,10 +116,14 @@ def test_unknown_framework_returns_error():
 # ── PASS / FAIL / exclusion semantics, using a synthetic framework file ────
 
 
-def _patched_db_with_framework(tmp_path, controls, scan_row, finding_rows):
+def _patched_db_with_framework(tmp_path, controls, scan_row, finding_rows, evaluation_rows=None):
     db = _db()
     conn = MagicMock()
-    cur = _mock_cursor(fetchone_return=scan_row, fetchall_return=finding_rows)
+    cur = _mock_cursor(
+        fetchone_return=scan_row,
+        fetchall_return=finding_rows,
+        evaluation_rows=evaluation_rows,
+    )
     conn.cursor.return_value = cur
 
     framework_file = "test_fw.json"
@@ -110,10 +132,14 @@ def _patched_db_with_framework(tmp_path, controls, scan_row, finding_rows):
     return db, conn, framework_file
 
 
-def test_direct_control_with_no_findings_is_pass(tmp_path, monkeypatch):
+def test_direct_control_with_pass_evaluation_is_pass(tmp_path, monkeypatch):
+    """Status is evaluation-derived (#263/#321): a PASS comes from a persisted
+    rule_evaluations PASS row, not from the mere absence of a finding."""
     controls = {"AZ-TEST-001": _control("1.1", "direct")}
     scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
-    db, conn, framework_file = _patched_db_with_framework(tmp_path, controls, scan_row, [])
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path, controls, scan_row, [], evaluation_rows=[("AZ-TEST-001", "PASS")]
+    )
 
     monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
     monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
@@ -127,11 +153,79 @@ def test_direct_control_with_no_findings_is_pass(tmp_path, monkeypatch):
     assert result["score_percent"] == 100
 
 
-def test_control_with_finding_is_fail(tmp_path, monkeypatch):
+def test_direct_control_with_no_evaluation_row_is_unknown_not_pass(tmp_path, monkeypatch):
+    """A completed scan that produced no finding AND no rule_evaluations row
+    for a control means the rule never actually ran against it (a legacy rule
+    not migrated to evaluate(), or one that was skipped). That must report
+    UNKNOWN, never a PASS inferred from absent findings (#263)."""
+    controls = {"AZ-TEST-001": _control("1.1", "direct")}
+    scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
+    db, conn, framework_file = _patched_db_with_framework(tmp_path, controls, scan_row, [], evaluation_rows=[])
+
+    monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
+    monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        result = db.get_compliance_score("testfw")
+
+    assert result["controls"][0]["status"] == "UNKNOWN"
+    assert result["passed"] == 0
+    assert result["unknown"] == 1
+    # UNKNOWN stays in the denominator, so lost evidence lowers the score.
+    assert result["in_scope_controls"] == 1
+    assert result["score_percent"] == 0
+
+
+def test_persisted_unknown_and_error_evaluations_are_reported_not_promoted(tmp_path, monkeypatch):
+    """A control whose rule persisted an UNKNOWN or ERROR evaluation must be
+    reported as such and must never count as a pass, even with no finding."""
+    controls = {
+        "AZ-TEST-001": _control("1.1", "direct"),  # PASS row
+        "AZ-TEST-002": _control("1.2", "direct"),  # UNKNOWN row
+        "AZ-TEST-003": _control("1.3", "direct"),  # ERROR row
+    }
+    scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path,
+        controls,
+        scan_row,
+        [],
+        evaluation_rows=[
+            ("AZ-TEST-001", "PASS"),
+            ("AZ-TEST-002", "UNKNOWN"),
+            ("AZ-TEST-003", "ERROR"),
+        ],
+    )
+
+    monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
+    monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        result = db.get_compliance_score("testfw")
+
+    statuses = {c["rule_id"]: c["status"] for c in result["controls"]}
+    assert statuses == {"AZ-TEST-001": "PASS", "AZ-TEST-002": "UNKNOWN", "AZ-TEST-003": "ERROR"}
+    assert result["passed"] == 1
+    assert result["unknown"] == 1
+    assert result["error"] == 1
+    # All three are in scope; only one passes.
+    assert result["in_scope_controls"] == 3
+    assert result["score_percent"] == 33
+
+
+def test_worst_resource_status_wins_for_a_rule(tmp_path, monkeypatch):
+    """Several resource-level rows for one rule roll up with FAIL beating
+    UNKNOWN beating PASS - one bad resource is never outvoted."""
     controls = {"AZ-TEST-001": _control("1.1", "direct")}
     scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
     finding_rows = [("AZ-TEST-001", "HIGH", "Storage", 1)]
-    db, conn, framework_file = _patched_db_with_framework(tmp_path, controls, scan_row, finding_rows)
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path,
+        controls,
+        scan_row,
+        finding_rows,
+        evaluation_rows=[("AZ-TEST-001", "PASS"), ("AZ-TEST-001", "FAIL"), ("AZ-TEST-001", "PASS")],
+    )
 
     monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
     monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
@@ -140,6 +234,25 @@ def test_control_with_finding_is_fail(tmp_path, monkeypatch):
         result = db.get_compliance_score("testfw")
 
     assert result["controls"][0]["status"] == "FAIL"
+    assert result["controls"][0]["severity"] == "HIGH"
+
+
+def test_control_with_finding_is_fail(tmp_path, monkeypatch):
+    controls = {"AZ-TEST-001": _control("1.1", "direct")}
+    scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
+    finding_rows = [("AZ-TEST-001", "HIGH", "Storage", 1)]
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path, controls, scan_row, finding_rows, evaluation_rows=[("AZ-TEST-001", "FAIL")]
+    )
+
+    monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
+    monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        result = db.get_compliance_score("testfw")
+
+    assert result["controls"][0]["status"] == "FAIL"
+    assert result["controls"][0]["severity"] == "HIGH"
     assert result["passed"] == 0
     assert result["failed"] == 1
     assert result["score_percent"] == 0
@@ -154,7 +267,13 @@ def test_not_applicable_and_organizational_excluded_from_denominator(tmp_path, m
     }
     scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
     finding_rows = [("AZ-TEST-002", "HIGH", "Storage", 1)]
-    db, conn, framework_file = _patched_db_with_framework(tmp_path, controls, scan_row, finding_rows)
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path,
+        controls,
+        scan_row,
+        finding_rows,
+        evaluation_rows=[("AZ-TEST-001", "PASS"), ("AZ-TEST-002", "FAIL")],
+    )
 
     monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
     monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
@@ -177,25 +296,30 @@ def test_not_applicable_and_organizational_excluded_from_denominator(tmp_path, m
     assert result["score_percent"] == 50
 
 
-def test_rule_that_did_not_complete_is_not_evaluated_not_pass(tmp_path, monkeypatch):
-    """A rule the scan engine recorded as failed (raised, or returned
-    malformed data - scanner/engine.py's failed_rule_ids) must not be read
-    as a PASS just because it produced no findings. It's excluded from the
-    denominator as NOT_EVALUATED instead, the same way not_applicable/
-    organizational controls are, but for a different reason: this is
-    missing evidence, not a control the mapping pack says a scan can't
-    establish (issue #302 item 4)."""
+def test_rule_that_did_not_complete_is_error_not_pass(tmp_path, monkeypatch):
+    """A rule the scan engine recorded as failed to complete (raised, or
+    returned malformed data - scanner/engine.py's failed_rule_ids) must not be
+    read as a PASS just because it produced no findings. It is forced to ERROR,
+    which stays in the score denominator, so a rule that could not run lowers
+    the score rather than silently shrinking the base it is measured against
+    (issue #302 item 4 / #263)."""
     controls = {
-        "AZ-TEST-001": _control("1.1", "direct"),  # ran clean -> PASS
-        "AZ-TEST-002": _control("1.2", "direct"),  # ran, found a finding -> FAIL
-        "AZ-TEST-003": _control("1.3", "direct"),  # never completed -> NOT_EVALUATED
+        "AZ-TEST-001": _control("1.1", "direct"),  # PASS evaluation
+        "AZ-TEST-002": _control("1.2", "direct"),  # FAIL evaluation + finding
+        "AZ-TEST-003": _control("1.3", "direct"),  # never completed -> ERROR
     }
     scan_row = {
         "scan_id": "scan-1",
         "compliance_mapping_snapshot": {"_scan_rule_outcomes": {"failed_rule_ids": ["AZ-TEST-003"]}},
     }
     finding_rows = [("AZ-TEST-002", "HIGH", "Storage", 1)]
-    db, conn, framework_file = _patched_db_with_framework(tmp_path, controls, scan_row, finding_rows)
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path,
+        controls,
+        scan_row,
+        finding_rows,
+        evaluation_rows=[("AZ-TEST-001", "PASS"), ("AZ-TEST-002", "FAIL")],
+    )
 
     monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
     monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
@@ -206,28 +330,31 @@ def test_rule_that_did_not_complete_is_not_evaluated_not_pass(tmp_path, monkeypa
     statuses = {c["rule_id"]: c["status"] for c in result["controls"]}
     assert statuses["AZ-TEST-001"] == "PASS"
     assert statuses["AZ-TEST-002"] == "FAIL"
-    assert statuses["AZ-TEST-003"] == "NOT_EVALUATED"
+    assert statuses["AZ-TEST-003"] == "ERROR"
 
     assert result["total_controls"] == 3
-    # AZ-TEST-003 is excluded from the denominator like not_applicable/
-    # organizational controls, so in_scope is 2 (AZ-TEST-001, AZ-TEST-002).
-    assert result["excluded_controls"] == 1
-    assert result["in_scope_controls"] == 2
+    # ERROR stays in the denominator (unlike not_applicable/organizational),
+    # so all three controls are in scope and only one passes.
+    assert result["excluded_controls"] == 0
+    assert result["in_scope_controls"] == 3
     assert result["passed"] == 1
     assert result["failed"] == 1
-    assert result["score_percent"] == 50
+    assert result["error"] == 1
+    assert result["score_percent"] == 33
 
 
 def test_failed_rule_ids_from_an_older_scan_do_not_leak_into_a_later_ones_scoring(tmp_path, monkeypatch):
     """_scan_rule_outcomes is read from the latest scan's own snapshot only -
-    a rule that failed on a previous scan but completed cleanly on the
-    latest one must score PASS, not get stuck as NOT_EVALUATED forever."""
+    a rule that failed on a previous scan but has a clean PASS evaluation on
+    the latest one must score PASS, not get stuck as ERROR forever."""
     controls = {"AZ-TEST-001": _control("1.1", "direct")}
     # The latest scan's snapshot has no _scan_rule_outcomes at all (it
     # completed with no rule failures), even though an earlier scan might
     # have recorded AZ-TEST-001 as failed.
     scan_row = {"scan_id": "scan-2", "compliance_mapping_snapshot": {}}
-    db, conn, framework_file = _patched_db_with_framework(tmp_path, controls, scan_row, [])
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path, controls, scan_row, [], evaluation_rows=[("AZ-TEST-001", "PASS")]
+    )
 
     monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
     monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
@@ -244,7 +371,9 @@ def test_ok_status_and_score_present_when_controls_are_in_scope(tmp_path, monkey
     happening to be non-null."""
     controls = {"AZ-TEST-001": _control("1.1", "direct")}
     scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
-    db, conn, framework_file = _patched_db_with_framework(tmp_path, controls, scan_row, [])
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path, controls, scan_row, [], evaluation_rows=[("AZ-TEST-001", "PASS")]
+    )
 
     monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
     monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
@@ -431,7 +560,9 @@ def test_mapping_update_after_scan_does_not_change_that_scans_reported_mapping(t
     _write_framework(tmp_path, framework_file, v2_controls, mapping_pack_version="2.0.0")
 
     scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": v1_snapshot}
-    db, conn, _ = _patched_db_with_framework(tmp_path, v2_controls, scan_row, [])
+    db, conn, _ = _patched_db_with_framework(
+        tmp_path, v2_controls, scan_row, [], evaluation_rows=[("AZ-TEST-001", "PASS")]
+    )
 
     with patch.object(db, "_get_conn", return_value=conn):
         result = db.get_compliance_score("testfw")
@@ -572,8 +703,8 @@ def test_save_scan_persists_compliance_mapping_snapshot(tmp_path, monkeypatch):
 
 def test_save_scan_records_failed_rule_ids_into_snapshot(tmp_path, monkeypatch):
     """scanner/engine.py's failed_rule_ids must reach the persisted snapshot
-    under _scan_rule_outcomes, so get_compliance_score() can later exclude
-    those rules as NOT_EVALUATED instead of reading them as PASS."""
+    under _scan_rule_outcomes, so get_compliance_score() can later force
+    those rules to ERROR instead of reading them as PASS."""
     for key, filename in finding_module.FRAMEWORK_FILE_MAP.items():
         _write_framework(tmp_path, filename, {})
     monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
@@ -666,12 +797,13 @@ def test_save_scan_upsert_refreshes_scan_rule_outcomes_on_every_write(tmp_path, 
 
 def test_get_compliance_score_reflects_retry_that_clears_a_previously_failed_rule(tmp_path, monkeypatch):
     """Mirrors the row state across a replay: the upsert's jsonb merge keeps
-    attempt 1's framework provenance but replaces _scan_rule_outcomes with
-    whichever attempt actually wrote the current row. A rule that failed on
-    attempt 1 and ran cleanly on a retry must stop reading as NOT_EVALUATED
-    once that merge has happened - not keep reporting the stale first-attempt
-    failure forever. Also proves the reverse: a rule that passed attempt 1
-    and failed on a retry must not keep silently scoring as PASS."""
+    attempt 1's framework provenance but replaces _scan_rule_outcomes (and the
+    rule_evaluations rows) with whichever attempt actually wrote the current
+    row. A rule that failed on attempt 1 and ran cleanly on a retry must stop
+    reading as ERROR once that merge has happened - not keep reporting the
+    stale first-attempt failure forever. Also proves the reverse: a rule that
+    passed attempt 1 and failed on a retry must not keep silently scoring as
+    PASS."""
     controls = {"AZ-TEST-001": _control("1.1", "direct")}
     provenance = {
         "framework": "Test Framework",
@@ -694,16 +826,24 @@ def test_get_compliance_score_reflects_retry_that_clears_a_previously_failed_rul
     after_retry_clean = {"testfw": provenance}
 
     db, conn, framework_file = _patched_db_with_framework(
-        tmp_path, controls, {"scan_id": "scan-1", "compliance_mapping_snapshot": after_attempt_1}, []
+        tmp_path,
+        controls,
+        {"scan_id": "scan-1", "compliance_mapping_snapshot": after_attempt_1},
+        [],
+        evaluation_rows=[],
     )
     monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
     monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
     with patch.object(db, "_get_conn", return_value=conn):
         result = db.get_compliance_score("testfw")
-    assert result["controls"][0]["status"] == "NOT_EVALUATED"
+    assert result["controls"][0]["status"] == "ERROR"
 
     db2, conn2, _ = _patched_db_with_framework(
-        tmp_path, controls, {"scan_id": "scan-1", "compliance_mapping_snapshot": after_retry_clean}, []
+        tmp_path,
+        controls,
+        {"scan_id": "scan-1", "compliance_mapping_snapshot": after_retry_clean},
+        [],
+        evaluation_rows=[("AZ-TEST-001", "PASS")],
     )
     with patch.object(db2, "_get_conn", return_value=conn2):
         result2 = db2.get_compliance_score("testfw")
@@ -714,18 +854,26 @@ def test_get_compliance_score_reflects_retry_that_clears_a_previously_failed_rul
     after_retry_failed = {"testfw": provenance, "_scan_rule_outcomes": {"failed_rule_ids": ["AZ-TEST-001"]}}
 
     db3, conn3, _ = _patched_db_with_framework(
-        tmp_path, controls, {"scan_id": "scan-1", "compliance_mapping_snapshot": after_attempt_1_clean}, []
+        tmp_path,
+        controls,
+        {"scan_id": "scan-1", "compliance_mapping_snapshot": after_attempt_1_clean},
+        [],
+        evaluation_rows=[("AZ-TEST-001", "PASS")],
     )
     with patch.object(db3, "_get_conn", return_value=conn3):
         result3 = db3.get_compliance_score("testfw")
     assert result3["controls"][0]["status"] == "PASS"
 
     db4, conn4, _ = _patched_db_with_framework(
-        tmp_path, controls, {"scan_id": "scan-1", "compliance_mapping_snapshot": after_retry_failed}, []
+        tmp_path,
+        controls,
+        {"scan_id": "scan-1", "compliance_mapping_snapshot": after_retry_failed},
+        [],
+        evaluation_rows=[],
     )
     with patch.object(db4, "_get_conn", return_value=conn4):
         result4 = db4.get_compliance_score("testfw")
-    assert result4["controls"][0]["status"] == "NOT_EVALUATED"
+    assert result4["controls"][0]["status"] == "ERROR"
 
 
 # ── Route-level: /api/compliance/<framework> must degrade to 200, not 500,
@@ -877,14 +1025,18 @@ def test_get_compliance_score_never_returns_another_subscriptions_scan(tmp_path,
     _write_framework(tmp_path, framework_file, controls)
     monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
 
-    # Row store keyed by subscription_id. B has a finding for AZ-TEST-001
-    # (would score FAIL); A is clean (would score PASS). "Latest overall"
-    # with no filter would be B.
+    # Row store keyed by subscription_id. B has a finding + FAIL evaluation for
+    # AZ-TEST-001 (would score FAIL); A has a clean PASS evaluation (would score
+    # PASS). "Latest overall" with no filter would be B.
     rows = {
         sub_a: {"scan_id": "scan-a", "compliance_mapping_snapshot": None},
         sub_b: {"scan_id": "scan-b", "compliance_mapping_snapshot": None},
     }
     findings_by_scan = {"scan-a": [], "scan-b": [("AZ-TEST-001", "HIGH", "Storage", 1)]}
+    evaluations_by_scan = {
+        "scan-a": [("AZ-TEST-001", "PASS")],
+        "scan-b": [("AZ-TEST-001", "FAIL")],
+    }
 
     class _TenantAwareCursor:
         def __init__(self):
@@ -904,6 +1056,8 @@ def test_get_compliance_score_never_returns_another_subscriptions_scan(tmp_path,
                 self._row = rows.get(params[0])
                 self._scan_id = self._row["scan_id"] if self._row else None
                 self._mode = "scan"
+            elif "rule_evaluations" in sql:
+                self._mode = "evaluations"
             else:
                 self._mode = "findings"
 
@@ -911,6 +1065,8 @@ def test_get_compliance_score_never_returns_another_subscriptions_scan(tmp_path,
             return self._row if self._mode == "scan" else None
 
         def fetchall(self):
+            if self._mode == "evaluations":
+                return evaluations_by_scan.get(self._scan_id, [])
             return findings_by_scan.get(self._scan_id, []) if self._mode == "findings" else []
 
     conn = MagicMock()

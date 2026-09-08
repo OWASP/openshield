@@ -283,6 +283,8 @@ Query parameters: none
 - `NO_SCAN_DATA` — no completed scan exists yet, so there is no evidence to report; `score_percent` is `null`.
 - `NO_IN_SCOPE_CONTROLS` — a completed scan exists, but every mapped control for this framework is `not_applicable`/`organizational` and excluded from the denominator; `score_percent` is `null`.
 
+Per-control `status` is evaluation-derived (issue #263): `PASS`/`FAIL`/`UNKNOWN`/`ERROR` is the rolled-up status of that rule's persisted `rule_evaluations` rows for the scan, not an inference from the mere absence of a finding. A control whose rule has no evaluation row for the scan (a legacy rule not yet migrated to `evaluate()`, or one that was skipped) is reported `UNKNOWN`. `UNKNOWN` and `ERROR` count in the `score_percent` denominator without counting as a pass, so missing or lost evidence lowers the score rather than shrinking the base it is measured against; only `not_applicable`/`organizational` controls are excluded from the denominator.
+
 Consumers must check `status` and never treat a `null` `score_percent` as `0` — a missing/excluded score is a different fact from a real, evaluated 0%.
 
 Example response (`OK`):
@@ -297,13 +299,15 @@ Example response (`OK`):
   "mapping_pack_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0 official control text. Technical-evidence mapping only; not a certification statement.",
   "mapping_pack_published": "2026-08-22",
   "scan_id": "scan-1",
-  "evaluation_basis": "PASS reflects the absence of findings for this rule in the most recent completed scan. ...",
+  "evaluation_basis": "Status is evaluation-derived: PASS/FAIL/UNKNOWN/ERROR for each control is the rolled-up status of its rule's persisted rule_evaluations rows for the most recent completed scan (issue #263). ...",
   "total_controls": 95,
   "in_scope_controls": 49,
   "excluded_controls": 46,
-  "passed": 47,
+  "passed": 45,
   "failed": 2,
-  "score_percent": 96,
+  "unknown": 2,
+  "error": 0,
+  "score_percent": 92,
   "controls": [
     {
       "rule_id": "AZ-STOR-001",
@@ -329,10 +333,10 @@ Example response (`NO_SCAN_DATA`, HTTP 200 — never 500):
   "status": "NO_SCAN_DATA",
   "message": "No completed scan is available yet, so no technical evidence exists to report against this framework.",
   "total_controls": 95,
-  "in_scope_controls": 0,
-  "excluded_controls": 0,
-  "passed": 0,
-  "failed": 0,
+  "in_scope_controls": null,
+  "excluded_controls": null,
+  "passed": null,
+  "failed": null,
   "score_percent": null,
   "controls": []
 }

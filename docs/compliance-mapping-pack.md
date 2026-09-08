@@ -101,12 +101,18 @@ a `"reviewed"` entry missing either field.
 
 ## What this does not do
 
-- It does not implement per-resource evaluation tracking. `PASS` currently
-  means "no findings for this rule in the most recent completed scan," not
-  "this rule was confirmed to run successfully against every applicable
-  resource." An errored or skipped rule cannot yet be distinguished from a
-  clean pass — that requires the persisted rule-evaluation contract tracked
-  in issue #263. `get_compliance_score()`'s `evaluation_basis` field states
-  this limitation on every response.
+- It does not yet implement full per-resource evaluation tracking. Per-control
+  `status` is evaluation-derived: it is the rolled-up status of that rule's
+  persisted `rule_evaluations` rows for the most recent completed scan (the
+  contract from issue #263). A rule with no evaluation row for the scan — a
+  legacy rule not yet migrated to `evaluate()`, or one that was skipped — is
+  reported `UNKNOWN`, never a `PASS` inferred from the absence of a finding;
+  a rule the engine recorded as failing to complete is forced to `ERROR`.
+  `UNKNOWN` and `ERROR` stay in the `score_percent` denominator. What is still
+  missing is per-resource granularity within a rule that did run: a `PASS`
+  does not yet prove the rule executed successfully against *every* applicable
+  resource (a timed-out or permission-denied result on a subset cannot be
+  distinguished from a clean pass on all of them). `get_compliance_score()`'s
+  `evaluation_basis` field states this limitation on every response.
 - It does not replace an auditor, a certification body, or a formal
   assessment. See `docs/security-requirements.md`.

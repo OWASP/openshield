@@ -20,7 +20,7 @@ from openshield.severity import (
     score_findings,
     severity_rank,
 )
-from scanner.evaluation import EvaluationStatus
+from scanner.evaluation import EvaluationStatus, aggregate_status
 
 logger = logging.getLogger(__name__)
 
@@ -329,7 +329,7 @@ class DatabaseManager:
                         -- than being frozen by the COALESCE along with the
                         -- rest of the snapshot - otherwise a rule that failed
                         -- on attempt 1 and succeeded on a retry would keep
-                        -- reading as NOT_EVALUATED forever (or the reverse).
+                        -- being forced to ERROR forever (or the reverse).
                         compliance_mapping_snapshot = COALESCE(
                             scans.compliance_mapping_snapshot, EXCLUDED.compliance_mapping_snapshot
                         ) || jsonb_build_object(
@@ -972,6 +972,29 @@ class DatabaseManager:
             )
             finding_rows = cur2.fetchall()
 
+            # Pass/fail/unknown/error status is evaluation-derived (#263/#321):
+            # it comes from rule_evaluations, never from the mere absence of a
+            # finding. A rule that was never run against this scan (a legacy
+            # rule not yet migrated to evaluate(), or one that was skipped)
+            # has no row here and is reported UNKNOWN below, not a silent PASS.
+            cur2.execute(
+                """
+                SELECT rule_id, status
+                FROM rule_evaluations
+                WHERE scan_id = %s
+                """,
+                (scan_id,),
+            )
+            evaluation_rows = cur2.fetchall()
+
+        statuses_by_rule: Dict[str, List[str]] = {}
+        for rule_id, status in evaluation_rows:
+            statuses_by_rule.setdefault(rule_id, []).append(status)
+        # FAIL beats ERROR beats UNKNOWN beats PASS beats NOT_APPLICABLE, so a
+        # single failing/erroring resource can never be outvoted by resources
+        # that happened to pass under the same rule.
+        aggregated_status = {rid: aggregate_status(sts) for rid, sts in statuses_by_rule.items()}
+
         failures: Dict[str, Dict[str, Any]] = {}
         for rule_id, raw_severity, category, resource_count in finding_rows:
             severity = normalize_severity(raw_severity)
@@ -988,37 +1011,38 @@ class DatabaseManager:
                 current["severity"] = severity
                 current["category"] = category
 
-        # Rules the scan engine could not complete for this scan (raised,
-        # or returned malformed data) - recorded by save_scan() alongside
-        # the mapping snapshot. A rule missing from findings only proves
-        # a PASS when it's not also in this set; otherwise its absence
-        # from findings means "never actually ran", not "ran and found
-        # nothing" (issue #302/#263).
+        # Rules the scan engine could not complete for this scan (raised, or
+        # returned malformed data) - recorded by save_scan() alongside the
+        # mapping snapshot. This is a supplementary signal on top of
+        # rule_evaluations: it can only ever make a control's status stricter
+        # (force ERROR), never looser, and an ERROR still counts in the
+        # denominator, so a rule that failed to run can never improve a score
+        # (issue #302/#263).
         unevaluated_rule_ids = set((snapshot.get("_scan_rule_outcomes") or {}).get("failed_rule_ids") or [])
 
         results = []
-        excluded_count = 0
         for rule_id, control in controls.items():
             mapping_type = control.get("mapping_type", "supporting")
             is_excluded = mapping_type in ("not_applicable", "organizational")
             failure = failures.get(rule_id)
             if is_excluded:
                 status = EvaluationStatus.NOT_APPLICABLE if mapping_type == "not_applicable" else "ORGANIZATIONAL"
-                excluded_count += 1
-            elif rule_id in unevaluated_rule_ids:
-                # The rule that would provide this control's evidence did not
-                # complete for this scan - its absence from findings cannot
-                # be read as a pass. Excluded from the denominator like
-                # not_applicable/organizational, but for a different reason:
-                # this is missing *evidence*, not a control the mapping pack
-                # itself says a scan can't establish.
-                status = "NOT_EVALUATED"
-                excluded_count += 1
             else:
-                # A completed scan that produced no finding for this rule, and
-                # whose engine did not record the rule as failed to run, is
-                # the absence-of-findings PASS this method reports on.
-                status = EvaluationStatus.FAIL if failure else EvaluationStatus.PASS
+                # Evaluation-derived (#263/#321). A control's status is the
+                # rolled-up status of its rule's rule_evaluations rows for
+                # this scan. No rows at all -> UNKNOWN: the rule was never
+                # actually run against this scan (a legacy rule not migrated
+                # to evaluate(), or one that was skipped), and the absence of
+                # a finding must never be promoted to a PASS on its own.
+                status = aggregated_status.get(rule_id, EvaluationStatus.UNKNOWN)
+                if rule_id in unevaluated_rule_ids and status in (
+                    EvaluationStatus.PASS,
+                    EvaluationStatus.UNKNOWN,
+                ):
+                    # The engine explicitly recorded this rule as failing to
+                    # complete for this scan; a PASS/UNKNOWN rolled up from
+                    # partial evaluation rows must not mask that.
+                    status = EvaluationStatus.ERROR
             results.append(
                 {
                     "rule_id": rule_id,
@@ -1047,17 +1071,16 @@ class DatabaseManager:
             "not_applicable": sum(
                 1 for r in results if r["status"] in (EvaluationStatus.NOT_APPLICABLE, "ORGANIZATIONAL")
             ),
-            "not_evaluated": sum(1 for r in results if r["status"] == "NOT_EVALUATED"),
         }
-        # UNKNOWN/ERROR must never improve the score: they count against the
-        # denominator (evaluated coverage) without counting as a pass.
-        # A scan exists and every control resolved, but every one of them is
-        # excluded (not_applicable/organizational) - this is a different fact
-        # from "no evidence exists at all" (NO_SCAN_DATA above), and callers
-        # must not conflate the two the way a bare `in_scope_controls: 0`
-        # would: a null score_percent alone can't say whether it's "nothing
-        # was in scope" or "not evaluated yet".
-        evaluated = total - counts["not_applicable"] - counts["not_evaluated"]
+        # Only mapping_type not_applicable/organizational controls fall outside
+        # the denominator - the mapping pack itself declares a technical scan
+        # cannot establish them. UNKNOWN and ERROR stay *in* the denominator:
+        # they never count as a pass, so lost or missing evidence lowers the
+        # score rather than silently shrinking the base it is measured against.
+        # evaluated == 0 (a scan exists but every control is excluded) is a
+        # distinct fact from "no evidence exists at all" (NO_SCAN_DATA above),
+        # so it gets its own status rather than a bare null score_percent.
+        evaluated = total - counts["not_applicable"]
         score_pct = round((counts["passed"] / evaluated) * 100) if evaluated else None
         status = "OK" if evaluated else "NO_IN_SCOPE_CONTROLS"
 
@@ -1068,20 +1091,22 @@ class DatabaseManager:
             "status": status,
             "mapping_provenance": mapping_provenance,
             "evaluation_basis": (
-                "PASS reflects the absence of findings for this rule in the most recent "
-                "completed scan, and the rule is excluded as NOT_EVALUATED rather than PASS "
-                "when the scan engine recorded that it did not complete (raised an exception "
-                "or returned malformed data) for this specific scan. It does not yet confirm "
-                "the rule executed successfully against every applicable resource within a "
-                "scan it did complete — a timed-out or permission-denied result on a subset "
-                "of resources cannot currently be distinguished from a clean pass on all of "
-                "them (full per-resource evaluation persistence is tracked in issue #263). "
-                "Controls with mapping_type not_applicable or organizational are excluded "
-                "from score_percent because a technical scan alone cannot establish them."
+                "Status is evaluation-derived: PASS/FAIL/UNKNOWN/ERROR for each control is "
+                "the rolled-up status of its rule's persisted rule_evaluations rows for the "
+                "most recent completed scan (issue #263). A rule with no evaluation row for "
+                "this scan - a legacy rule not yet migrated to evaluate(), or one that was "
+                "skipped - is reported UNKNOWN, never a PASS inferred from the mere absence "
+                "of a finding; a rule the scan engine recorded as failing to complete is "
+                "forced to ERROR. UNKNOWN and ERROR count in the score_percent denominator "
+                "without counting as a pass, so missing or lost evidence lowers the score. "
+                "Findings supply only the severity/category/affected-resource detail on "
+                "failing controls. Controls with mapping_type not_applicable or organizational "
+                "are excluded from score_percent because a technical scan alone cannot "
+                "establish them."
             ),
             "total_controls": total,
             "in_scope_controls": evaluated,
-            "excluded_controls": counts["not_applicable"] + counts["not_evaluated"],
+            "excluded_controls": counts["not_applicable"],
             "evaluated": evaluated,
             **counts,
             "score_percent": score_pct,
