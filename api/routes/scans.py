@@ -186,12 +186,14 @@ def enrich_scan(scan_id):
         if not current_scan:
             return jsonify({"error": "Scan not found"}), 404
 
-        status = current_scan.get("cve_enrichment_status")
-        if status == "COMPLETED":
-            return jsonify({"message": "Scan already enriched", "scan_id": scan_id}), 200
-        findings = db.get_findings({"scan_id": scan_id})
-        if not findings:
-            return jsonify({"error": "No findings found for this scan"}), 404
+        # Every outcome is reported in one shape by enqueue_enrichment_job,
+        # including the already-enriched case, so there is no second response
+        # contract for a completed scan. The findings guard is skipped for an
+        # enriched scan: a clean scan legitimately finishes enrichment with
+        # nothing to enrich, and must still report completion rather than 404.
+        if current_scan.get("cve_enrichment_status") != "COMPLETED":
+            if not db.get_findings({"scan_id": scan_id}):
+                return jsonify({"error": "No findings found for this scan"}), 404
 
         job, outcome = db.enqueue_enrichment_job(scan_id)
         body = {

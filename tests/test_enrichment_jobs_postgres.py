@@ -370,3 +370,39 @@ def test_requeued_job_can_eventually_complete(enrichment_scan):
         with conn.cursor() as cur:
             cur.execute("SELECT cve_enrichment_status FROM scans WHERE scan_id = %s", (scan_id,))
             assert cur.fetchone()[0] == "COMPLETED"
+
+
+def test_scan_enriched_before_durable_jobs_reports_completed_not_a_new_job(enrichment_scan):
+    """A pre-durable-jobs enrichment must not be silently redone.
+
+    Such a scan carries cve_enrichment_status COMPLETED but has no job row,
+    so a plain insert would queue fresh work and answer "created". It has to
+    resolve to the same completed outcome every other caller sees.
+    """
+    dsn, scan_id, _ = enrichment_scan
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            # Reproduce the legacy shape: enriched scan, no durable job row.
+            cur.execute("DELETE FROM enrichment_jobs WHERE scan_id = %s", (scan_id,))
+            cur.execute("UPDATE scans SET cve_enrichment_status = 'COMPLETED' WHERE scan_id = %s", (scan_id,))
+
+    db = DatabaseManager(dsn)
+    try:
+        job, outcome = db.enqueue_enrichment_job(scan_id)
+    finally:
+        db.close()
+
+    assert outcome == "completed"
+    assert job["status"] == "completed"
+    assert job["job_id"] is not None
+    # The scan is not dragged back into the queue.
+    row = _job_row(dsn, scan_id)
+    assert row["status"] == "completed"
+    assert _scan_enrichment_status(dsn, scan_id) == "COMPLETED"
+
+
+def _scan_enrichment_status(dsn: str, scan_id: str) -> str:
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT cve_enrichment_status FROM scans WHERE scan_id = %s", (scan_id,))
+            return cur.fetchone()[0]

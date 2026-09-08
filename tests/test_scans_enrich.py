@@ -6,6 +6,7 @@ import api.routes.scans as scans_route
 
 
 _SCAN_ID = "00000000-0000-0000-0000-000000000001"
+_JOB_ID = "00000000-0000-0000-0000-0000000000aa"
 
 
 def _mock_db(current_scan=None, findings=None):
@@ -68,13 +69,48 @@ def test_enrich_reports_an_already_completed_job_without_restarting_it(client, a
     assert resp.get_json()["outcome"] == "completed"
 
 
-def test_enrich_already_completed_returns_200(client, auth_headers):
+def test_enrich_already_completed_uses_the_canonical_response(client, auth_headers):
+    """An enriched scan answers in the documented {outcome, job_id} shape.
+
+    This used to short-circuit to {message, scan_id}, which is neither the
+    documented contract nor what any other outcome returns.
+    """
     scan = {"scan_id": _SCAN_ID, "cve_enrichment_status": "COMPLETED"}
-    db = _mock_db(current_scan=scan)
+    # A clean scan can finish enrichment with nothing to enrich, so findings
+    # are deliberately empty here: completion must still win over the 404.
+    db = _mock_db(current_scan=scan, findings=[])
+    db.enqueue_enrichment_job.return_value = ({"job_id": _JOB_ID, "status": "completed"}, "completed")
     with patch.object(scans_route, "_get_db", return_value=db):
         resp = client.post(f"/api/scans/{_SCAN_ID}/enrich", headers=auth_headers)
+
     assert resp.status_code == 200
-    assert "already enriched" in resp.get_json()["message"]
+    body = resp.get_json()
+    assert body["outcome"] == "completed"
+    assert body["job_id"] == _JOB_ID
+    assert body["status"] == "completed"
+    assert body["scan_id"] == _SCAN_ID
+    assert "already enriched" in body["message"]
+    db.enqueue_enrichment_job.assert_called_once_with(_SCAN_ID)
+
+
+def test_enrich_responses_share_one_contract_across_every_outcome(client, auth_headers):
+    """created/requeued/active/completed all return the same keys."""
+    expected = {"scan_id", "job_id", "status", "outcome", "message"}
+    cases = [
+        ("created", "pending", 202),
+        ("requeued", "pending", 202),
+        ("active", "running", 202),
+        ("completed", "completed", 200),
+    ]
+    for outcome, job_status, code in cases:
+        scan = {"scan_id": _SCAN_ID, "cve_enrichment_status": "PENDING"}
+        db = _mock_db(current_scan=scan, findings=[{"id": 1}])
+        db.enqueue_enrichment_job.return_value = ({"job_id": _JOB_ID, "status": job_status}, outcome)
+        with patch.object(scans_route, "_get_db", return_value=db):
+            resp = client.post(f"/api/scans/{_SCAN_ID}/enrich", headers=auth_headers)
+        assert resp.status_code == code, outcome
+        assert set(resp.get_json()) == expected, outcome
+        assert resp.get_json()["outcome"] == outcome
 
 
 def test_enrich_missing_scan_returns_404(client, auth_headers):
