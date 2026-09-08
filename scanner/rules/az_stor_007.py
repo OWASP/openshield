@@ -3,6 +3,8 @@
 import logging
 from typing import Any, Dict, List
 
+from scanner.azure_client import enum_str
+
 logger = logging.getLogger(__name__)
 
 RULE_ID = "AZ-STOR-007"
@@ -30,15 +32,22 @@ _SECURE_TLS = {"TLS1_2", "TLS1_3", "1.2", "1.3"}
 
 
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Flag explicit TLS 1.0/1.1 values; skip missing or unknown values."""
+    """Flag accounts with TLS below 1.2 or with an unset minimum TLS version.
+
+    Azure documents an unset minimum_tls_version as TLS 1.0, so None is
+    treated as insecure. enum_str() is used to handle SDK enum objects
+    (e.g. MinimumTlsVersion.TLS1_0) so they compare correctly against the
+    known-insecure set instead of producing a string like
+    'MinimumTlsVersion.TLS1_0'.
+    """
     findings: List[Dict[str, Any]] = []
     for account in azure_client.get_storage_accounts():
         value = getattr(account, "minimum_tls_version", None)
         if value is None:
-            logger.warning("%s: minimum TLS version unavailable; skipping", RULE_ID)
-            continue
-        normalized = str(value).strip().upper()
-        if normalized in _SECURE_TLS or normalized not in _INSECURE_TLS:
+            normalized = "TLS1_0"
+        else:
+            normalized = enum_str(value).strip().upper()
+        if normalized not in _INSECURE_TLS:
             continue
         findings.append(
             {

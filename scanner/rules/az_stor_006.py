@@ -29,14 +29,16 @@ PLAYBOOK = "playbooks/cli/fix_az_stor_006.sh"
 
 
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Flag only accounts whose shared-key state is explicitly enabled."""
+    """Flag accounts where shared-key access is enabled or unset.
+
+    Azure documents allow_shared_key_access=None as equivalent to True:
+    an account with no explicit setting permits Shared Key authorization.
+    Only False (explicitly disabled) is compliant.
+    """
     findings: List[Dict[str, Any]] = []
     for account in azure_client.get_storage_accounts():
         state = getattr(account, "allow_shared_key_access", None)
-        if state is None:
-            logger.warning("%s: shared-key state unavailable; skipping", RULE_ID)
-            continue
-        if state is not True:
+        if state is False:
             continue
         findings.append(
             {
