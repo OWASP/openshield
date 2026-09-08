@@ -62,7 +62,10 @@ def _assert_one_active_scan_per_subscription() -> None:
 
 def upgrade() -> None:
     """Persist idempotency semantics and prevent more than one active scan."""
-    op.add_column("scans", sa.Column("idempotency_key", sa.Text(), nullable=True))
+    # Added before the preflight and the concurrent index builds, both of
+    # which can fail; autocommit_block() has already committed this column by
+    # then, so a retry must tolerate it already being there.
+    op.execute("ALTER TABLE scans ADD COLUMN IF NOT EXISTS idempotency_key TEXT")
 
     # Checked before either index is built so a blocked upgrade leaves the
     # schema exactly as it was, with the added columns unused and harmless.

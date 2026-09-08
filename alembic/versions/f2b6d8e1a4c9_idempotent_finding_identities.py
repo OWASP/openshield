@@ -8,7 +8,6 @@ Create Date: 2026-08-29 00:00:00.000000
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
 
 
 revision: str = "f2b6d8e1a4c9"
@@ -21,7 +20,10 @@ _UNIQUE_INDEX = "uq_findings_scan_finding_key"
 
 def upgrade() -> None:
     """Give every finding a stable identity so replayed results upsert."""
-    op.add_column("findings", sa.Column("finding_key", sa.Text(), nullable=True))
+    # Rerunnable after a failed concurrent index build (see the note in
+    # e4f7a9b2c6d8): the backfill and the NOT NULL tightening below are both
+    # idempotent, so the whole revision can be replayed.
+    op.execute("ALTER TABLE findings ADD COLUMN IF NOT EXISTS finding_key TEXT")
     # Existing records predate the identity contract. Preserve each record as
     # distinct rather than attempting to infer equivalence from mutable text.
     op.execute("UPDATE findings SET finding_key = 'legacy:' || id::text WHERE finding_key IS NULL")

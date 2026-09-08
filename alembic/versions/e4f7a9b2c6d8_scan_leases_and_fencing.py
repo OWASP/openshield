@@ -8,7 +8,6 @@ Create Date: 2026-08-29 00:00:00.000000
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
 
 
 revision: str = "e4f7a9b2c6d8"
@@ -19,13 +18,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add additive lease state and make legacy running work recoverable."""
-    op.add_column("scans", sa.Column("lease_owner", sa.Text(), nullable=True))
-    op.add_column("scans", sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("scans", sa.Column("last_heartbeat_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column(
-        "scans",
-        sa.Column("fencing_token", sa.BigInteger(), server_default=sa.text("0"), nullable=False),
-    )
+    # autocommit_block() below commits everything issued before it, so a
+    # failure while building the concurrent indexes leaves these columns in
+    # place with alembic_version still on the previous revision. The retry has
+    # to be able to walk back over them instead of failing on "column already
+    # exists" before it reaches the index recovery.
+    op.execute("ALTER TABLE scans ADD COLUMN IF NOT EXISTS lease_owner TEXT")
+    op.execute("ALTER TABLE scans ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ")
+    op.execute("ALTER TABLE scans ADD COLUMN IF NOT EXISTS last_heartbeat_at TIMESTAMPTZ")
+    op.execute("ALTER TABLE scans ADD COLUMN IF NOT EXISTS fencing_token BIGINT NOT NULL DEFAULT 0")
 
     # A pre-lease running row belongs to an old worker that cannot satisfy the
     # new fencing contract. Marking its lease expired preserves the row and
@@ -41,6 +42,11 @@ def upgrade() -> None:
     # These indexes are additive and are created concurrently so a populated
     # production scans table remains available while the migration runs.
     with op.get_context().autocommit_block():
+        # An interrupted CONCURRENTLY build leaves an INVALID index that still
+        # owns the name and can never serve a query. Dropping first (rather
+        # than CREATE ... IF NOT EXISTS, which would keep the broken one) makes
+        # a retry rebuild it.
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_scans_pending_started_at")
         op.execute(
             """
             CREATE INDEX CONCURRENTLY idx_scans_pending_started_at
@@ -48,6 +54,7 @@ def upgrade() -> None:
             WHERE status = 'pending'
             """
         )
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_scans_running_lease_expires_at")
         op.execute(
             """
             CREATE INDEX CONCURRENTLY idx_scans_running_lease_expires_at

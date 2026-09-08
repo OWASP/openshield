@@ -19,22 +19,29 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Store one liveness timestamp per worker process."""
-    op.create_table(
-        "worker_heartbeats",
-        sa.Column("worker_id", sa.Text(), nullable=False),
-        sa.Column("worker_type", sa.Text(), nullable=False),
-        sa.Column("last_seen_at", sa.DateTime(timezone=True), nullable=False),
-        sa.PrimaryKeyConstraint("worker_id", "worker_type", name="worker_heartbeats_pkey"),
-        sa.CheckConstraint("worker_type IN ('scan', 'enrichment')", name="ck_worker_heartbeats_type"),
-    )
-    op.create_index(
-        "idx_worker_heartbeats_type_seen", "worker_heartbeats", ["worker_type", "last_seen_at"], unique=False
-    )
+    # autocommit_block() below commits this table before the concurrent index
+    # build, so a failure there leaves it behind with alembic_version
+    # unchanged. Skip on a retry rather than failing before the recovery.
+    if not sa.inspect(op.get_bind()).has_table("worker_heartbeats"):
+        op.create_table(
+            "worker_heartbeats",
+            sa.Column("worker_id", sa.Text(), nullable=False),
+            sa.Column("worker_type", sa.Text(), nullable=False),
+            sa.Column("last_seen_at", sa.DateTime(timezone=True), nullable=False),
+            sa.PrimaryKeyConstraint("worker_id", "worker_type", name="worker_heartbeats_pkey"),
+            sa.CheckConstraint("worker_type IN ('scan', 'enrichment')", name="ck_worker_heartbeats_type"),
+        )
+        op.create_index(
+            "idx_worker_heartbeats_type_seen", "worker_heartbeats", ["worker_type", "last_seen_at"], unique=False
+        )
 
     # /metrics reports the last successful scan on every scrape. Without this
     # the aggregate degrades into a sequential scan of the whole scans table as
     # scan history grows; the partial index keeps it an index-only lookup.
     with op.get_context().autocommit_block():
+        # Drop first so an INVALID index left by an interrupted build is
+        # rebuilt rather than kept (see the note in e4f7a9b2c6d8).
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_scans_completed_completed_at")
         op.execute(
             """
             CREATE INDEX CONCURRENTLY idx_scans_completed_completed_at
