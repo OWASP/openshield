@@ -620,23 +620,36 @@ class DatabaseManager:
         conn = self._get_conn()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                # A scan enriched before durable jobs existed has no job row
+                # to report, but it must not be re-enriched either. Record the
+                # work as already finished so every caller gets the same
+                # {outcome, job_id} answer instead of a second contract.
                 cur.execute(
                     """
-                    INSERT INTO enrichment_jobs (job_id, scan_id, status, attempt_count, checkpoint)
-                    VALUES (%s, %s, 'pending', 0, 0)
+                    INSERT INTO enrichment_jobs (job_id, scan_id, status, attempt_count, checkpoint, completed_at)
+                    SELECT %s, %s,
+                           CASE WHEN s.cve_enrichment_status = 'COMPLETED' THEN 'completed' ELSE 'pending' END,
+                           0, 0,
+                           CASE WHEN s.cve_enrichment_status = 'COMPLETED' THEN CURRENT_TIMESTAMP END
+                    FROM scans s
+                    WHERE s.scan_id = %s
                     ON CONFLICT (scan_id) DO NOTHING
                     RETURNING *
                     """,
-                    (str(uuid.uuid4()), scan_id),
+                    (str(uuid.uuid4()), scan_id, scan_id),
                 )
                 job = cur.fetchone()
                 if job is not None:
+                    job = dict(job)
+                    if job["status"] == "completed":
+                        conn.commit()
+                        return job, "completed"
                     cur.execute(
                         "UPDATE scans SET cve_enrichment_status = 'PENDING' WHERE scan_id = %s",
                         (scan_id,),
                     )
                     conn.commit()
-                    return dict(job), "created"
+                    return job, "created"
 
                 # A job already exists. Only a terminally failed one is
                 # revived, and the WHERE clause is the whole guard: a

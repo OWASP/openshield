@@ -274,7 +274,9 @@ Every response carries `scan_id`, `job_id`, `status` (the job row's state) and a
 | `202 Accepted` | `requeued` | A previously **failed** job was reset to `pending` and will be retried. |
 | `202 Accepted` | `active` | A `pending` or `running` job already exists and was returned unchanged. A live claim is never interrupted. |
 | `200 OK` | `completed` | Enrichment already finished; nothing was restarted. |
-| `404 Not Found` | — | Unknown `scan_id`, or the scan has no findings to enrich. |
+| `404 Not Found` | — | Unknown `scan_id`, or the scan has no findings to enrich and has not already been enriched. |
+
+An already-enriched scan always reports `completed`, including a clean scan that had no findings to enrich in the first place.
 
 A job that exhausts its retry budget becomes `failed`. Re-POSTing this endpoint is the supported operator recovery: it atomically returns the job to `pending` with a fresh retry budget, clears the lease, and keeps the last `error_message` and the `checkpoint` so the retry resumes rather than re-enriching findings that already succeeded. Concurrent re-POSTs converge — exactly one reports `requeued` and the rest report `active`.
 
