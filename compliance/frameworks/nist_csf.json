@@ -104,13 +104,13 @@
       "review_date": null
     },
     "AZ-DB-007": {
-      "control_id": "A.12.4.1",
-      "control_name": "Event logging",
-      "description": "SQL audit logs are retained according to policy.",
+      "control_id": "PR.PT-1",
+      "control_name": "Audit/log records are determined, documented, implemented, and reviewed",
+      "description": "SQL audit logs are retained for at least 90 days in accordance with the defined audit policy.",
       "mapping_type": "supporting",
       "evidence_type": "automated_configuration_scan",
-      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory A.12.4.1",
-      "rationale": "NIST CSF 1.1 subcategory A.12.4.1 ('Event logging') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-DB-007 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.PT-1",
+      "rationale": "NIST CSF 1.1 subcategory PR.PT-1 ('Audit/log records are determined, documented, implemented, and reviewed') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-DB-007 evaluates one Azure technical control that provides supporting automated evidence toward this subcategory, not complete attainment of the outcome.",
       "owner": null,
       "review_status": "pending_review",
       "review_date": null

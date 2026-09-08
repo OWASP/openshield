@@ -7,7 +7,7 @@ every account or container needs a customer-managed key or immutability policy.
 Use Azure resource tags as follows:
 
 - `oshield:cmk-required=true` enables `AZ-STOR-008` for a storage account.
-- `oshield:immutability-required=true` enables `AZ-STOR-009` for a blob container.
+- `oshield:immutability-required=true` enables `AZ-STOR-009` for a storage account; all containers under that account are checked for an immutability policy.
 - `oshield:entra-only-required=true` enables `AZ-DB-005` for a SQL server.
 - `oshield:sql-va-required=true` enables `AZ-DB-006` for a SQL server.
 - `oshield:sql-audit-required=true` enables `AZ-DB-007` for a SQL server.
