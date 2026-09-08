@@ -27,9 +27,9 @@ REMEDIATION = (
 PLAYBOOK = "playbooks/cli/fix_az_stor_010.sh"
 
 
-def _has_approved_private_endpoint(account: Any) -> bool:
-    """True if the account has at least one Private Endpoint connection in the Approved state."""
-    for connection in getattr(account, "private_endpoint_connections", None) or []:
+def _has_approved_private_endpoint(connections: Any) -> bool:
+    """True if any Private Endpoint connection in the list is in the Approved state."""
+    for connection in connections or []:
         state = getattr(connection, "private_link_service_connection_state", None)
         if enum_str(getattr(state, "status", None)).lower() == "approved":
             return True
@@ -43,13 +43,27 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
     network-isolated regardless of private endpoints and is treated as
     NOT_APPLICABLE, so the rule does not raise a false finding against an account
     that is closed to the public network by another means.
+
+    ``private_endpoint_connections`` of ``None`` means the evidence is
+    unavailable (the field was not populated / could not be read), not a
+    confirmed absence, so the account is skipped as indeterminate rather than
+    flagged. Only a genuine empty list (or connections with none Approved) is a
+    finding.
     """
     findings: List[Dict[str, Any]] = []
 
     for account in azure_client.get_storage_accounts():
         if enum_str(getattr(account, "public_network_access", None)).lower() == "disabled":
             continue
-        if _has_approved_private_endpoint(account):
+
+        connections = getattr(account, "private_endpoint_connections", None)
+        if connections is None:
+            logger.warning(
+                "AZ-STOR-010: private endpoint connections unavailable for %s — skipping (indeterminate)",
+                getattr(account, "name", ""),
+            )
+            continue
+        if _has_approved_private_endpoint(connections):
             continue
 
         findings.append(
@@ -67,7 +81,7 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
                 "frameworks": FRAMEWORKS,
                 "metadata": {
                     "public_network_access": enum_str(getattr(account, "public_network_access", None)) or "unspecified",
-                    "private_endpoint_connections": len(getattr(account, "private_endpoint_connections", None) or []),
+                    "private_endpoint_connections": len(connections),
                 },
             }
         )

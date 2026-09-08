@@ -361,3 +361,17 @@ def test_stor_010_only_pending_private_endpoint_is_flagged(mock_azure, subscript
     findings = az_stor_010.scan(mock_azure, subscription_id)
     assert len(findings) == 1
     assert findings[0]["rule_id"] == "AZ-STOR-010"
+
+
+def test_stor_010_unavailable_evidence_is_indeterminate_not_flagged(mock_azure, subscription_id):
+    """When private_endpoint_connections is None (evidence unavailable, e.g. not populated
+    or a permissions failure), the account is indeterminate and must not be flagged as a
+    confirmed absence."""
+    account = make_resource(
+        id=_storage_id("sa-unknown-pe"),
+        name="sa-unknown-pe",
+        public_network_access="Enabled",
+        private_endpoint_connections=None,
+    )
+    mock_azure.set_storage_accounts([account])
+    assert az_stor_010.scan(mock_azure, subscription_id) == []
