@@ -81,6 +81,15 @@ class ScanRows:
                 cur.execute("SELECT COUNT(*) FROM findings WHERE scan_id = %s", (scan_id,))
                 return cur.fetchone()[0]
 
+    def evaluations(self, scan_id: str) -> list[tuple]:
+        with psycopg2.connect(self.dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT rule_id, status, finding_id FROM rule_evaluations WHERE scan_id = %s ORDER BY rule_id",
+                    (scan_id,),
+                )
+                return cur.fetchall()
+
     def rearm(self, scan_id: str, owner: str, fencing_token: int) -> None:
         """Simulate duplicate delivery of the same claimed result for persistence tests."""
         with psycopg2.connect(self.dsn) as conn:
@@ -100,6 +109,7 @@ class ScanRows:
             with conn.cursor() as cur:
                 for scan_id in self.scan_ids:
                     cur.execute("DELETE FROM enrichment_jobs WHERE scan_id = %s", (scan_id,))
+                    cur.execute("DELETE FROM rule_evaluations WHERE scan_id = %s", (scan_id,))
                     cur.execute("DELETE FROM findings WHERE scan_id = %s", (scan_id,))
                     cur.execute("DELETE FROM scans WHERE scan_id = %s", (scan_id,))
 
@@ -362,3 +372,107 @@ def test_distinct_finding_discriminators_preserve_multiple_violations(scan_rows)
         db.close()
 
     assert scan_rows.finding_count(scan_id) == 2
+
+
+# ── #263 coverage rows are written inside this change's fenced transaction ──
+
+
+def _result_with_evaluations(scan_id: str, subscription_id: str) -> dict:
+    """A result carrying both a FAIL finding and its #263 coverage rows."""
+    result = _result(scan_id, subscription_id)
+    resource_id = result["findings"][0]["resource_id"]
+    result["evaluations"] = [
+        {
+            "rule_id": "AZ-LEASE-001",
+            "resource_id": resource_id,
+            "resource_type": "Test/resource",
+            "status": "FAIL",
+            "reason_code": None,
+            "reason": None,
+            "evidence": {},
+        },
+        {
+            "rule_id": "AZ-LEASE-002",
+            "resource_id": f"/subscriptions/{subscription_id}",
+            "resource_type": "",
+            "status": "UNKNOWN",
+            "reason_code": "LEGACY_RULE_NOT_MIGRATED",
+            "reason": "not migrated",
+            "evidence": {},
+        },
+    ]
+    return result
+
+
+def test_owner_persists_evaluations_and_links_the_fail_row_to_its_finding(scan_rows):
+    """#321's coverage contract survives inside the fenced save_scan."""
+    scan_id, subscription_id = scan_rows.create()
+    claim = _claim(scan_rows.dsn, "worker-a", scan_id)
+    assert claim is not None
+
+    db = DatabaseManager(scan_rows.dsn)
+    try:
+        db.save_scan(_result_with_evaluations(scan_id, subscription_id), "worker-a", claim["fencing_token"])
+    finally:
+        db.close()
+
+    evaluations = scan_rows.evaluations(scan_id)
+    assert [(rule_id, status) for rule_id, status, _ in evaluations] == [
+        ("AZ-LEASE-001", "FAIL"),
+        ("AZ-LEASE-002", "UNKNOWN"),
+    ]
+    # Only the FAIL row is linked, and it points at a real finding row.
+    assert evaluations[0][2] is not None
+    assert evaluations[1][2] is None
+
+
+def test_stale_worker_cannot_write_rule_evaluations(scan_rows):
+    """A reclaimed scan's coverage rows belong to the new owner alone.
+
+    Before #303's fencing wrapped these writes, a stale worker finishing a
+    long scan could still rewrite another owner's #263 coverage.
+    """
+    scan_id, subscription_id = scan_rows.create()
+    first_claim = _claim(scan_rows.dsn, "worker-a", scan_id)
+    assert first_claim is not None
+    scan_rows.expire(scan_id)
+    _recover(scan_rows.dsn)
+    second_claim = _claim(scan_rows.dsn, "worker-b", scan_id)
+    assert second_claim is not None
+    assert second_claim["fencing_token"] > first_claim["fencing_token"]
+
+    stale_db = DatabaseManager(scan_rows.dsn)
+    try:
+        with pytest.raises(LostLease):
+            stale_db.save_scan(
+                _result_with_evaluations(scan_id, subscription_id),
+                "worker-a",
+                first_claim["fencing_token"],
+            )
+    finally:
+        stale_db.close()
+
+    assert scan_rows.evaluations(scan_id) == []
+
+
+def test_replayed_delivery_keeps_evaluations_linked_to_the_same_finding(scan_rows):
+    """Duplicate delivery must converge, not renumber findings under coverage."""
+    scan_id, subscription_id = scan_rows.create()
+    claim = _claim(scan_rows.dsn, "worker-a", scan_id)
+    assert claim is not None
+
+    db = DatabaseManager(scan_rows.dsn)
+    try:
+        db.save_scan(_result_with_evaluations(scan_id, subscription_id), "worker-a", claim["fencing_token"])
+        first = scan_rows.evaluations(scan_id)
+
+        scan_rows.rearm(scan_id, "worker-a", claim["fencing_token"])
+        db.save_scan(_result_with_evaluations(scan_id, subscription_id), "worker-a", claim["fencing_token"])
+        second = scan_rows.evaluations(scan_id)
+    finally:
+        db.close()
+
+    # Same two coverage rows, and the FAIL row still points at the *same*
+    # finding id: the upsert reused the row instead of deleting and recreating.
+    assert first == second
+    assert scan_rows.finding_count(scan_id) == 1
