@@ -33,6 +33,47 @@ for (const file of htmlFiles) {
   if (!html.includes('href="#main-content"')) failures.push(`${relative} has no skip link`);
   if (!html.includes('<meta name="description"')) failures.push(`${relative} has no meta description`);
   if (!html.includes('<link rel="canonical"')) failures.push(`${relative} has no canonical URL`);
+  const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/i)?.[1] || '';
+  if (!csp) failures.push(`${relative} has no Content-Security-Policy meta policy`);
+  const scriptPolicy = csp.split(';').find((directive) => directive.trim().startsWith('script-src')) || '';
+  if (!scriptPolicy || scriptPolicy.includes('unsafe-inline')) {
+    failures.push(`${relative} allows inline script execution in its Content-Security-Policy`);
+  }
+  // script-src 'self' with no 'unsafe-inline'/nonce/hash means the browser
+  // silently blocks any inline script on the deployed site. Checking the CSP
+  // string alone would pass while the page is actually broken, so assert the
+  // built HTML carries no executable inline script - every script must be an
+  // external same-origin file (data blocks like application/json and
+  // application/ld+json are not executed and are fine). Astro is configured
+  // (build.assetsInlineLimit: 0) to emit hoisted scripts as files for exactly
+  // this reason. Scanned by hand rather than a tag regex so this is not a
+  // brittle HTML filter (CodeQL js/bad-tag-filter): a case-insensitive index
+  // walk from each opening tag to its closing tag.
+  const lower = html.toLowerCase();
+  for (let open = lower.indexOf('<script'); open !== -1; open = lower.indexOf('<script', open + 7)) {
+    const tagEnd = html.indexOf('>', open);
+    if (tagEnd === -1) break;
+    const attrs = html.slice(open + 7, tagEnd);
+    const close = lower.indexOf('</script', tagEnd);
+    const body = close === -1 ? '' : html.slice(tagEnd + 1, close).trim();
+    if (/\bsrc\s*=/i.test(attrs)) continue;
+    const typeMatch = /\btype\s*=\s*["']?([^"'\s>]+)/i.exec(attrs);
+    const type = typeMatch ? typeMatch[1].toLowerCase() : '';
+    if (type === 'application/json' || type === 'application/ld+json' || type === 'speculationrules') continue;
+    if (body) {
+      failures.push(`${relative} has an inline script element that script-src 'self' will block on the deployed site`);
+      break;
+    }
+  }
+  // Only directives a <meta http-equiv> CSP actually enforces. frame-ancestors
+  // is deliberately absent: browsers ignore it in a meta policy, and GitHub
+  // Pages cannot set the HTTP response header that would make it effective, so
+  // asserting its presence here would report clickjacking protection that does
+  // not exist. That protection has to come from a real edge/header if the site
+  // ever moves to configurable hosting.
+  for (const directive of ['object-src \'none\'', 'base-uri \'self\'', 'form-action \'self\'']) {
+    if (!csp.includes(directive)) failures.push(`${relative} is missing CSP directive ${directive}`);
+  }
   for (const match of html.matchAll(/href="([^"]+)"/g)) {
     const href = match[1];
     if (!href.startsWith('/openshield/')) continue;

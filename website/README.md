@@ -50,8 +50,13 @@ published without maintaining a fragile path list. Manual runs can deploy only
 from `dev`.
 
 GitHub Pages does not support custom response headers. The document-level
-content security policy covers supported directives, but hosting-level headers
-such as `frame-ancestors` require a configurable hosting edge.
+content security policy in `src/layouts/Base.astro` covers only the directives
+a `<meta http-equiv>` policy actually enforces. `frame-ancestors` (and
+`report-uri`/`report-to`, `sandbox`) are ignored in a meta policy, so
+clickjacking protection is **not** in place: it needs a real
+`Content-Security-Policy` or `X-Frame-Options` HTTP response header from a
+configurable hosting edge. `scripts/verify-site.mjs` deliberately does not
+assert `frame-ancestors` so CI never reports protection that does not exist.
 
 ## One-time maintainer setup
 
