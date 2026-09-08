@@ -190,11 +190,19 @@ def test_stor_006_shared_key_enabled_returns_one_finding(mock_azure, subscriptio
     assert findings[0]["rule_id"] == "AZ-STOR-006"
 
 
-def test_stor_006_disabled_or_unknown_is_not_flagged(mock_azure, subscription_id):
+def test_stor_006_disabled_is_not_flagged(mock_azure, subscription_id):
     disabled = make_resource(id=_storage_id("sa-entra"), name="sa-entra", allow_shared_key_access=False)
-    unknown = make_resource(id=_storage_id("sa-unknown"), name="sa-unknown")
-    mock_azure.set_storage_accounts([disabled, unknown])
+    mock_azure.set_storage_accounts([disabled])
     assert az_stor_006.scan(mock_azure, subscription_id) == []
+
+
+def test_stor_006_none_is_flagged_as_insecure_default(mock_azure, subscription_id):
+    # Azure documents allow_shared_key_access=None as equivalent to True.
+    account = make_resource(id=_storage_id("sa-default"), name="sa-default")
+    mock_azure.set_storage_accounts([account])
+    findings = az_stor_006.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["rule_id"] == "AZ-STOR-006"
 
 
 def test_stor_007_tls_below_12_returns_one_finding(mock_azure, subscription_id):
@@ -205,11 +213,34 @@ def test_stor_007_tls_below_12_returns_one_finding(mock_azure, subscription_id):
     assert findings[0]["rule_id"] == "AZ-STOR-007"
 
 
-def test_stor_007_secure_or_unknown_is_not_flagged(mock_azure, subscription_id):
+def test_stor_007_secure_is_not_flagged(mock_azure, subscription_id):
     secure = make_resource(id=_storage_id("sa-tls12"), name="sa-tls12", minimum_tls_version="TLS1_2")
-    unknown = make_resource(id=_storage_id("sa-tls-unknown"), name="sa-tls-unknown")
-    mock_azure.set_storage_accounts([secure, unknown])
+    mock_azure.set_storage_accounts([secure])
     assert az_stor_007.scan(mock_azure, subscription_id) == []
+
+
+def test_stor_007_none_is_flagged_as_tls10_default(mock_azure, subscription_id):
+    # Azure documents unset minimum_tls_version as TLS 1.0.
+    account = make_resource(id=_storage_id("sa-tls-default"), name="sa-tls-default")
+    mock_azure.set_storage_accounts([account])
+    findings = az_stor_007.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["rule_id"] == "AZ-STOR-007"
+
+
+def test_stor_007_sdk_enum_tls10_is_flagged(mock_azure, subscription_id):
+    # SDK may return an enum object; enum_str() must extract the underlying value.
+    class _FakeTlsEnum:
+        value = "TLS1_0"
+
+        def __str__(self):
+            return "MinimumTlsVersion.TLS1_0"
+
+    account = make_resource(id=_storage_id("sa-tls-enum"), name="sa-tls-enum", minimum_tls_version=_FakeTlsEnum())
+    mock_azure.set_storage_accounts([account])
+    findings = az_stor_007.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["rule_id"] == "AZ-STOR-007"
 
 
 def test_stor_008_required_cmk_missing_returns_finding(mock_azure, subscription_id):
