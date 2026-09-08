@@ -10,7 +10,7 @@ Everything else is internal.
 
 import logging
 from typing import Optional
-from scanner.nvd_client import query_nvd
+from scanner.nvd_client import query_nvd, query_nvd_strict
 
 logger = logging.getLogger(__name__)
 
@@ -132,3 +132,19 @@ def enrich_findings(findings: list[dict]) -> list[dict]:
     enriched = [_enrich_single_finding(f) for f in findings]
     logger.info("CVE enrichment complete.")
     return enriched
+
+
+def enrich_finding_durable(finding: dict) -> dict:
+    """Enrich one persisted finding and propagate retriable NVD failures."""
+    keyword = _get_nvd_keyword(finding.get("rule_id", ""))
+    if not keyword:
+        finding["cve_references"] = []
+        finding["cvss_score"] = None
+        finding["exploit_available"] = False
+        return finding
+    cves = query_nvd_strict(keyword)
+    finding["cve_references"] = cves
+    scores = [c["cvss_score"] for c in cves if c.get("cvss_score") is not None]
+    finding["cvss_score"] = max(scores) if scores else None
+    finding["exploit_available"] = any(c.get("exploit_available") for c in cves)
+    return finding
