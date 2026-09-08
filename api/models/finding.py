@@ -1301,9 +1301,20 @@ class DatabaseManager:
                     """
                 )
                 enrichment_queue_age = cur.fetchone()["value"]
+                # Lease age is the freshness of the *current* lease, not how
+                # long ago the scan was first claimed. Measuring claimed_at
+                # made this climb for the whole life of a healthy long scan
+                # even while its worker was heartbeating on schedule, so the
+                # metric could not distinguish "slow but alive" from "stalled".
+                # last_heartbeat_at is what the lease actually renews, and is
+                # what the enrichment counterpart below already reports.
+                # Rows migrated into leases predate any heartbeat, so they fall
+                # back to their claim time rather than dropping out of MIN().
                 cur.execute(
                     """
-                    SELECT COALESCE(EXTRACT(EPOCH FROM CURRENT_TIMESTAMP - MIN(claimed_at)), 0) AS value
+                    SELECT COALESCE(
+                        EXTRACT(EPOCH FROM CURRENT_TIMESTAMP - MIN(COALESCE(last_heartbeat_at, claimed_at))), 0
+                    ) AS value
                     FROM scans WHERE status = 'running'
                     """
                 )
