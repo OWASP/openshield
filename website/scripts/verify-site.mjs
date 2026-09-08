@@ -40,20 +40,30 @@ for (const file of htmlFiles) {
     failures.push(`${relative} allows inline script execution in its Content-Security-Policy`);
   }
   // script-src 'self' with no 'unsafe-inline'/nonce/hash means the browser
-  // silently blocks any inline <script> on the deployed site. Checking the CSP
+  // silently blocks any inline script on the deployed site. Checking the CSP
   // string alone would pass while the page is actually broken, so assert the
   // built HTML carries no executable inline script - every script must be an
   // external same-origin file (data blocks like application/json and
   // application/ld+json are not executed and are fine). Astro is configured
   // (build.assetsInlineLimit: 0) to emit hoisted scripts as files for exactly
-  // this reason.
-  for (const tag of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
-    const attrs = tag[1];
-    const body = tag[2].trim();
-    if (/\bsrc=/i.test(attrs)) continue;
-    const type = attrs.match(/\btype=["']?([^"'\s>]+)/i)?.[1]?.toLowerCase() || '';
+  // this reason. Scanned by hand rather than a tag regex so this is not a
+  // brittle HTML filter (CodeQL js/bad-tag-filter): a case-insensitive index
+  // walk from each opening tag to its closing tag.
+  const lower = html.toLowerCase();
+  for (let open = lower.indexOf('<script'); open !== -1; open = lower.indexOf('<script', open + 7)) {
+    const tagEnd = html.indexOf('>', open);
+    if (tagEnd === -1) break;
+    const attrs = html.slice(open + 7, tagEnd);
+    const close = lower.indexOf('</script', tagEnd);
+    const body = close === -1 ? '' : html.slice(tagEnd + 1, close).trim();
+    if (/\bsrc\s*=/i.test(attrs)) continue;
+    const typeMatch = /\btype\s*=\s*["']?([^"'\s>]+)/i.exec(attrs);
+    const type = typeMatch ? typeMatch[1].toLowerCase() : '';
     if (type === 'application/json' || type === 'application/ld+json' || type === 'speculationrules') continue;
-    if (body) failures.push(`${relative} has an inline script element that script-src 'self' will block on the deployed site`);
+    if (body) {
+      failures.push(`${relative} has an inline script element that script-src 'self' will block on the deployed site`);
+      break;
+    }
   }
   // Only directives a <meta http-equiv> CSP actually enforces. frame-ancestors
   // is deliberately absent: browsers ignore it in a meta policy, and GitHub
