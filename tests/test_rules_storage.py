@@ -13,6 +13,7 @@ import scanner.rules.az_stor_006 as az_stor_006
 import scanner.rules.az_stor_007 as az_stor_007
 import scanner.rules.az_stor_008 as az_stor_008
 import scanner.rules.az_stor_009 as az_stor_009
+import scanner.rules.az_stor_010 as az_stor_010
 from tests.helpers.mock_azure import make_resource
 
 _REQUIRED_FIELDS = {
@@ -299,3 +300,78 @@ def test_stor_009_policy_or_api_failure_is_not_flagged(mock_azure, subscription_
     assert az_stor_009.scan(mock_azure, subscription_id) == []
     mock_azure.set_blob_containers(_RG, "sa-immutable-ok", None)
     assert az_stor_009.scan(mock_azure, subscription_id) == []
+
+
+# ── AZ-STOR-010: storage account missing an approved Private Endpoint ────────
+
+
+def _private_endpoint(status="Approved"):
+    return make_resource(private_link_service_connection_state=make_resource(status=status))
+
+
+def test_stor_010_approved_private_endpoint_returns_no_findings(mock_azure, subscription_id):
+    """An account with an Approved Private Endpoint connection is compliant."""
+    account = make_resource(
+        id=_storage_id("sa-with-pe"),
+        name="sa-with-pe",
+        private_endpoint_connections=[_private_endpoint("Approved")],
+    )
+    mock_azure.set_storage_accounts([account])
+    assert az_stor_010.scan(mock_azure, subscription_id) == []
+
+
+def test_stor_010_public_access_disabled_is_not_applicable(mock_azure, subscription_id):
+    """An account with public_network_access Disabled is already isolated — not flagged."""
+    account = make_resource(
+        id=_storage_id("sa-private-only"),
+        name="sa-private-only",
+        public_network_access="Disabled",
+        private_endpoint_connections=[],
+    )
+    mock_azure.set_storage_accounts([account])
+    assert az_stor_010.scan(mock_azure, subscription_id) == []
+
+
+def test_stor_010_no_private_endpoint_returns_one_finding(mock_azure, subscription_id):
+    """A publicly reachable account with no Private Endpoint must produce one HIGH finding."""
+    account = make_resource(
+        id=_storage_id("sa-public"),
+        name="sa-public",
+        public_network_access="Enabled",
+        private_endpoint_connections=[],
+    )
+    mock_azure.set_storage_accounts([account])
+    findings = az_stor_010.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    finding = findings[0]
+    assert _REQUIRED_FIELDS.issubset(finding.keys())
+    assert finding["rule_id"] == "AZ-STOR-010"
+    assert finding["severity"] == "HIGH"
+    assert finding["resource_name"] == "sa-public"
+
+
+def test_stor_010_only_pending_private_endpoint_is_flagged(mock_azure, subscription_id):
+    """A Private Endpoint connection that is not Approved does not count as coverage."""
+    account = make_resource(
+        id=_storage_id("sa-pending-pe"),
+        name="sa-pending-pe",
+        private_endpoint_connections=[_private_endpoint("Pending")],
+    )
+    mock_azure.set_storage_accounts([account])
+    findings = az_stor_010.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["rule_id"] == "AZ-STOR-010"
+
+
+def test_stor_010_unavailable_evidence_is_indeterminate_not_flagged(mock_azure, subscription_id):
+    """When private_endpoint_connections is None (evidence unavailable, e.g. not populated
+    or a permissions failure), the account is indeterminate and must not be flagged as a
+    confirmed absence."""
+    account = make_resource(
+        id=_storage_id("sa-unknown-pe"),
+        name="sa-unknown-pe",
+        public_network_access="Enabled",
+        private_endpoint_connections=None,
+    )
+    mock_azure.set_storage_accounts([account])
+    assert az_stor_010.scan(mock_azure, subscription_id) == []

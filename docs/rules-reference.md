@@ -79,6 +79,7 @@ OpenShield currently ships 90 Azure scan rules. This table is generated from the
 | AZ-STOR-007 | Storage Account Allows TLS Below 1.2 | HIGH | Storage | N/A-STOR-007 | N/A-STOR-007 | N/A-STOR-007 |
 | AZ-STOR-008 | Required Storage Customer-Managed Key Protection Missing | HIGH | Storage | N/A-STOR-008 | N/A-STOR-008 | N/A-STOR-008 |
 | AZ-STOR-009 | Required Blob Container Immutability Missing | HIGH | Storage | N/A-STOR-009 | N/A-STOR-009 | N/A-STOR-009 |
+| AZ-STOR-010 | Storage Account Missing Private Endpoint | HIGH | Storage | N/A-STOR-010 | PR.AC-5 | A.13.1.3 |
 | AZ-DB-005 | SQL Server Microsoft Entra-Only Authentication Not Enforced | HIGH | Database | N/A-DB-005 | PR.AC-6 | A.9.4.2 |
 | AZ-DB-006 | SQL Vulnerability Assessment Not Configured | HIGH | Database | N/A-DB-006 | DE.CM-8 | A.12.6.1 |
 | AZ-DB-007 | SQL Auditing Retention Below Minimum | MEDIUM | Database | N/A-DB-007 | PR.PT-1 | A.12.4.1 |

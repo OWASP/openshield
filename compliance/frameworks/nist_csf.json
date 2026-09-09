@@ -33,6 +33,11 @@
       "control_name": "Required Blob Container Immutability Missing",
       "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation."
     },
+    "AZ-STOR-010": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "A storage account reachable over the public network has no approved Private Endpoint, so its data-plane endpoints stay internet-reachable. PR.AC-5 requires that network integrity is protected; a Private Endpoint keeps storage traffic on private IPs inside the VNet."
+    },
     "AZ-DB-005": {"control_id": "PR.AC-6", "control_name": "Identity proofing and authentication", "description": "SQL authentication is restricted to approved Entra identities."},
     "AZ-DB-006": {"control_id": "DE.CM-8", "control_name": "Vulnerability scans are performed", "description": "Required SQL vulnerability assessment is configured."},
     "AZ-DB-007": {"control_id": "PR.PT-1", "control_name": "Audit/log records are determined, documented, implemented, and reviewed", "description": "SQL audit logs are retained for at least 90 days in accordance with the defined audit policy."},
