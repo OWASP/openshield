@@ -738,6 +738,34 @@ def test_cmp_006_non_primary_ip_config_without_public_ip_is_not_checked(mock_azu
     assert az_cmp_006.scan(mock_azure, subscription_id) == []
 
 
+def test_cmp_006_second_public_ip_config_not_protected_by_first_subnet_nsg(mock_azure, subscription_id):
+    """A net_config with two public ip_configs on different subnets must not be waved through
+    as compliant just because one of them is subnet-protected (regression: `any(status is True
+    for status in subnet_statuses)` treated the whole net_config as compliant even when a second
+    public ip_config on an unprotected subnet was still exposed)."""
+    subnet_protected = _vnet_subnet_id("vnet1", "subnet-a")
+    subnet_exposed = _vnet_subnet_id("vnet1", "subnet-b")
+    net_config = _net_config(
+        "nic-config",
+        has_public_ip=True,
+        has_nsg=False,
+        subnet_id=subnet_protected,
+        extra_ip_configs=[_ip_config(has_public_ip=True, subnet_id=subnet_exposed)],
+    )
+    vmss = _vmss("vmss-partial-subnet-protection", [net_config])
+    mock_azure.set_virtual_machine_scale_sets([vmss])
+    mock_azure.set_virtual_networks(
+        [
+            _vnet_with_subnet(subnet_protected, has_nsg=True),
+            _vnet_with_subnet(subnet_exposed, has_nsg=False),
+        ]
+    )
+    findings = az_cmp_006.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["severity"] == "HIGH"
+    assert findings[0]["metadata"]["determination"] == "non_compliant"
+
+
 def test_cmp_006_indeterminate_finding_reports_vnets_collected_count(mock_azure, subscription_id):
     """An indeterminate finding must surface how many VNets were actually collected, so a
     persistent zero across many findings is visible as a collection problem instead of

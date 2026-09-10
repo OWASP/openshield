@@ -112,13 +112,19 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
             if not public_ip_configs or has_nic_nsg:
                 continue
 
+            # A net_config can carry several public ip_configs on different
+            # subnets. It is only compliant if EVERY one of them is
+            # protected; one protected subnet must not wave through another
+            # public ip_config on the same net_config that is still exposed.
             subnet_statuses = [_subnet_nsg_status(subnet_nsgs, ip_cfg) for ip_cfg in public_ip_configs]
-            has_subnet_nsg = any(status is True for status in subnet_statuses)
-            if has_subnet_nsg:
-                continue  # protected at the subnet level, compliant
+            if all(status is True for status in subnet_statuses):
+                continue  # every public ip_config is protected, compliant
 
-            has_unresolved_subnet = any(status is None for status in subnet_statuses)
-            confirmed = not has_unresolved_subnet
+            # A confirmed-unprotected ip_config is a real exposure regardless
+            # of whether another ip_config on the same net_config is merely
+            # unresolved; only fall back to indeterminate when nothing is
+            # confirmed open.
+            confirmed = any(status is False for status in subnet_statuses)
 
             parsed = azure_client.parse_resource_id(vmss_id)
             metadata = {
