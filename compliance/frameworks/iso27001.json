@@ -154,6 +154,11 @@
       "control_name": "Management of technical vulnerabilities",
       "description": "The virtual machine does not have automatic OS patching enabled. A.12.6.1 requires that information about technical vulnerabilities is obtained and the organisation's exposure evaluated. Without automatic patching, known OS vulnerabilities remain unmitigated."
     },
+    "AZ-CMP-006": {
+      "control_id": "A.13.1.1",
+      "control_name": "Network controls",
+      "description": "VM Scale Set instances with public IPs and no NSG on their network interface configuration have unrestricted network access. Network controls should be applied to all compute resources accessible from the internet."
+    },
     "AZ-CMP-007": {
       "control_id": "A.13.1.1",
       "control_name": "Network controls",

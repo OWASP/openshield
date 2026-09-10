@@ -174,6 +174,11 @@
       "control_name": "System Vulnerabilities are Identified and Managed",
       "description": "The virtual machine does not have automatic OS patching enabled. CC7.1 requires that vulnerabilities in system components are identified and managed through a defined process. Without automatic patching, known OS vulnerabilities are left unmitigated and exploitable."
     },
+    "AZ-CMP-006": {
+      "control_id": "CC6.6",
+      "control_name": "Restricts Access from Outside the Network Boundary",
+      "description": "A VM Scale Set network interface configuration with a public IP and no NSG has unrestricted inbound network access from the internet with no filtering in place. CC6.6 requires that logical access from outside the network boundary is restricted and controlled."
+    },
     "AZ-CMP-007": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
