@@ -218,21 +218,21 @@ class TestChunker:
 
 
 class TestRetriever:
-    """Tests for ai/retriever.py vector store retrieval."""
+    """Tests for ai/retriever.py BM25 retrieval."""
 
-    def test_retrieve_raises_when_chromadb_missing(self):
-        """retrieve raises VectorStoreNotBuilt when chromadb is unavailable."""
-        from ai.retriever import retrieve, VectorStoreNotBuilt
+    def test_retrieve_raises_when_index_missing(self):
+        """retrieve raises VectorStoreNotBuilt when BM25 index file is missing."""
+        from ai.retriever import VectorStoreNotBuilt, retrieve
 
-        with patch("ai.retriever.chromadb", None):
+        with patch("ai.retriever.INDEX_PATH", Path("/nonexistent/bm25_index.json")):
             with pytest.raises(VectorStoreNotBuilt):
                 retrieve("test query")
 
-    def test_retrieve_raises_when_store_missing(self):
-        """retrieve raises VectorStoreNotBuilt when vectorstore dir is missing."""
-        from ai.retriever import retrieve, VectorStoreNotBuilt
+    def test_retrieve_raises_when_vectorstore_dir_missing(self):
+        """retrieve raises VectorStoreNotBuilt when index path is invalid."""
+        from ai.retriever import VectorStoreNotBuilt, retrieve
 
-        with patch("ai.retriever.VECTORSTORE_DIR", Path("/nonexistent/path")):
+        with patch("ai.retriever.INDEX_PATH", Path("/no/such/dir/bm25_index.json")):
             with pytest.raises(VectorStoreNotBuilt):
                 retrieve("test query")
 
@@ -243,71 +243,54 @@ class TestRetriever:
         assert issubclass(VectorStoreNotBuilt, RuntimeError)
 
 
-# ---------------------------------------------------------------------------
-# ai/embed.py tests
-# ---------------------------------------------------------------------------
-
-
 class TestEmbedPipeline:
-    """Tests for ai/embed.py build_vectorstore() pipeline."""
-
-    def test_build_vectorstore_raises_without_chromadb(self):
-        """build_vectorstore() raises RuntimeError when chromadb is unavailable."""
-        import ai.embed as embed
-
-        original = embed.chromadb
-        try:
-            embed.chromadb = None
-            with pytest.raises(RuntimeError, match="chromadb is not installed"):
-                embed.build_vectorstore()
-        finally:
-            embed.chromadb = original
+    """Tests for ai/embed.py BM25 build_vectorstore() pipeline."""
 
     def test_build_vectorstore_raises_when_no_documents(self):
         """build_vectorstore() raises RuntimeError when loader returns empty list."""
-        from unittest.mock import patch
-        import ai.embed as embed
-
-        if embed.chromadb is None:
-            pytest.skip("chromadb not installed")
         with patch("ai.embed.load_all_documents", return_value=[]):
             with pytest.raises(RuntimeError, match="No documents found"):
-                embed.build_vectorstore()
+                from ai.embed import build_vectorstore
 
-    def test_build_vectorstore_full_pipeline(self):
-        """build_vectorstore() creates collection, adds chunks, renames, returns count."""
-        from unittest.mock import MagicMock, patch
-        import ai.embed as embed
+                build_vectorstore()
 
-        if embed.chromadb is None:
-            pytest.skip("chromadb not installed")
+    def test_build_vectorstore_calls_load_all_documents(self):
+        """build_vectorstore() calls load_all_documents to get source docs."""
+        mock_docs = [{"id": "doc-1", "content": "test content about azure", "metadata": {}}]
+        mock_chunks = [{"id": "c-1", "content": "test content about azure", "metadata": {}}]
+        with patch("ai.embed.load_all_documents", return_value=mock_docs) as mock_load:
+            with patch("ai.embed.chunk_documents", return_value=mock_chunks):
+                with patch("ai.embed.VECTORSTORE_DIR") as mock_dir:
+                    from unittest.mock import MagicMock
 
-        mock_docs = [{"id": f"doc-{i}", "content": f"content {i}", "metadata": {}} for i in range(3)]
-        mock_chunks = [{"id": f"chunk-{i}", "content": f"chunk {i}", "metadata": {}} for i in range(5)]
+                    mock_dir.mkdir = MagicMock()
+                    with patch("builtins.open", MagicMock()):
+                        import json
 
-        mock_collection = MagicMock()
-        mock_client = MagicMock()
-        mock_client.create_collection.return_value = mock_collection
+                        with patch("json.dump"):
+                            try:
+                                from ai.embed import build_vectorstore
 
+                                build_vectorstore()
+                            except Exception:
+                                pass
+            mock_load.assert_called_once()
+
+    def test_build_vectorstore_returns_chunk_count(self):
+        """build_vectorstore() returns the number of chunks indexed."""
+        import json
+        import tempfile
+        import os
+
+        mock_docs = [{"id": "doc-1", "content": "azure security network", "metadata": {}}]
+        mock_chunks = [{"id": f"c-{i}", "content": f"chunk {i} azure", "metadata": {}} for i in range(3)]
         with patch("ai.embed.load_all_documents", return_value=mock_docs):
             with patch("ai.embed.chunk_documents", return_value=mock_chunks):
-                with patch("ai.embed.chromadb.PersistentClient", return_value=mock_client):
-                    with patch("ai.embed.VECTORSTORE_DIR") as mock_dir:
-                        mock_dir.mkdir = MagicMock()
-                        result = embed.build_vectorstore()
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    tmp_path = Path(tmpdir)
+                    with patch("ai.embed.VECTORSTORE_DIR", tmp_path):
+                        with patch("ai.embed.INDEX_PATH", tmp_path / "bm25_index.json"):
+                            from ai.embed import build_vectorstore
 
-        # Verify collection was created with temp name
-        mock_client.create_collection.assert_called_once_with("openshield_temp")
-
-        # Verify chunks were added to the collection
-        mock_collection.add.assert_called()
-        all_added_ids = []
-        for c in mock_collection.add.call_args_list:
-            all_added_ids.extend(c.kwargs.get("ids", c.args[0] if c.args else []))
-        assert len(all_added_ids) == len(mock_chunks)
-
-        # Verify atomic rename from temp to final collection name
-        mock_collection.modify.assert_called_once_with(name="openshield")
-
-        # Verify return value is chunk count
-        assert result == len(mock_chunks)
+                            result = build_vectorstore()
+                            assert result == 3
