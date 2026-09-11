@@ -265,8 +265,6 @@ class TestEmbedPipeline:
 
                     mock_dir.mkdir = MagicMock()
                     with patch("builtins.open", MagicMock()):
-                        import json
-
                         with patch("json.dump"):
                             try:
                                 from ai.embed import build_vectorstore
@@ -278,9 +276,7 @@ class TestEmbedPipeline:
 
     def test_build_vectorstore_returns_chunk_count(self):
         """build_vectorstore() returns the number of chunks indexed."""
-        import json
         import tempfile
-        import os
 
         mock_docs = [{"id": "doc-1", "content": "azure security network", "metadata": {}}]
         mock_chunks = [{"id": f"c-{i}", "content": f"chunk {i} azure", "metadata": {}} for i in range(3)]
