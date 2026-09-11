@@ -4,7 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from api.models.finding import DatabaseManager, Finding, SEVERITY_WEIGHTS
+from api.models.finding import DatabaseManager, Finding
+from openshield.severity import SEVERITY_WEIGHTS
 
 
 # ---------------------------------------------------------------------------

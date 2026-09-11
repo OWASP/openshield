@@ -363,10 +363,15 @@ class TestPrioritizationRoute:
         mock_cursor = MagicMock()
         mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
         mock_cursor.__exit__ = MagicMock(return_value=False)
-        # Route calls: fetchone (scan_id), fetchall (rules), fetchone (total)
-        total = len(rules) if rules else 0
-        mock_cursor.fetchone.side_effect = [fetchone, {"total": total}]
-        mock_cursor.fetchall.return_value = rules or []
+        # Route calls: fetchone (scan_id), fetchall (rules), fetchall (severity counts)
+        severity_counts = []
+        if rules:
+            from collections import Counter
+
+            counts = Counter(r.get("severity", "HIGH") for r in rules)
+            severity_counts = [{"severity": k, "count": v} for k, v in counts.items()]
+        mock_cursor.fetchone.return_value = fetchone
+        mock_cursor.fetchall.side_effect = [rules or [], severity_counts]
         mock_conn.cursor.return_value = mock_cursor
         db._get_conn.return_value = mock_conn
         return db
