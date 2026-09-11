@@ -199,9 +199,8 @@ class TestDriftRoute:
             {"scan_id": scan2_id, "started_at": datetime.datetime(2024, 1, 2)},
             {"scan_id": scan1_id, "started_at": datetime.datetime(2024, 1, 1)},
         ]
-        # findings in latest but not previous -> ADDED
-        # findings in previous but not latest -> REMOVED
-        latest_rows = [
+        # Latest scan has AZ-NET-001 (ADDED), previous had AZ-DB-001 (REMOVED)
+        findings_rows = [
             {
                 "rule_id": "AZ-NET-001",
                 "resource_id": "/sub/res1",
@@ -211,8 +210,6 @@ class TestDriftRoute:
                 "severity": "HIGH",
                 "scan_id": scan2_id,
             },
-        ]
-        previous_rows = [
             {
                 "rule_id": "AZ-DB-001",
                 "resource_id": "/sub/res2",
@@ -225,16 +222,14 @@ class TestDriftRoute:
         ]
         db = MagicMock()
         mock_conn = MagicMock()
-        # cursor 1: fetchall returns scans list
         c1 = MagicMock()
         c1.__enter__ = MagicMock(return_value=c1)
         c1.__exit__ = MagicMock(return_value=False)
         c1.fetchall.return_value = scans
-        # cursor 2: fetchall returns combined latest+previous rows for diff query
         c2 = MagicMock()
         c2.__enter__ = MagicMock(return_value=c2)
         c2.__exit__ = MagicMock(return_value=False)
-        c2.fetchall.return_value = latest_rows + previous_rows
+        c2.fetchall.return_value = findings_rows
         mock_conn.cursor.side_effect = [c1, c2]
         db._get_conn.return_value = mock_conn
 
@@ -243,6 +238,13 @@ class TestDriftRoute:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["summary"]["total"] > 0
+        assert data["summary"]["added"] == 1
+        assert data["summary"]["removed"] == 1
+        event_types = {e["type"] for e in data["events"]}
+        assert "ADDED" in event_types
+        assert "REMOVED" in event_types
+        added_events = [e for e in data["events"] if e["type"] == "ADDED"]
+        assert any(e["rule_violated"] == "AZ-NET-001" for e in added_events)
 
     def test_drift_returns_500_on_db_error(self, client, auth_headers):
         with patch("api.routes.drift._get_db", side_effect=RuntimeError("DB error")):
@@ -358,16 +360,14 @@ class TestPrioritizationRoute:
     def _make_prioritization_db(self, fetchone=None, rules=None):
         db = MagicMock()
         mock_conn = MagicMock()
-        cursor1 = MagicMock()
-        cursor1.__enter__ = MagicMock(return_value=cursor1)
-        cursor1.__exit__ = MagicMock(return_value=False)
-        cursor1.fetchone.return_value = fetchone
-        cursor2 = MagicMock()
-        cursor2.__enter__ = MagicMock(return_value=cursor2)
-        cursor2.__exit__ = MagicMock(return_value=False)
-        cursor2.fetchall.return_value = rules or []
-        cursor2.fetchone.return_value = {"total": len(rules) if rules else 0}
-        mock_conn.cursor.side_effect = [cursor1, cursor2, cursor1, cursor2]
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_cursor.__exit__ = MagicMock(return_value=False)
+        # Route calls: fetchone (scan_id), fetchall (rules), fetchone (total)
+        total = len(rules) if rules else 0
+        mock_cursor.fetchone.side_effect = [fetchone, {"total": total}]
+        mock_cursor.fetchall.return_value = rules or []
+        mock_conn.cursor.return_value = mock_cursor
         db._get_conn.return_value = mock_conn
         return db
 
@@ -415,9 +415,10 @@ class TestPrioritizationRoute:
             )
             resp = client.get("/api/prioritization", headers=auth_headers)
         assert resp.status_code == 200
-        rankings = resp.get_json().get("rankings", [])
-        if len(rankings) >= 2:
-            assert rankings[0]["severity"] == "HIGH"
+        data = resp.get_json()
+        rankings = data.get("rankings", [])
+        assert len(rankings) >= 2, "Expected at least 2 rankings from HIGH+LOW findings"
+        assert rankings[0]["severity"] == "HIGH"
 
     def test_prioritization_returns_500_on_db_error(self, client, auth_headers):
         with patch("api.routes.prioritization._get_db", side_effect=RuntimeError("DB error")):

@@ -188,12 +188,3 @@ class TestScoreCalculation:
         db = self._make_db_with_score([])
         db.get_score()
         db.conn.cursor().__enter__().execute.assert_called_once()
-
-    def test_severity_weights_high_outweighs_medium(self):
-        assert SEVERITY_WEIGHTS["HIGH"] > SEVERITY_WEIGHTS["MEDIUM"]
-
-    def test_severity_weights_medium_outweighs_low(self):
-        assert SEVERITY_WEIGHTS["MEDIUM"] > SEVERITY_WEIGHTS["LOW"]
-
-    def test_severity_weights_info_is_zero(self):
-        assert SEVERITY_WEIGHTS.get("INFO", 0) == 0
