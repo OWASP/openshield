@@ -698,7 +698,7 @@ def test_save_scan_persists_compliance_mapping_snapshot(tmp_path, monkeypatch):
     assert "compliance_mapping_snapshot" in executed_sql
     snapshot_param = params[-1]
     snapshot = json.loads(snapshot_param)
-    assert set(snapshot.keys()) == set(finding_module.FRAMEWORK_FILE_MAP.keys())
+    assert set(snapshot.keys()) == set(finding_module.FRAMEWORK_FILE_MAP.keys()) | {"_scan_rule_outcomes"}
 
 
 def test_save_scan_records_failed_rule_ids_into_snapshot(tmp_path, monkeypatch):
@@ -731,10 +731,12 @@ def test_save_scan_records_failed_rule_ids_into_snapshot(tmp_path, monkeypatch):
     assert snapshot["_scan_rule_outcomes"] == {"failed_rule_ids": ["AZ-TEST-001", "AZ-TEST-002"]}
 
 
-def test_save_scan_omits_scan_rule_outcomes_when_nothing_failed(tmp_path, monkeypatch):
-    """A clean scan must not carry an empty _scan_rule_outcomes key - its
-    absence is exactly what lets a later get_compliance_score() call treat
-    every rule's silence as eligible for PASS."""
+def test_save_scan_writes_empty_scan_rule_outcomes_when_nothing_failed(tmp_path, monkeypatch):
+    """A clean scan must still write _scan_rule_outcomes, as an empty list.
+
+    "No rule failed on this attempt" is a real result, not missing data.
+    Omitting the key made the upsert's jsonb merge extract SQL NULL and stamp
+    a JSON null over a previous attempt's outcomes."""
     for key, filename in finding_module.FRAMEWORK_FILE_MAP.items():
         _write_framework(tmp_path, filename, {})
     monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
@@ -757,7 +759,7 @@ def test_save_scan_omits_scan_rule_outcomes_when_nothing_failed(tmp_path, monkey
 
     executed_sql, params = conn.cursor.return_value.execute.call_args_list[0][0]
     snapshot = json.loads(params[-1])
-    assert "_scan_rule_outcomes" not in snapshot
+    assert snapshot["_scan_rule_outcomes"] == {"failed_rule_ids": []}
 
 
 def test_save_scan_upsert_refreshes_scan_rule_outcomes_on_every_write(tmp_path, monkeypatch):
@@ -792,7 +794,13 @@ def test_save_scan_upsert_refreshes_scan_rule_outcomes_on_every_write(tmp_path, 
     # ...but _scan_rule_outcomes is re-merged in from EXCLUDED on every write,
     # not frozen inside that same COALESCE.
     assert "jsonb_build_object" in executed_sql
-    assert "'_scan_rule_outcomes', EXCLUDED.compliance_mapping_snapshot -> '_scan_rule_outcomes'" in executed_sql
+    assert "'_scan_rule_outcomes'," in executed_sql
+    assert "EXCLUDED.compliance_mapping_snapshot -> '_scan_rule_outcomes'" in executed_sql
+    # ...and that re-merge can never write a JSON null over stored outcomes:
+    # a snapshot arriving without the key falls back to the stored value, then
+    # to an explicit empty list.
+    assert "scans.compliance_mapping_snapshot -> '_scan_rule_outcomes'" in executed_sql
+    assert """'{"failed_rule_ids": []}'::jsonb""" in executed_sql
 
 
 def test_get_compliance_score_reflects_retry_that_clears_a_previously_failed_rule(tmp_path, monkeypatch):

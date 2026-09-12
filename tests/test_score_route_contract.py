@@ -42,3 +42,45 @@ def test_route_returns_200_with_null_score_for_no_scan_data(client, auth_headers
     assert body["score"] is None
     assert body["max_score"] == 100
     assert "error" not in body
+
+
+def test_route_passes_subscription_id_through_to_the_model(client, auth_headers, monkeypatch):
+    """?subscription_id= must scope the score, matching the contract
+    /api/compliance/<framework> already honours. Previously get_score() read
+    a non-existent instance attribute, so every production call was
+    unscoped and a shared-database deployment could score another
+    subscription's latest scan."""
+    monkeypatch.delenv("AZURE_SUBSCRIPTION_ID", raising=False)
+    sub = "11111111-2222-3333-4444-555555555555"
+    db = MagicMock()
+    db.get_score.return_value = {"status": "OK", "score": 70, "max_score": 100}
+    with patch.object(score_route, "_get_db", return_value=db):
+        resp = client.get(f"/api/score?subscription_id={sub}", headers=auth_headers)
+
+    assert resp.status_code == 200
+    db.get_score.assert_called_once_with(subscription_id=sub)
+
+
+def test_route_falls_back_to_the_configured_default_subscription(client, auth_headers, monkeypatch):
+    """With no query parameter the deployment's own AZURE_SUBSCRIPTION_ID is
+    used, the same fallback POST /api/scans and the compliance route apply."""
+    sub = "11111111-2222-3333-4444-555555555555"
+    monkeypatch.setenv("AZURE_SUBSCRIPTION_ID", sub)
+    db = MagicMock()
+    db.get_score.return_value = {"status": "OK", "score": 70, "max_score": 100}
+    with patch.object(score_route, "_get_db", return_value=db):
+        resp = client.get("/api/score", headers=auth_headers)
+
+    assert resp.status_code == 200
+    db.get_score.assert_called_once_with(subscription_id=sub)
+
+
+def test_route_rejects_a_malformed_subscription_id(client, auth_headers, monkeypatch):
+    """A non-UUID subscription_id is a 400, not a silently unscoped score."""
+    monkeypatch.delenv("AZURE_SUBSCRIPTION_ID", raising=False)
+    db = MagicMock()
+    with patch.object(score_route, "_get_db", return_value=db):
+        resp = client.get("/api/score?subscription_id=not-a-uuid", headers=auth_headers)
+
+    assert resp.status_code == 400
+    db.get_score.assert_not_called()

@@ -92,7 +92,7 @@ def test_get_score_uses_completed_status():
     conn.cursor.return_value = cur
 
     with patch.object(db, "_get_conn", return_value=conn):
-        db.get_score()
+        db.get_score(subscription_id="subscription-1")
 
     executed_sql = conn.cursor.return_value.execute.call_args[0][0]
     assert "status = 'completed'" in executed_sql
@@ -358,3 +358,45 @@ def test_get_compliance_score_reports_worst_critical_failure_without_inventing_p
     }
     assert controls["AZ-NET-001"]["status"] == "PASS"
     assert controls["AZ-NET-001"]["severity"] is None
+
+
+# ── get_score subscription scoping ────────────────────────────────────────────
+
+
+def test_get_score_without_subscription_id_is_unscoped():
+    """Omitting subscription_id must produce the plain unscoped query.
+
+    get_score() used to read subscription_id off the instance via getattr,
+    which DatabaseManager never sets, so the scoped branch was dead code in
+    production. Scoping is now a caller-supplied argument; with no argument
+    the SQL must carry no subscription predicate and no parameters.
+    """
+    db = _db()
+    conn = MagicMock()
+    cur = _mock_score_cursor(None, [])
+    conn.cursor.return_value = cur
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        db.get_score()
+
+    call = conn.cursor.return_value.execute.call_args
+    assert "subscription_id = %s" not in call[0][0]
+    assert len(call[0]) == 1
+
+
+def test_get_score_ignores_a_stray_subscription_id_attribute():
+    """An instance attribute must not silently scope the query.
+
+    _db() sets db.subscription_id, mirroring the old getattr source. Only the
+    explicit argument may scope the lookup, so the two cannot disagree.
+    """
+    db = _db()
+    assert db.subscription_id == "subscription-1"
+    conn = MagicMock()
+    cur = _mock_score_cursor(None, [])
+    conn.cursor.return_value = cur
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        db.get_score()
+
+    assert "subscription_id = %s" not in conn.cursor.return_value.execute.call_args[0][0]

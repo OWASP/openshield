@@ -234,7 +234,11 @@ Missing subscription response:
 
 Returns the overall security posture score from 0 to 100. Under [severity contract v1](severity-contract.md), the score starts at 100 and deducts 20 per CRITICAL finding, 10 per HIGH finding, 5 per MEDIUM finding, and 2 per LOW finding; INFO findings deduct zero. Scoped to the most recent **completed** scan — if no completed scan exists yet, this returns `status: "NO_SCAN_DATA"` with `score: null` rather than a misleading 100 (a scan with no findings and no evidence at all would otherwise be indistinguishable).
 
-Query parameters: none
+Query parameters:
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `subscription_id` | UUID string | No | Scopes the "most recent completed scan" lookup to one Azure subscription. Defaults to the deployment's `AZURE_SUBSCRIPTION_ID`; if neither is set the latest completed scan from *any* subscription is used, which is only correct for a single-tenant database. A malformed value is a `400`, never a silently unscoped result. |
 
 Example response (a completed scan exists):
 
@@ -276,7 +280,11 @@ Supported frameworks:
 | `ncsc_pqc` | `ncsc_pqc.json` |
 | `enisa_pqc` | `enisa_pqc.json` |
 
-Query parameters: none
+Query parameters:
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `subscription_id` | UUID string | No | Scopes the "most recent completed scan" lookup to one Azure subscription. Defaults to the deployment's `AZURE_SUBSCRIPTION_ID`; if neither is set the latest completed scan from *any* subscription is used, which is only correct for a single-tenant database. A malformed value is a `400`, never a silently unscoped result. |
 
 `status` is one of:
 - `OK` — a completed scan exists and at least one mapped control is in scope; `score_percent` is a real evaluated percentage.

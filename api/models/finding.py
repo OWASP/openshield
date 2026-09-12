@@ -295,9 +295,12 @@ class DatabaseManager:
         # stopgap ahead of issue #263's persisted per-resource evaluation
         # table - it only knows "this rule did not complete for this scan",
         # not per-resource outcomes.
+        # Always written, even when empty: "this attempt had no failed rules"
+        # is a real per-attempt result, not missing data. Omitting the key on a
+        # clean retry would make the ON CONFLICT merge below extract SQL NULL
+        # and stamp a JSON null over the previous attempt's outcomes.
         failed_rule_ids = scan_result.get("failed_rule_ids") or []
-        if failed_rule_ids:
-            mapping_snapshot_dict["_scan_rule_outcomes"] = {"failed_rule_ids": sorted(set(failed_rule_ids))}
+        mapping_snapshot_dict["_scan_rule_outcomes"] = {"failed_rule_ids": sorted(set(failed_rule_ids))}
         mapping_snapshot = json.dumps(mapping_snapshot_dict)
         try:
             with conn.cursor() as cur:
@@ -330,10 +333,20 @@ class DatabaseManager:
                         -- rest of the snapshot - otherwise a rule that failed
                         -- on attempt 1 and succeeded on a retry would keep
                         -- being forced to ERROR forever (or the reverse).
+                        -- The inner COALESCE keeps that re-merge from ever
+                        -- writing a JSON null: save_scan() always supplies the
+                        -- key (empty list included), but a row written by any
+                        -- other path without it must fall back to the stored
+                        -- outcomes rather than have them nulled out.
                         compliance_mapping_snapshot = COALESCE(
                             scans.compliance_mapping_snapshot, EXCLUDED.compliance_mapping_snapshot
                         ) || jsonb_build_object(
-                            '_scan_rule_outcomes', EXCLUDED.compliance_mapping_snapshot -> '_scan_rule_outcomes'
+                            '_scan_rule_outcomes',
+                            COALESCE(
+                                EXCLUDED.compliance_mapping_snapshot -> '_scan_rule_outcomes',
+                                scans.compliance_mapping_snapshot -> '_scan_rule_outcomes',
+                                '{"failed_rule_ids": []}'::jsonb
+                            )
                         )
                     """,
                     (
@@ -709,7 +722,7 @@ class DatabaseManager:
     # Scoring                                                               #
     # ------------------------------------------------------------------ #
 
-    def get_score(self) -> Dict[str, Any]:
+    def get_score(self, subscription_id: Optional[str] = None) -> Dict[str, Any]:
         """Return a 0-100 security posture score based on the latest scan's findings.
 
         Scoped to the most recent scan so historical findings from older scans
@@ -725,12 +738,20 @@ class DatabaseManager:
         evidence behind it, the same NO_SCAN_DATA gap fixed in
         get_compliance_score().
 
+        Args:
+            subscription_id: When given, scopes the "latest completed scan"
+                lookup to this subscription. In a shared-database deployment
+                that stores scans for more than one Azure subscription,
+                omitting this returns whichever subscription scanned most
+                recently - not this caller's own data. Passed in by the route
+                (matching get_compliance_score) rather than read off the
+                instance, which never carries it.
+
         Returns:
             {"status": "NO_SCAN_DATA", "score": None, "message": ...} when no
             completed scan exists yet, or {"status": "OK", "score": <0-100>}
             once one has.
         """
-        subscription_id = getattr(self, "subscription_id", None)
         conn = self._get_conn()
         with conn.cursor() as cur:
             if subscription_id:
