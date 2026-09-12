@@ -110,10 +110,24 @@ SCORE AND CVE SUMMARY
 
 GET /api/score
 
-Returns a JSON integer from 0 to 100. The frontend normalizes this number to
-{ score, max_score: 100 } for its components.
+Response (a completed scan exists)
+────────
+  {
+    "status": "OK",
+    "score": 68,
+    "max_score": 100
+  }
 
-  82
+Response (no completed scan yet — never a false 100)
+────────
+  {
+    "status": "NO_SCAN_DATA",
+    "score": null,
+    "max_score": 100,
+    "message": "No completed scan is available yet, so there is no security posture to score."
+  }
+
+A null score must be rendered as "not assessed", never coerced to 0.
 
 GET /api/score/cve-summary
 

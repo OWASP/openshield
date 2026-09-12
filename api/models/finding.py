@@ -1,5 +1,6 @@
 """Finding dataclass and PostgreSQL-backed DatabaseManager."""
 
+import hashlib
 import json
 import logging
 import os
@@ -93,6 +94,76 @@ FRAMEWORK_FILE_MAP = {
     "ncsc_pqc": "ncsc_pqc.json",
     "enisa_pqc": "enisa_pqc.json",
 }
+
+_PACK_METADATA_KEYS = (
+    "framework",
+    "version",
+    "mapping_pack_version",
+    "mapping_pack_status",
+    "mapping_pack_source",
+    "mapping_pack_published",
+)
+
+# Reserved key holding a full snapshot's content hash, alongside the
+# human-maintained mapping_pack_version. The semver is only bumped when a
+# maintainer remembers to; the hash catches a controls change regardless.
+_CONTENT_HASH_KEY = "mapping_pack_content_hash"
+
+
+def _compute_mapping_pack_content_hash(controls: Dict[str, Any]) -> str:
+    """A stable hash of a framework's controls dict.
+
+    Used both to detect a mapping-pack revision that didn't bump
+    mapping_pack_version, and to verify a stored snapshot was not corrupted
+    or partially overwritten before get_compliance_score() trusts it as the
+    historically accurate mapping for a scan.
+    """
+    canonical = json.dumps(controls, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _build_compliance_mapping_snapshot() -> Dict[str, Any]:
+    """Capture each framework's complete mapping — not just its metadata — at
+    the moment a scan is saved.
+
+    Historical scans must remain interpretable even after the mapping pack on
+    disk is later revised or a framework edition is superseded. Snapshotting
+    metadata alone was not enough for that: get_compliance_score() also needs
+    the exact controls, mapping types, and denominator membership that were
+    in effect for this scan, or a mapping-pack update after the scan would
+    silently reclassify it under the new pack while still claiming the old
+    pack's provenance. So this snapshot captures the full controls dict per
+    framework, plus a content hash for integrity verification, and is what a
+    report for this scan prefers over the live files.
+
+    A framework file that is missing or unreadable does not fail the scan
+    save (a transient read error on one framework must not block persisting
+    the scan itself), but the failure is never silent: it's logged, and
+    recorded under the reserved "_capture_errors" key in the returned dict
+    so a consumer reading this exact snapshot later (get_compliance_score())
+    can tell "this framework's provenance was never captured" apart from
+    "this framework simply wasn't configured" — and must not quietly fall
+    back to live mapping data while still claiming historical accuracy.
+    """
+    snapshot: Dict[str, Any] = {}
+    capture_errors: Dict[str, str] = {}
+    for framework, filename in FRAMEWORK_FILE_MAP.items():
+        try:
+            with open(FRAMEWORKS_DIR / filename) as fh:
+                data = json.load(fh)
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.error("compliance mapping snapshot: could not capture %s (%s): %s", framework, filename, exc)
+            capture_errors[framework] = f"{type(exc).__name__}: {exc}"
+            continue
+        controls = data.get("controls", {})
+        snapshot[framework] = {
+            **{key: data.get(key) for key in _PACK_METADATA_KEYS},
+            "controls": controls,
+            _CONTENT_HASH_KEY: _compute_mapping_pack_content_hash(controls),
+        }
+    if capture_errors:
+        snapshot["_capture_errors"] = capture_errors
+    return snapshot
 
 
 @dataclass
@@ -216,6 +287,21 @@ class DatabaseManager:
 
         conn = self._get_conn()
         completed_at = scan_result.get("completed_at") or datetime.now(timezone.utc).isoformat()
+        mapping_snapshot_dict = _build_compliance_mapping_snapshot()
+        # Rules the scan engine could not complete (raised, or returned
+        # malformed data) are recorded alongside the mapping-pack snapshot so
+        # get_compliance_score() can exclude them from PASS instead of
+        # reading their absence from findings as a clean result. This is a
+        # stopgap ahead of issue #263's persisted per-resource evaluation
+        # table - it only knows "this rule did not complete for this scan",
+        # not per-resource outcomes.
+        # Always written, even when empty: "this attempt had no failed rules"
+        # is a real per-attempt result, not missing data. Omitting the key on a
+        # clean retry would make the ON CONFLICT merge below extract SQL NULL
+        # and stamp a JSON null over the previous attempt's outcomes.
+        failed_rule_ids = scan_result.get("failed_rule_ids") or []
+        mapping_snapshot_dict["_scan_rule_outcomes"] = {"failed_rule_ids": sorted(set(failed_rule_ids))}
+        mapping_snapshot = json.dumps(mapping_snapshot_dict)
         try:
             with conn.cursor() as cur:
                 cur.execute(
@@ -223,16 +309,45 @@ class DatabaseManager:
                     INSERT INTO scans (
                         scan_id, subscription_id, started_at, completed_at,
                         total_findings, score, cve_enrichment_status, status,
-                        attempt_count, error_message, severity_contract_version
+                        attempt_count, error_message, severity_contract_version,
+                        compliance_mapping_snapshot
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (scan_id) DO UPDATE SET
                         completed_at = EXCLUDED.completed_at,
                         total_findings = EXCLUDED.total_findings,
                         score = EXCLUDED.score,
                         status = EXCLUDED.status,
                         error_message = EXCLUDED.error_message,
-                        severity_contract_version = EXCLUDED.severity_contract_version
+                        severity_contract_version = EXCLUDED.severity_contract_version,
+                        -- The mapping-pack provenance captured for a scan_id's
+                        -- first successful write is its historical record and
+                        -- must stay immutable on replay (e.g. a worker retry
+                        -- that reuses the same scan_id) - only fill it in if
+                        -- this scan_id never captured one. But
+                        -- _scan_rule_outcomes is per-attempt execution state,
+                        -- not provenance: it always has to reflect the
+                        -- findings actually being written by *this* save, so
+                        -- it's re-merged from EXCLUDED on every write rather
+                        -- than being frozen by the COALESCE along with the
+                        -- rest of the snapshot - otherwise a rule that failed
+                        -- on attempt 1 and succeeded on a retry would keep
+                        -- being forced to ERROR forever (or the reverse).
+                        -- The inner COALESCE keeps that re-merge from ever
+                        -- writing a JSON null: save_scan() always supplies the
+                        -- key (empty list included), but a row written by any
+                        -- other path without it must fall back to the stored
+                        -- outcomes rather than have them nulled out.
+                        compliance_mapping_snapshot = COALESCE(
+                            scans.compliance_mapping_snapshot, EXCLUDED.compliance_mapping_snapshot
+                        ) || jsonb_build_object(
+                            '_scan_rule_outcomes',
+                            COALESCE(
+                                EXCLUDED.compliance_mapping_snapshot -> '_scan_rule_outcomes',
+                                scans.compliance_mapping_snapshot -> '_scan_rule_outcomes',
+                                '{"failed_rule_ids": []}'::jsonb
+                            )
+                        )
                     """,
                     (
                         scan_result["scan_id"],
@@ -246,6 +361,7 @@ class DatabaseManager:
                         scan_result.get("attempt_count", 0),
                         scan_result.get("error_message"),
                         CONTRACT_VERSION,
+                        mapping_snapshot,
                     ),
                 )
                 # A worker retry replaces the previous result atomically. This
@@ -606,29 +722,63 @@ class DatabaseManager:
     # Scoring                                                               #
     # ------------------------------------------------------------------ #
 
-    def get_score(self) -> int:
+    def get_score(self, subscription_id: Optional[str] = None) -> Dict[str, Any]:
         """Return a 0-100 security posture score based on the latest scan's findings.
 
         Scoped to the most recent scan so historical findings from older scans
         do not accumulate and drive the score to zero.
         CRITICAL findings deduct 20 points each, HIGH 10, MEDIUM 5,
-        LOW 2, and INFO 0. Floors at 0.
+        LOW 2, and INFO 0 (openshield.severity.score_counts). Floors at 0.
+
+        The scan-existence check is a separate query from the findings lookup:
+        folding both into one `scan_id = (SELECT ...)` subquery (the previous
+        approach) cannot distinguish "no completed scan exists" from "the
+        latest completed scan found nothing" - both yield zero rows, so the
+        former was silently reported as a perfect 100 score with no actual
+        evidence behind it, the same NO_SCAN_DATA gap fixed in
+        get_compliance_score().
+
+        Args:
+            subscription_id: When given, scopes the "latest completed scan"
+                lookup to this subscription. In a shared-database deployment
+                that stores scans for more than one Azure subscription,
+                omitting this returns whichever subscription scanned most
+                recently - not this caller's own data. Passed in by the route
+                (matching get_compliance_score) rather than read off the
+                instance, which never carries it.
+
+        Returns:
+            {"status": "NO_SCAN_DATA", "score": None, "message": ...} when no
+            completed scan exists yet, or {"status": "OK", "score": <0-100>}
+            once one has.
         """
         conn = self._get_conn()
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT severity, COUNT(*)
-                FROM findings
-                WHERE scan_id = (
-                    SELECT scan_id FROM scans WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1
+            if subscription_id:
+                cur.execute(
+                    "SELECT scan_id FROM scans "
+                    "WHERE status = 'completed' AND subscription_id = %s "
+                    "ORDER BY started_at DESC LIMIT 1",
+                    (subscription_id,),
                 )
-                GROUP BY severity
-                """
-            )
+            else:
+                cur.execute("SELECT scan_id FROM scans WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1")
+            latest_scan = cur.fetchone()
+
+            if latest_scan is None:
+                return {
+                    "status": "NO_SCAN_DATA",
+                    "score": None,
+                    "max_score": 100,
+                    "message": ("No completed scan is available yet, so there is no security posture to score."),
+                }
+
+            scan_id = latest_scan[0]
+            cur.execute("SELECT severity, COUNT(*) FROM findings WHERE scan_id = %s GROUP BY severity", (scan_id,))
             rows = cur.fetchall()
 
-        return score_counts({severity: count for severity, count in rows})
+        score = score_counts({severity: count for severity, count in rows})
+        return {"status": "OK", "score": score, "max_score": 100}
 
     def get_cve_summary(self) -> Dict[str, Any]:
         """Return high-level summary of CVE findings for the dashboard."""
@@ -670,15 +820,31 @@ class DatabaseManager:
             "critical_cve_count": row[5],
         }
 
-    def get_compliance_score(self, framework: str) -> Dict[str, Any]:
-        """Return pass/fail breakdown against a compliance framework.
+    def get_compliance_score(self, framework: str, subscription_id: Optional[str] = None) -> Dict[str, Any]:
+        """Return technical-evidence coverage against a compliance framework mapping pack.
+
+        This reports coverage from the most recent completed scan, not a
+        certification or a claim of full framework compliance. Controls whose
+        mapping_type is "not_applicable" or "organizational" are listed but
+        excluded from the pass-rate denominator (score_percent), because a
+        technical scan cannot itself establish an organizational control or a
+        control the mapped framework edition does not define.
 
         Args:
-            framework: One of 'cis', 'nist', or 'iso27001'.
+            framework: One of the keys in FRAMEWORK_FILE_MAP (e.g. 'cis', 'nist').
+            subscription_id: When given, scopes the "latest completed scan"
+                lookup to this subscription. In a shared-database deployment
+                that stores scans for more than one Azure subscription,
+                omitting this returns whichever subscription scanned most
+                recently - not this caller's own data.
 
         Returns:
-            dict with keys: framework, total_controls, passed, failed,
-            score_percent, controls (list of control detail objects).
+            dict with keys: framework, version, mapping_pack_version,
+            mapping_pack_status, mapping_pack_source, mapping_pack_published,
+            evaluation_basis, total_controls, in_scope_controls,
+            excluded_controls, passed, failed, score_percent, controls (list
+            of control detail objects each carrying mapping_type, evidence_type,
+            primary_source, rationale, owner, review_status, review_date).
         """
         filename = FRAMEWORK_FILE_MAP.get(framework.lower())
         if not filename:
@@ -692,6 +858,10 @@ class DatabaseManager:
             framework_data = json.load(fh)
 
         controls = framework_data.get("controls", {})
+        pack_meta = {key: framework_data.get(key) for key in _PACK_METADATA_KEYS}
+        # Present regardless of provenance, so callers never have to branch
+        # on whether this came from a snapshot to find the hash field.
+        pack_meta[_CONTENT_HASH_KEY] = _compute_mapping_pack_content_hash(controls)
 
         # Finding detail (severity/category/resource count) still comes from
         # findings — evaluations don't carry severity. Pass/fail/unknown/error
@@ -699,29 +869,152 @@ class DatabaseManager:
         # errored, or hasn't been migrated to evaluate() yet is never silently
         # reported as PASS just because it produced no findings (#263).
         conn = self._get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            if subscription_id:
+                cur.execute(
+                    "SELECT scan_id, compliance_mapping_snapshot FROM scans "
+                    "WHERE status = 'completed' AND subscription_id = %s ORDER BY started_at DESC LIMIT 1",
+                    (subscription_id,),
+                )
+            else:
+                cur.execute(
+                    "SELECT scan_id, compliance_mapping_snapshot FROM scans "
+                    "WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1"
+                )
+            latest_scan = cur.fetchone()
+
+            if latest_scan is None:
+                # No completed scan exists yet: there is no evidence to report.
+                # Absence of findings must never be presented as a passing score.
+                # in_scope_controls/excluded_controls/passed/failed are None
+                # here, not 0 - a literal 0 would read as "this mapping pack
+                # has zero in-scope controls" (the real, distinct
+                # NO_IN_SCOPE_CONTROLS case below), when what's actually true
+                # is that scope has not been determined yet because nothing
+                # has run. total_controls is still meaningful (the pack
+                # defines this many controls); the others are not.
+                return {
+                    **pack_meta,
+                    "status": "NO_SCAN_DATA",
+                    "message": (
+                        "No completed scan is available yet, so no technical "
+                        "evidence exists to report against this framework."
+                    ),
+                    "evaluation_basis": (
+                        "No completed scan exists yet, so no control below could be "
+                        "evaluated. in_scope_controls/excluded_controls/passed/failed "
+                        "are null, not 0 - this is distinct from a scan that completed "
+                        "and found zero in-scope controls (status NO_IN_SCOPE_CONTROLS)."
+                    ),
+                    "total_controls": len(controls),
+                    "in_scope_controls": None,
+                    "excluded_controls": None,
+                    "passed": None,
+                    "failed": None,
+                    "score_percent": None,
+                    "controls": [],
+                }
+
+            scan_id = latest_scan["scan_id"]
+            snapshot = latest_scan.get("compliance_mapping_snapshot") or {}
+            snapshot_for_fw = snapshot.get(framework.lower())
+            if snapshot_for_fw and isinstance(snapshot_for_fw.get("controls"), dict):
+                # A full historical snapshot exists: reproduce the exact
+                # controls, mapping types, and denominator membership that
+                # were in effect for this scan, not whatever is on disk now.
+                # Otherwise a mapping-pack update after the scan would
+                # silently re-evaluate it under the new pack while this
+                # response still claimed the old pack's provenance.
+                controls = snapshot_for_fw["controls"]
+                stored_hash = snapshot_for_fw.get(_CONTENT_HASH_KEY)
+                if not stored_hash:
+                    # No content hash was ever captured for this snapshot
+                    # (e.g. saved before the hash field shipped) - integrity
+                    # was never checked, so this must not be labelled plain
+                    # "snapshot", which would imply a verification that
+                    # never happened.
+                    mapping_provenance = "snapshot_no_hash"
+                elif stored_hash != _compute_mapping_pack_content_hash(controls):
+                    # The stored snapshot no longer hashes to what it claims -
+                    # corrupted or partially overwritten. Still the best
+                    # historical data available, but must not be presented as
+                    # a clean, verified snapshot.
+                    logger.error(
+                        "compliance mapping snapshot for scan %s framework %s failed integrity "
+                        "check: stored hash does not match its own controls",
+                        scan_id,
+                        framework.lower(),
+                    )
+                    mapping_provenance = "snapshot_hash_mismatch"
+                else:
+                    mapping_provenance = "snapshot"
+                pack_meta = {key: snapshot_for_fw.get(key) for key in _PACK_METADATA_KEYS}
+                pack_meta[_CONTENT_HASH_KEY] = stored_hash
+            elif snapshot_for_fw:
+                # Legacy snapshot: metadata was captured historically but the
+                # full controls were not (scan saved before this snapshot was
+                # widened to include them). The denominator/classification
+                # below still has to come from whatever mapping is on disk
+                # now, so this must not be labelled "snapshot" - that would
+                # claim a historical accuracy this response doesn't have.
+                pack_meta = snapshot_for_fw
+                mapping_provenance = "live_fallback_legacy_snapshot"
+            elif framework.lower() in (snapshot.get("_capture_errors") or {}):
+                # The snapshot was attempted for this exact scan and this exact
+                # framework, and it failed (logged at save time - see
+                # _build_compliance_mapping_snapshot). Falling back to whatever
+                # mapping pack happens to be on disk *now* is the only option
+                # left, but it must never be presented as if it were the
+                # historically accurate provenance for this scan.
+                mapping_provenance = "live_fallback_capture_failed"
+            else:
+                # No snapshot entry and no recorded capture error for this
+                # framework - a benign case (e.g. a scan saved before this
+                # framework existed, or before the snapshot feature shipped).
+                mapping_provenance = "live_fallback_no_snapshot"
+
+        # A separate, plain (non-RealDict) cursor for this one - its rows are
+        # unpacked positionally below, and a RealDictCursor row is a plain
+        # OrderedDict with no __iter__ override, so `a, b, c, d = row` would
+        # silently unpack its *keys* ("rule_id", "severity", ...) rather than
+        # their values instead of failing loudly.
+        with conn.cursor() as cur2:
+            # Grouped by severity/category too (not just DISTINCT rule_id) so
+            # each failing control can report which severity/category/how many
+            # resources are affected, not just a bare FAIL.
+            cur2.execute(
                 """
                 SELECT rule_id, severity, category, COUNT(*)
                 FROM findings
-                WHERE scan_id = (
-                    SELECT scan_id FROM scans WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1
-                )
+                WHERE scan_id = %s
                 GROUP BY rule_id, severity, category
-                """
+                """,
+                (scan_id,),
             )
-            finding_rows = cur.fetchall()
+            finding_rows = cur2.fetchall()
 
-            cur.execute(
+            # Pass/fail/unknown/error status is evaluation-derived (#263/#321):
+            # it comes from rule_evaluations, never from the mere absence of a
+            # finding. A rule that was never run against this scan (a legacy
+            # rule not yet migrated to evaluate(), or one that was skipped)
+            # has no row here and is reported UNKNOWN below, not a silent PASS.
+            cur2.execute(
                 """
                 SELECT rule_id, status
                 FROM rule_evaluations
-                WHERE scan_id = (
-                    SELECT scan_id FROM scans WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1
-                )
-                """
+                WHERE scan_id = %s
+                """,
+                (scan_id,),
             )
-            evaluation_rows = cur.fetchall()
+            evaluation_rows = cur2.fetchall()
+
+        statuses_by_rule: Dict[str, List[str]] = {}
+        for rule_id, status in evaluation_rows:
+            statuses_by_rule.setdefault(rule_id, []).append(status)
+        # FAIL beats ERROR beats UNKNOWN beats PASS beats NOT_APPLICABLE, so a
+        # single failing/erroring resource can never be outvoted by resources
+        # that happened to pass under the same rule.
+        aggregated_status = {rid: aggregate_status(sts) for rid, sts in statuses_by_rule.items()}
 
         failures: Dict[str, Dict[str, Any]] = {}
         for rule_id, raw_severity, category, resource_count in finding_rows:
@@ -739,18 +1032,38 @@ class DatabaseManager:
                 current["severity"] = severity
                 current["category"] = category
 
-        statuses_by_rule: Dict[str, List[str]] = {}
-        for rule_id, status in evaluation_rows:
-            statuses_by_rule.setdefault(rule_id, []).append(status)
-        aggregated_status = {rule_id: aggregate_status(statuses) for rule_id, statuses in statuses_by_rule.items()}
+        # Rules the scan engine could not complete for this scan (raised, or
+        # returned malformed data) - recorded by save_scan() alongside the
+        # mapping snapshot. This is a supplementary signal on top of
+        # rule_evaluations: it can only ever make a control's status stricter
+        # (force ERROR), never looser, and an ERROR still counts in the
+        # denominator, so a rule that failed to run can never improve a score
+        # (issue #302/#263).
+        unevaluated_rule_ids = set((snapshot.get("_scan_rule_outcomes") or {}).get("failed_rule_ids") or [])
 
         results = []
         for rule_id, control in controls.items():
+            mapping_type = control.get("mapping_type", "supporting")
+            is_excluded = mapping_type in ("not_applicable", "organizational")
             failure = failures.get(rule_id)
-            # No evaluation row at all means this rule was never run against
-            # this scan (predates rule_evaluations, or was skipped) — report
-            # UNKNOWN rather than defaulting to PASS or inferring from findings.
-            status = aggregated_status.get(rule_id, EvaluationStatus.UNKNOWN)
+            if is_excluded:
+                status = EvaluationStatus.NOT_APPLICABLE if mapping_type == "not_applicable" else "ORGANIZATIONAL"
+            else:
+                # Evaluation-derived (#263/#321). A control's status is the
+                # rolled-up status of its rule's rule_evaluations rows for
+                # this scan. No rows at all -> UNKNOWN: the rule was never
+                # actually run against this scan (a legacy rule not migrated
+                # to evaluate(), or one that was skipped), and the absence of
+                # a finding must never be promoted to a PASS on its own.
+                status = aggregated_status.get(rule_id, EvaluationStatus.UNKNOWN)
+                if rule_id in unevaluated_rule_ids and status in (
+                    EvaluationStatus.PASS,
+                    EvaluationStatus.UNKNOWN,
+                ):
+                    # The engine explicitly recorded this rule as failing to
+                    # complete for this scan; a PASS/UNKNOWN rolled up from
+                    # partial evaluation rows must not mask that.
+                    status = EvaluationStatus.ERROR
             results.append(
                 {
                     "rule_id": rule_id,
@@ -760,6 +1073,13 @@ class DatabaseManager:
                     "severity": failure["severity"] if failure else None,
                     "category": failure["category"] if failure else None,
                     "resources": failure["resources"] if failure else 0,
+                    "mapping_type": mapping_type,
+                    "evidence_type": control.get("evidence_type"),
+                    "primary_source": control.get("primary_source"),
+                    "rationale": control.get("rationale"),
+                    "owner": control.get("owner"),
+                    "review_status": control.get("review_status"),
+                    "review_date": control.get("review_date"),
                 }
             )
 
@@ -769,19 +1089,45 @@ class DatabaseManager:
             "failed": sum(1 for r in results if r["status"] == EvaluationStatus.FAIL),
             "unknown": sum(1 for r in results if r["status"] == EvaluationStatus.UNKNOWN),
             "error": sum(1 for r in results if r["status"] == EvaluationStatus.ERROR),
-            "not_applicable": sum(1 for r in results if r["status"] == EvaluationStatus.NOT_APPLICABLE),
+            "not_applicable": sum(
+                1 for r in results if r["status"] in (EvaluationStatus.NOT_APPLICABLE, "ORGANIZATIONAL")
+            ),
         }
-        # UNKNOWN/ERROR must never improve the score: they count against the
-        # denominator (evaluated coverage) without counting as a pass.
-        # NOT_APPLICABLE controls fall outside the denominator entirely.
+        # Only mapping_type not_applicable/organizational controls fall outside
+        # the denominator - the mapping pack itself declares a technical scan
+        # cannot establish them. UNKNOWN and ERROR stay *in* the denominator:
+        # they never count as a pass, so lost or missing evidence lowers the
+        # score rather than silently shrinking the base it is measured against.
+        # evaluated == 0 (a scan exists but every control is excluded) is a
+        # distinct fact from "no evidence exists at all" (NO_SCAN_DATA above),
+        # so it gets its own status rather than a bare null score_percent.
         evaluated = total - counts["not_applicable"]
-        score_pct = round((counts["passed"] / evaluated) * 100) if evaluated else 0
+        score_pct = round((counts["passed"] / evaluated) * 100) if evaluated else None
+        status = "OK" if evaluated else "NO_IN_SCOPE_CONTROLS"
 
         return {
-            "framework": framework_data.get("framework"),
-            "version": framework_data.get("version"),
+            **pack_meta,
+            "scan_id": scan_id,
             "contract_version": "2",
+            "status": status,
+            "mapping_provenance": mapping_provenance,
+            "evaluation_basis": (
+                "Status is evaluation-derived: PASS/FAIL/UNKNOWN/ERROR for each control is "
+                "the rolled-up status of its rule's persisted rule_evaluations rows for the "
+                "most recent completed scan (issue #263). A rule with no evaluation row for "
+                "this scan - a legacy rule not yet migrated to evaluate(), or one that was "
+                "skipped - is reported UNKNOWN, never a PASS inferred from the mere absence "
+                "of a finding; a rule the scan engine recorded as failing to complete is "
+                "forced to ERROR. UNKNOWN and ERROR count in the score_percent denominator "
+                "without counting as a pass, so missing or lost evidence lowers the score. "
+                "Findings supply only the severity/category/affected-resource detail on "
+                "failing controls. Controls with mapping_type not_applicable or organizational "
+                "are excluded from score_percent because a technical scan alone cannot "
+                "establish them."
+            ),
             "total_controls": total,
+            "in_scope_controls": evaluated,
+            "excluded_controls": counts["not_applicable"],
             "evaluated": evaluated,
             **counts,
             "score_percent": score_pct,

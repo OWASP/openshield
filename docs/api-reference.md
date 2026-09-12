@@ -232,24 +232,42 @@ Missing subscription response:
 
 ## GET /api/score
 
-Returns the overall security posture score from 0 to 100. Under [severity contract v1](severity-contract.md), the score starts at 100 and deducts 20 per CRITICAL finding, 10 per HIGH finding, 5 per MEDIUM finding, and 2 per LOW finding. INFO findings deduct zero.
+Returns the overall security posture score from 0 to 100. Under [severity contract v1](severity-contract.md), the score starts at 100 and deducts 20 per CRITICAL finding, 10 per HIGH finding, 5 per MEDIUM finding, and 2 per LOW finding; INFO findings deduct zero. Scoped to the most recent **completed** scan — if no completed scan exists yet, this returns `status: "NO_SCAN_DATA"` with `score: null` rather than a misleading 100 (a scan with no findings and no evidence at all would otherwise be indistinguishable).
 
-Query parameters: none
+Query parameters:
 
-Example response:
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `subscription_id` | UUID string | No | Scopes the "most recent completed scan" lookup to one Azure subscription. Defaults to the deployment's `AZURE_SUBSCRIPTION_ID`; if neither is set the latest completed scan from *any* subscription is used, which is only correct for a single-tenant database. A malformed value is a `400`, never a silently unscoped result. |
+
+Example response (a completed scan exists):
 
 ```json
 {
+  "status": "OK",
   "score": 82,
   "max_score": 100
 }
 ```
 
+Example response (no completed scan exists yet):
+
+```json
+{
+  "status": "NO_SCAN_DATA",
+  "score": null,
+  "max_score": 100,
+  "message": "No completed scan is available yet, so there is no security posture to score."
+}
+```
+
+Consumers must check `status` and treat a `null` `score` as "not assessed" — never coerce it to `0`, which would misrepresent absence of evidence as a confirmed worst-case score.
+
 ---
 
 ## GET /api/compliance/&lt;framework&gt;
 
-Returns a pass/fail control breakdown for a supported compliance framework.
+Returns technical-evidence coverage against a compliance framework mapping pack, scoped to the most recent **completed** scan. This is coverage, not a certification or a claim of full framework compliance — see `docs/compliance-mapping-pack.md` for the full mapping-pack schema and `evaluation_basis` semantics.
 
 Supported frameworks:
 
@@ -259,36 +277,85 @@ Supported frameworks:
 | `nist` | `nist_csf.json` |
 | `iso27001` | `iso27001.json` |
 | `soc2` | `soc2.json` |
+| `ncsc_pqc` | `ncsc_pqc.json` |
+| `enisa_pqc` | `enisa_pqc.json` |
 
-Query parameters: none
+Query parameters:
 
-Example response:
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `subscription_id` | UUID string | No | Scopes the "most recent completed scan" lookup to one Azure subscription. Defaults to the deployment's `AZURE_SUBSCRIPTION_ID`; if neither is set the latest completed scan from *any* subscription is used, which is only correct for a single-tenant database. A malformed value is a `400`, never a silently unscoped result. |
+
+`status` is one of:
+- `OK` — a completed scan exists and at least one mapped control is in scope; `score_percent` is a real evaluated percentage.
+- `NO_SCAN_DATA` — no completed scan exists yet, so there is no evidence to report; `score_percent` is `null`.
+- `NO_IN_SCOPE_CONTROLS` — a completed scan exists, but every mapped control for this framework is `not_applicable`/`organizational` and excluded from the denominator; `score_percent` is `null`.
+
+Per-control `status` is evaluation-derived (issue #263): `PASS`/`FAIL`/`UNKNOWN`/`ERROR` is the rolled-up status of that rule's persisted `rule_evaluations` rows for the scan, not an inference from the mere absence of a finding. A control whose rule has no evaluation row for the scan (a legacy rule not yet migrated to `evaluate()`, or one that was skipped) is reported `UNKNOWN`. `UNKNOWN` and `ERROR` count in the `score_percent` denominator without counting as a pass, so missing or lost evidence lowers the score rather than shrinking the base it is measured against; only `not_applicable`/`organizational` controls are excluded from the denominator.
+
+Consumers must check `status` and never treat a `null` `score_percent` as `0` — a missing/excluded score is a different fact from a real, evaluated 0%.
+
+Example response (`OK`):
 
 ```json
 {
   "framework": "CIS Microsoft Azure Foundations Benchmark",
   "version": "2.0.0",
-  "total_controls": 20,
-  "passed": 19,
-  "failed": 1,
-  "score_percent": 95,
+  "status": "OK",
+  "mapping_pack_version": "1.0.0",
+  "mapping_pack_status": "current",
+  "mapping_pack_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0 official control text. Technical-evidence mapping only; not a certification statement.",
+  "mapping_pack_published": "2026-08-22",
+  "scan_id": "scan-1",
+  "evaluation_basis": "Status is evaluation-derived: PASS/FAIL/UNKNOWN/ERROR for each control is the rolled-up status of its rule's persisted rule_evaluations rows for the most recent completed scan (issue #263). ...",
+  "total_controls": 95,
+  "in_scope_controls": 49,
+  "excluded_controls": 46,
+  "passed": 45,
+  "failed": 2,
+  "unknown": 2,
+  "error": 0,
+  "score_percent": 92,
   "controls": [
     {
       "rule_id": "AZ-STOR-001",
       "control_id": "3.5",
       "control_name": "Ensure that 'Public access level' is set to Private for blob containers",
-      "status": "FAIL"
+      "status": "FAIL",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 3.5",
+      "rationale": "...",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   ]
 }
 ```
 
-Unknown framework response:
+Example response (`NO_SCAN_DATA`, HTTP 200 — never 500):
 
 ```json
 {
-  "error": "Unknown framework 'pci'",
-  "supported": ["cis", "nist", "iso27001", "soc2"]
+  "status": "NO_SCAN_DATA",
+  "message": "No completed scan is available yet, so no technical evidence exists to report against this framework.",
+  "total_controls": 95,
+  "in_scope_controls": null,
+  "excluded_controls": null,
+  "passed": null,
+  "failed": null,
+  "score_percent": null,
+  "controls": []
+}
+```
+
+Unknown framework response (HTTP 400):
+
+```json
+{
+  "error": "Invalid request parameters",
+  "supported": ["cis", "nist", "iso27001", "soc2", "ncsc_pqc", "enisa_pqc"]
 }
 ```
 

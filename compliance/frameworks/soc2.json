@@ -2,623 +2,1522 @@
   "framework": "SOC 2 Type II",
   "version": "2017",
   "published": "2017-04",
+  "mapping_pack_version": "1.0.0",
+  "mapping_pack_status": "current",
+  "mapping_pack_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+  "mapping_pack_published": "2026-09-06",
   "controls": {
     "AZ-STOR-001": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access to Information Assets",
-      "description": "Public blob access allows unauthenticated users from outside the network boundary to read storage data without credentials. CC6.6 requires that access from outside the network perimeter is restricted and controlled. Disabling public access enforces this boundary by requiring authentication for all storage operations."
+      "description": "Public blob access allows unauthenticated users from outside the network boundary to read storage data without credentials. CC6.6 requires that access from outside the network perimeter is restricted and controlled. Disabling public access enforces this boundary by requiring authentication for all storage operations.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-STOR-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-002": {
       "control_id": "CC6.7",
       "control_name": "Protects Data in Transit",
-      "description": "Allowing unencrypted HTTP traffic to a storage account exposes data in transit to interception and tampering. CC6.7 requires that data transmitted over networks is protected using encryption. Enforcing HTTPS-only ensures all storage traffic is encrypted in transit."
+      "description": "Allowing unencrypted HTTP traffic to a storage account exposes data in transit to interception and tampering. CC6.7 requires that data transmitted over networks is protected using encryption. Enforcing HTTPS-only ensures all storage traffic is encrypted in transit.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.7",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.7 ('Restricts Transmission and Movement of Information') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-STOR-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-006": {
       "control_id": "N/A-STOR-006",
       "control_name": "Storage Account Shared-Key Authorization Enabled",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria) (no corresponding criterion)",
+      "rationale": "SOC 2 Type II (2017 Trust Services Criteria) defines no criterion that OpenShield rule AZ-STOR-006 maps to (Storage Account Shared-Key Authorization Enabled); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-007": {
       "control_id": "N/A-STOR-007",
       "control_name": "Storage Account Allows TLS Below 1.2",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria) (no corresponding criterion)",
+      "rationale": "SOC 2 Type II (2017 Trust Services Criteria) defines no criterion that OpenShield rule AZ-STOR-007 maps to (Storage Account Allows TLS Below 1.2); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-008": {
       "control_id": "N/A-STOR-008",
       "control_name": "Required Storage Customer-Managed Key Protection Missing",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria) (no corresponding criterion)",
+      "rationale": "SOC 2 Type II (2017 Trust Services Criteria) defines no criterion that OpenShield rule AZ-STOR-008 maps to (Required Storage Customer-Managed Key Protection Missing); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-009": {
       "control_id": "N/A-STOR-009",
       "control_name": "Required Blob Container Immutability Missing",
-      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation."
+      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria) (no corresponding criterion)",
+      "rationale": "SOC 2 Type II (2017 Trust Services Criteria) defines no criterion that OpenShield rule AZ-STOR-009 maps to (Required Blob Container Immutability Missing); asserting one would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
-    "AZ-DB-005": {"control_id": "CC6.3", "control_name": "Logical access security", "description": "SQL authentication is restricted to approved Entra identities."},
-    "AZ-DB-006": {"control_id": "CC7.1", "control_name": "Detection of security events", "description": "Required SQL vulnerability assessment is configured."},
-    "AZ-DB-007": {"control_id": "CC7.2", "control_name": "System monitoring", "description": "SQL audit logs are retained according to policy."},
-    "AZ-COSMOS-001": {"control_id": "CC6.3", "control_name": "Logical access security", "description": "Cosmos authentication is restricted to approved Entra identities."},
-    "AZ-COSMOS-002": {"control_id": "CC6.6", "control_name": "Logical access security measures", "description": "Cosmos public network access is restricted according to policy."},
-    "AZ-CACHE-001": {"control_id": "CC6.6", "control_name": "Logical access security measures", "description": "Managed cache access is private and uses approved TLS."},
+    "AZ-DB-005": {
+      "control_id": "CC6.3",
+      "control_name": "Logical access security",
+      "description": "SQL authentication is restricted to approved Entra identities.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Logical access security') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-DB-005 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-DB-006": {
+      "control_id": "CC7.1",
+      "control_name": "Detection of security events",
+      "description": "Required SQL vulnerability assessment is configured.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.1 ('Detection of security events') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-DB-006 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-DB-007": {
+      "control_id": "CC7.2",
+      "control_name": "System monitoring",
+      "description": "SQL audit logs are retained according to policy.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-DB-007 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-COSMOS-001": {
+      "control_id": "CC6.3",
+      "control_name": "Logical access security",
+      "description": "Cosmos authentication is restricted to approved Entra identities.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Logical access security') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-COSMOS-001 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-COSMOS-002": {
+      "control_id": "CC6.6",
+      "control_name": "Logical access security measures",
+      "description": "Cosmos public network access is restricted according to policy.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical access security measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-COSMOS-002 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-CACHE-001": {
+      "control_id": "CC6.6",
+      "control_name": "Logical access security measures",
+      "description": "Managed cache access is private and uses approved TLS.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical access security measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-CACHE-001 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
     "AZ-STOR-003": {
       "control_id": "CC8.1",
       "control_name": "Change Management",
-      "description": "A storage account with no lifecycle management policy allows data to accumulate indefinitely with no automatic expiry or tiering. CC8.1 requires that infrastructure and data are managed through formal processes. Implementing a lifecycle policy ensures data retention is controlled and old data is automatically moved or deleted according to organisational policy."
+      "description": "A storage account with no lifecycle management policy allows data to accumulate indefinitely with no automatic expiry or tiering. CC8.1 requires that infrastructure and data are managed through formal processes. Implementing a lifecycle policy ensures data retention is controlled and old data is automatically moved or deleted according to organisational policy.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC8.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC8.1 ('Change Management') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-STOR-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-004": {
       "control_id": "CC7.2",
       "control_name": "System monitoring",
-      "description": "Azure Monitor diagnostic logging must be enabled for all storage account services (blob, queue, table) to ensure that security-relevant events are recorded. CC7.2 requires that the entity monitors the system and takes action to maintain compliance. Without full logging, unauthorized access or data exfiltration attempts may go undetected."
+      "description": "Azure Monitor diagnostic logging must be enabled for all storage account services (blob, queue, table) to ensure that security-relevant events are recorded. CC7.2 requires that the entity monitors the system and takes action to maintain compliance. Without full logging, unauthorized access or data exfiltration attempts may go undetected.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-STOR-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-STOR-005": {
       "control_id": "A1.2",
       "control_name": "Environmental Threats and Recovery",
-      "description": "Storage accounts configured with LRS or ZRS replication do not protect against environmental threats at the regional level. A regional outage or disaster could result in data loss and service unavailability. Geo-redundant replication is needed to ensure business continuity."
+      "description": "Storage accounts configured with LRS or ZRS replication do not protect against environmental threats at the regional level. A regional outage or disaster could result in data loss and service unavailability. Geo-redundant replication is needed to ensure business continuity.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion A1.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion A1.2 ('Environmental Threats and Recovery') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-STOR-005 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-001": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "An NSG allowing unrestricted RDP access from the internet permits any external party to attempt remote access to virtual machines. CC6.6 requires that logical access from outside the network boundary is restricted. Limiting RDP to known IP ranges enforces this boundary and eliminates unauthorised remote access attempts."
+      "description": "An NSG allowing unrestricted RDP access from the internet permits any external party to attempt remote access to virtual machines. CC6.6 requires that logical access from outside the network boundary is restricted. Limiting RDP to known IP ranges enforces this boundary and eliminates unauthorised remote access attempts.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-002": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "An NSG allowing unrestricted SSH access from the internet exposes virtual machines to brute force and credential attacks from any external party. CC6.6 requires that access from outside the network perimeter is restricted and controlled. Restricting SSH to known IP ranges or removing it in favour of Azure Bastion enforces this boundary."
+      "description": "An NSG allowing unrestricted SSH access from the internet exposes virtual machines to brute force and credential attacks from any external party. CC6.6 requires that access from outside the network perimeter is restricted and controlled. Restricting SSH to known IP ranges or removing it in favour of Azure Bastion enforces this boundary.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-003": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "An NSG permitting unrestricted inbound access on port 443 from the internet exposes web services to automated scanning and exploitation attempts from any external source. CC6.6 requires that access from outside the network boundary is restricted to authorised sources. Public-facing services should be fronted by a WAF-enabled Application Gateway rather than exposed directly."
+      "description": "An NSG permitting unrestricted inbound access on port 443 from the internet exposes web services to automated scanning and exploitation attempts from any external source. CC6.6 requires that access from outside the network boundary is restricted to authorised sources. Public-facing services should be fronted by a WAF-enabled Application Gateway rather than exposed directly.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-004": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A Network Security Group with no custom rules provides no meaningful boundary control and relies entirely on Azure defaults. CC6.6 requires that logical access from outside the network perimeter is explicitly restricted. Explicit least-privilege rules must be defined to enforce the network boundary."
+      "description": "A Network Security Group with no custom rules provides no meaningful boundary control and relies entirely on Azure defaults. CC6.6 requires that logical access from outside the network perimeter is explicitly restricted. Explicit least-privilege rules must be defined to enforce the network boundary.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-005": {
       "control_id": "A1.1",
       "control_name": "Capacity and Performance Monitoring",
-      "description": "Virtual networks without DDoS Protection Standard are vulnerable to volumetric attacks that can exhaust capacity and cause service outages. A1.1 requires that current processes and procedures are performed to manage capacity and performance."
+      "description": "Virtual networks without DDoS Protection Standard are vulnerable to volumetric attacks that can exhaust capacity and cause service outages. A1.1 requires that current processes and procedures are performed to manage capacity and performance.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion A1.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion A1.1 ('Capacity and Performance Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-005 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-006": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "Unassociated public IP addresses represent unnecessary exposure on the internet and may indicate leftover resources from decommissioned workloads. CC6.6 requires that the network boundary is managed to restrict logical access from outside sources. Orphaned public IPs should be removed."
+      "description": "Unassociated public IP addresses represent unnecessary exposure on the internet and may indicate leftover resources from decommissioned workloads. CC6.6 requires that the network boundary is managed to restrict logical access from outside sources. Orphaned public IPs should be removed.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-006 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-007": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "An Application Gateway without WAF enabled provides no protection against web application attacks from external sources including OWASP Top 10 vulnerabilities. CC6.6 requires that access from outside the network boundary is restricted through logical access controls including WAF."
+      "description": "An Application Gateway without WAF enabled provides no protection against web application attacks from external sources including OWASP Top 10 vulnerabilities. CC6.6 requires that access from outside the network boundary is restricted through logical access controls including WAF.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-007 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-008": {
       "control_id": "CC8.1",
       "control_name": "Change Management",
-      "description": "A load balancer with no backend pool configured is either misconfigured or a leftover resource from a decommissioned workload that was not properly cleaned up. CC8.1 requires that infrastructure is managed through formal change management and resource lifecycle procedures."
+      "description": "A load balancer with no backend pool configured is either misconfigured or a leftover resource from a decommissioned workload that was not properly cleaned up. CC8.1 requires that infrastructure is managed through formal change management and resource lifecycle procedures.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC8.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC8.1 ('Change Management') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-008 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-009": {
       "control_id": "CC6.7",
       "control_name": "Protects Data in Transit",
-      "description": "VPN gateway connections using IKEv1 use an outdated protocol with known vulnerabilities that weaken the confidentiality and integrity of data transmitted between networks. CC6.7 requires that data in transit is protected through encryption using current, secure protocols."
+      "description": "VPN gateway connections using IKEv1 use an outdated protocol with known vulnerabilities that weaken the confidentiality and integrity of data transmitted between networks. CC6.7 requires that data in transit is protected through encryption using current, secure protocols.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.7",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.7 ('Restricts Transmission and Movement of Information') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-009 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-010": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A subnet without an NSG attached has no network layer access controls leaving all resources in that subnet reachable from other subnets or the internet with no filtering. CC6.6 requires that access is controlled through network-level restrictions."
+      "description": "A subnet without an NSG attached has no network layer access controls leaving all resources in that subnet reachable from other subnets or the internet with no filtering. CC6.6 requires that access is controlled through network-level restrictions.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-010 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-001": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
-      "description": "A service principal with Contributor role at subscription scope has unrestricted ability to create, modify and delete any resource in the environment. CC6.1 requires that logical access controls restrict authorizations to authenticated and verified users and processes."
+      "description": "A service principal with Contributor role at subscription scope has unrestricted ability to create, modify and delete any resource in the environment. CC6.1 requires that logical access controls restrict authorizations to authenticated and verified users and processes.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-002": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
-      "description": "Without MFA enforced on privileged accounts, a single compromised password grants full administrative access to the Azure environment. CC6.1 requires that logical access controls are implemented to authenticate and authorise users and processes."
+      "description": "Without MFA enforced on privileged accounts, a single compromised password grants full administrative access to the Azure environment. CC6.1 requires that logical access controls are implemented to authenticate and authorise users and processes.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-003": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
-      "description": "Unrestricted guest user invitations allow any organisation member to introduce unreviewed external identities into the tenant. CC6.1 requires that logical access to information assets is controlled and verified through authentication procedures."
+      "description": "Unrestricted guest user invitations allow any organisation member to introduce unreviewed external identities into the tenant. CC6.1 requires that logical access to information assets is controlled and verified through authentication procedures.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-005": {
       "control_id": "CC6.3",
       "control_name": "Role-based access control",
-      "description": "Guest users assigned high privilege roles in Entra ID give external parties administrative control over the Azure tenant. CC6.3 requires that role-based access controls restrict access to authorised internal users based on their responsibilities. Privileged roles must be removed from all guest accounts."
+      "description": "Guest users assigned high privilege roles in Entra ID give external parties administrative control over the Azure tenant. CC6.3 requires that role-based access controls restrict access to authorised internal users based on their responsibilities. Privileged roles must be removed from all guest accounts.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Role-Based Access Control') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-005 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-006": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
-      "description": "Service principal client secrets older than 90 days or with no expiry date represent unmanaged credentials that persist beyond their useful life. CC6.1 requires that logical access controls implement authentication measures to prevent unauthorised access. Stale or non-expiring secrets must be rotated and replaced with time-bound credentials or managed identities."
+      "description": "Service principal client secrets older than 90 days or with no expiry date represent unmanaged credentials that persist beyond their useful life. CC6.1 requires that logical access controls implement authentication measures to prevent unauthorised access. Stale or non-expiring secrets must be rotated and replaced with time-bound credentials or managed identities.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-006 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-007": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
-      "description": "Active Entra ID users with no MFA registered can access Azure resources with a single compromised password. CC6.1 requires that logical access controls implement multi-factor authentication to protect against unauthorised access. Conditional Access policies must enforce MFA registration and usage for all active user accounts."
+      "description": "Active Entra ID users with no MFA registered can access Azure resources with a single compromised password. CC6.1 requires that logical access controls implement multi-factor authentication to protect against unauthorised access. Conditional Access policies must enforce MFA registration and usage for all active user accounts.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-007 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-008": {
       "control_id": "CC6.3",
       "control_name": "Role-based access control",
-      "description": "Custom RBAC roles with wildcard permissions grant unconstrained access to subscription resources and undermine role-based access controls. CC6.3 requires that role-based access controls restrict access based on defined job responsibilities. Wildcard actions in custom roles must be replaced with explicit, minimal permission sets."
+      "description": "Custom RBAC roles with wildcard permissions grant unconstrained access to subscription resources and undermine role-based access controls. CC6.3 requires that role-based access controls restrict access based on defined job responsibilities. Wildcard actions in custom roles must be replaced with explicit, minimal permission sets.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Role-Based Access Control') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-008 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-009": {
       "control_id": "CC7.2",
       "control_name": "System monitoring",
-      "description": "Without an activity log alert for role assignment changes, privilege escalation events in the subscription are not detected or investigated. CC7.2 requires that the entity monitors system components and the operation of controls to detect anomalies. An alert for Microsoft.Authorization/roleAssignments/write must be created and linked to an active action group."
+      "description": "Without an activity log alert for role assignment changes, privilege escalation events in the subscription are not detected or investigated. CC7.2 requires that the entity monitors system components and the operation of controls to detect anomalies. An alert for Microsoft.Authorization/roleAssignments/write must be created and linked to an active action group.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-009 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-001": {
       "control_id": "CC6.7",
       "control_name": "Protects Data in Transit and At Rest",
-      "description": "SQL Server without Transparent Data Encryption stores database files in plain text on disk. CC6.7 requires that data is protected using encryption both in transit and at rest against interception and tampering."
+      "description": "SQL Server without Transparent Data Encryption stores database files in plain text on disk. CC6.7 requires that data is protected using encryption both in transit and at rest against interception and tampering.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.7",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.7 ('Restricts Transmission and Movement of Information') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-DB-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-002": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A SQL Server firewall rule allowing all IP addresses makes the database reachable from anywhere on the internet. CC6.6 requires that access from outside the network boundary is restricted to authorised sources through explicit firewall rules or private endpoints."
+      "description": "A SQL Server firewall rule allowing all IP addresses makes the database reachable from anywhere on the internet. CC6.6 requires that access from outside the network boundary is restricted to authorised sources through explicit firewall rules or private endpoints.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-DB-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CMP-001": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A virtual machine with a public IP and no NSG has unrestricted inbound network access from the internet with no filtering in place. CC6.6 requires that logical access from outside the network boundary is restricted and controlled."
+      "description": "A virtual machine with a public IP and no NSG has unrestricted inbound network access from the internet with no filtering in place. CC6.6 requires that logical access from outside the network boundary is restricted and controlled.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-CMP-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CMP-002": {
       "control_id": "CC6.7",
       "control_name": "Protects Data in Transit and At Rest",
-      "description": "Virtual machine OS and data disks are using platform-managed encryption only (EncryptionAtRestWithPlatformKey). CC6.7 requires that data is protected using encryption. Platform-managed keys lack customer control and audit capabilities needed for compliance."
+      "description": "Virtual machine OS and data disks are using platform-managed encryption only (EncryptionAtRestWithPlatformKey). CC6.7 requires that data is protected using encryption. Platform-managed keys lack customer control and audit capabilities needed for compliance.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.7",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.7 ('Restricts Transmission and Movement of Information') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-CMP-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CMP-003": {
       "control_id": "CC6.8",
       "control_name": "Prevents or Detects Unauthorized Software",
-      "description": "Virtual machines without recognized endpoint protection lack controls to prevent, detect, and act upon malicious software. CC6.8 requires controls that address the introduction of unauthorized or malicious software on systems."
+      "description": "Virtual machines without recognized endpoint protection lack controls to prevent, detect, and act upon malicious software. CC6.8 requires controls that address the introduction of unauthorized or malicious software on systems.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.8",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.8 ('Prevents or Detects Unauthorized Software') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-CMP-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CMP-004": {
       "control_id": "CC7.1",
       "control_name": "System Vulnerabilities are Identified and Managed",
-      "description": "The virtual machine does not have automatic OS patching enabled. CC7.1 requires that vulnerabilities in system components are identified and managed through a defined process. Without automatic patching, known OS vulnerabilities are left unmitigated and exploitable."
+      "description": "The virtual machine does not have automatic OS patching enabled. CC7.1 requires that vulnerabilities in system components are identified and managed through a defined process. Without automatic patching, known OS vulnerabilities are left unmitigated and exploitable.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.1 ('Detection and Monitoring of New Vulnerabilities') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-CMP-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-CMP-007": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A VM has management ports (SSH/RDP) open to the internet with no Just-In-Time VM access policy covering them. CC6.6 requires that access from outside the network boundary is restricted. JIT opens management ports only for approved, time-boxed requests instead of continuously."
+      "description": "A VM has management ports (SSH/RDP) open to the internet with no Just-In-Time VM access policy covering them. CC6.6 requires that access from outside the network boundary is restricted. JIT opens management ports only for approved, time-boxed requests instead of continuously.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-CMP-007 evaluates one Azure technical control (Just-In-Time VM access coverage for open management ports) that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-001": {
       "control_id": "A1.2",
       "control_name": "Environmental Threats and Recovery",
-      "description": "Key Vault without soft delete enabled allows permanent deletion of secrets, keys and certificates with no recovery possible. A1.2 requires that environmental threats to availability of information systems are addressed through recovery procedures."
+      "description": "Key Vault without soft delete enabled allows permanent deletion of secrets, keys and certificates with no recovery possible. A1.2 requires that environmental threats to availability of information systems are addressed through recovery procedures.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion A1.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion A1.2 ('Environmental Threats and Recovery') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-KV-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-002": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A Key Vault accessible from the public internet allows any external party to attempt access to secrets, keys and certificates. CC6.6 requires that access from outside the network boundary is restricted. Network rules should deny public access."
+      "description": "A Key Vault accessible from the public internet allows any external party to attempt access to secrets, keys and certificates. CC6.6 requires that access from outside the network boundary is restricted. Network rules should deny public access.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-KV-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-003": {
       "control_id": "CC7.2",
       "control_name": "System monitoring",
-      "description": "Key Vault diagnostic logging supports monitoring of access to secrets, keys, and certificates. Without diagnostic logs, unauthorized activity cannot be detected, investigated, or escalated through monitoring procedures."
+      "description": "Key Vault diagnostic logging supports monitoring of access to secrets, keys, and certificates. Without diagnostic logs, unauthorized activity cannot be detected, investigated, or escalated through monitoring procedures.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-KV-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-011": {
       "control_id": "CC7.2",
       "control_name": "System monitoring",
-      "description": "Network Watcher must be enabled in all regions where resources are deployed to support continuous system monitoring. Without it, network-level events cannot be detected or investigated, preventing incident response."
+      "description": "Network Watcher must be enabled in all regions where resources are deployed to support continuous system monitoring. Without it, network-level events cannot be detected or investigated, preventing incident response.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-011 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-012": {
       "control_id": "CC7.2",
       "control_name": "System monitoring",
-      "description": "A VNet flow log (or an existing legacy NSG flow log) supports continuous monitoring of network traffic and investigation of anomalous connections. New NSG flow log creation is blocked as of 2025-06-30, so VNet flow logs are the current mechanism. Without either, network-level security events may not be detected or reconstructed."
+      "description": "A VNet flow log (or an existing legacy NSG flow log) supports continuous monitoring of network traffic and investigation of anomalous connections. New NSG flow log creation is blocked as of 2025-06-30, so VNet flow logs are the current mechanism. Without either, network-level security events may not be detected or reconstructed.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-012 evaluates one Azure technical control (VNet flow logs, with the legacy NSG flow log mechanism Microsoft is retiring accepted as a fallback) that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-003": {
       "control_id": "CC6.1",
       "control_name": "Logical and physical access controls",
-      "description": "SSL enforcement ensures database connections are encrypted, protecting data in transit from unauthorised access. Disabling SSL undermines logical access controls by exposing credentials and sensitive data to interception."
+      "description": "SSL enforcement ensures database connections are encrypted, protecting data in transit from unauthorised access. Disabling SSL undermines logical access controls by exposing credentials and sensitive data to interception.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-DB-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-004": {
       "control_id": "CC9.1",
       "control_name": "Risk Mitigation",
-      "description": "Azure Key Vaults without purge protection enabled allow permanent deletion of secrets, keys, and certificates during the soft-delete retention period. CC9.1 requires that identified risks are mitigated through controls that reduce the likelihood or impact of risk events. Enabling purge protection mitigates the risk of irrecoverable loss of cryptographic material."
+      "description": "Azure Key Vaults without purge protection enabled allow permanent deletion of secrets, keys, and certificates during the soft-delete retention period. CC9.1 requires that identified risks are mitigated through controls that reduce the likelihood or impact of risk events. Enabling purge protection mitigates the risk of irrecoverable loss of cryptographic material.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC9.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC9.1 ('Risk Mitigation') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-KV-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-005": {
       "control_id": "CC9.1",
       "control_name": "Risk Mitigation",
-      "description": "A certificate stored in Azure Key Vault is expiring within 30 days with no auto-renewal configured. CC9.1 requires that identified risks are mitigated through controls that reduce the likelihood or impact of risk events. An expiring certificate without auto-renewal represents an unmitigated operational risk that will cause service outages if not addressed."
+      "description": "A certificate stored in Azure Key Vault is expiring within 30 days with no auto-renewal configured. CC9.1 requires that identified risks are mitigated through controls that reduce the likelihood or impact of risk events. An expiring certificate without auto-renewal represents an unmitigated operational risk that will cause service outages if not addressed.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC9.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC9.1 ('Risk Mitigation') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-KV-005 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-KV-006": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security",
-      "description": "Key Vaults authorizing access through legacy vault access policies instead of Azure RBAC lack the scoped, role-based logical access controls CC6.1 requires. Access policies grant broad, per-permission-type access rather than least-privilege role assignments, increasing the risk of unauthorized access to secrets, keys, and certificates."
+      "description": "Key Vaults authorizing access through legacy vault access policies instead of Azure RBAC lack the scoped, role-based logical access controls CC6.1 requires. Access policies grant broad, per-permission-type access rather than least-privilege role assignments, increasing the risk of unauthorized access to secrets, keys, and certificates.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-KV-006 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DB-004": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "Enabling 'Allow access to Azure services' on a SQL Server firewall creates a rule that permits any Azure-hosted resource — including services from other tenants — to connect to the database. CC6.6 requires that access from outside the network boundary is restricted to authorised sources. Disabling this setting and replacing it with explicit firewall rules or private endpoints enforces the network boundary and ensures only known and trusted systems can reach the SQL Server."
+      "description": "Enabling 'Allow access to Azure services' on a SQL Server firewall creates a rule that permits any Azure-hosted resource — including services from other tenants — to connect to the database. CC6.6 requires that access from outside the network boundary is restricted to authorised sources. Disabling this setting and replacing it with explicit firewall rules or private endpoints enforces the network boundary and ensures only known and trusted systems can reach the SQL Server.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-DB-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-004": {
       "control_id": "CC6.3",
       "control_name": "Role-based access control",
-      "description": "PIM provides role-based access control with time-bound activation for privileged roles. Without PIM, admin roles are permanently assigned with no controls, violating the requirement for managed and restricted privileged access."
+      "description": "PIM provides role-based access control with time-bound activation for privileged roles. Without PIM, admin roles are permanently assigned with no controls, violating the requirement for managed and restricted privileged access.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Role-Based Access Control') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-013": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A virtual network without an Azure Firewall relies on NSGs alone and lacks a centralized point to inspect, filter, and log traffic crossing the network boundary. CC6.6 requires that logical access from outside the network boundary is restricted and controlled. Deploying an Azure Firewall enforces inspected, logged perimeter access for the network."
+      "description": "A virtual network without an Azure Firewall relies on NSGs alone and lacks a centralized point to inspect, filter, and log traffic crossing the network boundary. CC6.6 requires that logical access from outside the network boundary is restricted and controlled. Deploying an Azure Firewall enforces inspected, logged perimeter access for the network.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-013 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-014": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "VNet peering with allowGatewayTransit or useRemoteGateways enabled allows traffic to cross network boundaries through shared gateways, weakening the logical separation between network zones. CC6.6 requires that logical access from outside the network boundary is restricted and controlled. Gateway transit on peering connections should be disabled to enforce boundary separation."
+      "description": "VNet peering with allowGatewayTransit or useRemoteGateways enabled allows traffic to cross network boundaries through shared gateways, weakening the logical separation between network zones. CC6.6 requires that logical access from outside the network boundary is restricted and controlled. Gateway transit on peering connections should be disabled to enforce boundary separation.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-014 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-015": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "Public DNS zones that expose RFC1918 IP addresses or internal service hostnames provide attackers with reconnaissance data about the organisation's private network topology. CC6.6 requires that logical access from outside the network boundary is restricted and controlled. Records referencing private infrastructure must be removed from public DNS zones to prevent external enumeration of internal services."
+      "description": "Public DNS zones that expose RFC1918 IP addresses or internal service hostnames provide attackers with reconnaissance data about the organisation's private network topology. CC6.6 requires that logical access from outside the network boundary is restricted and controlled. Records referencing private infrastructure must be removed from public DNS zones to prevent external enumeration of internal services.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-015 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PQC-001": {
       "control_id": "CC6.7",
       "control_name": "Protects Data in Transit",
-      "description": "TLS configurations using classical key exchange algorithms expose data in transit to Harvest Now Decrypt Later attacks where adversaries collect traffic today and decrypt it with future quantum computers. CC6.7 requires that data transmitted over networks is protected using encryption. Enforcing TLS 1.3 minimum reduces this risk."
+      "description": "TLS configurations using classical key exchange algorithms expose data in transit to Harvest Now Decrypt Later attacks where adversaries collect traffic today and decrypt it with future quantum computers. CC6.7 requires that data transmitted over networks is protected using encryption. Enforcing TLS 1.3 minimum reduces this risk.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria) (no post-quantum criterion defined)",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) predates post-quantum cryptography migration guidance and defines no criterion for quantum-safe algorithm readiness. Mapping rule AZ-PQC-001 to CC6.7 would overstate this framework edition's coverage, so it is marked not applicable pending a framework edition that addresses PQC readiness.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PQC-002": {
       "control_id": "CC6.7",
       "control_name": "Protects Data in Transit",
-      "description": "Key Vault keys using RSA or ECC will be vulnerable to Shor's algorithm, compromising data encrypted or signed with these keys. CC6.7 requires that data is protected using encryption. Post-quantum safe key encapsulation algorithms should replace classical alternatives when supported to maintain this protection."
+      "description": "Key Vault keys using RSA or ECC will be vulnerable to Shor's algorithm, compromising data encrypted or signed with these keys. CC6.7 requires that data is protected using encryption. Post-quantum safe key encapsulation algorithms should replace classical alternatives when supported to maintain this protection.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria) (no post-quantum criterion defined)",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) predates post-quantum cryptography migration guidance and defines no criterion for quantum-safe algorithm readiness. Mapping rule AZ-PQC-002 to CC6.7 would overstate this framework edition's coverage, so it is marked not applicable pending a framework edition that addresses PQC readiness.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PQC-003": {
       "control_id": "CC6.7",
       "control_name": "Protects Data in Transit",
-      "description": "Certificates using classical signature algorithms will be vulnerable to quantum-enabled forgery, undermining authentication and data integrity. CC6.7 requires that data integrity is maintained through encryption and signing. Migration to post-quantum safe certificate algorithms should be planned."
+      "description": "Certificates using classical signature algorithms will be vulnerable to quantum-enabled forgery, undermining authentication and data integrity. CC6.7 requires that data integrity is maintained through encryption and signing. Migration to post-quantum safe certificate algorithms should be planned.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria) (no post-quantum criterion defined)",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) predates post-quantum cryptography migration guidance and defines no criterion for quantum-safe algorithm readiness. Mapping rule AZ-PQC-003 to CC6.7 would overstate this framework edition's coverage, so it is marked not applicable pending a framework edition that addresses PQC readiness.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-001": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access to Information Assets",
-      "description": "A private AKS API endpoint restricts control-plane access to approved private network paths."
+      "description": "A private AKS API endpoint restricts control-plane access to approved private network paths.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-AKS-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-002": {
       "control_id": "CC6.1",
       "control_name": "Logical and Physical Access Controls",
-      "description": "Disabling AKS local accounts makes centrally governed Microsoft Entra identities the required authentication path."
+      "description": "Disabling AKS local accounts makes centrally governed Microsoft Entra identities the required authentication path.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-AKS-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-003": {
       "control_id": "CC6.1",
       "control_name": "Logical and Physical Access Controls",
-      "description": "Managed identities reduce reliance on long-lived service-principal credentials for AKS control-plane operations."
+      "description": "Managed identities reduce reliance on long-lived service-principal credentials for AKS control-plane operations.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-AKS-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-004": {
       "control_id": "CC6.3",
       "control_name": "Role-Based Access",
-      "description": "Workload Identity enables permissions to be assigned to specific Kubernetes workloads according to least privilege."
+      "description": "Workload Identity enables permissions to be assigned to specific Kubernetes workloads according to least privilege.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Role-Based Access Control') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-AKS-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-005": {
       "control_id": "CC8.1",
       "control_name": "Change Management",
-      "description": "The Azure Policy add-on supports consistent audit and enforcement of approved Kubernetes configurations."
+      "description": "The Azure Policy add-on supports consistent audit and enforcement of approved Kubernetes configurations.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC8.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC8.1 ('Change Management') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-AKS-005 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-AKS-006": {
       "control_id": "CC7.1",
       "control_name": "Detects and Monitors Configuration Changes",
-      "description": "Managed node OS upgrade channels maintain worker-node security patches through an observable Azure-controlled process."
+      "description": "Managed node OS upgrade channels maintain worker-node security patches through an observable Azure-controlled process.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.1 ('Detection and Monitoring of New Vulnerabilities') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-AKS-006 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-010": {
       "control_id": "CC6.2",
       "control_name": "Registers and Authorizes Users",
-      "description": "Assigned application owners establish responsibility for authorization and lifecycle review."
+      "description": "Assigned application owners establish responsibility for authorization and lifecycle review.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.2 ('Registers and Authorizes Users') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-010 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-011": {
       "control_id": "CC6.7",
       "control_name": "Protects Data in Transit",
-      "description": "HTTPS redirect URIs protect authorization responses transmitted between identity and application endpoints."
+      "description": "HTTPS redirect URIs protect authorization responses transmitted between identity and application endpoints.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.7",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.7 ('Restricts Transmission and Movement of Information') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-011 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-012": {
       "control_id": "CC6.1",
       "control_name": "Logical and Physical Access Controls",
-      "description": "Disabling implicit grant reduces exposure of browser-delivered access and identity tokens."
+      "description": "Disabling implicit grant reduces exposure of browser-delivered access and identity tokens.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-012 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-013": {
       "control_id": "CC6.1",
       "control_name": "Logical and Physical Access Controls",
-      "description": "Secretless or certificate authentication reduces compromise of application access credentials."
+      "description": "Secretless or certificate authentication reduces compromise of application access credentials.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-013 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-014": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access to Information Assets",
-      "description": "Property lock prevents tenant service-principal instances from changing sensitive credentials and encryption settings."
+      "description": "Property lock prevents tenant service-principal instances from changing sensitive credentials and encryption settings.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-014 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-IDN-015": {
       "control_id": "CC6.3",
       "control_name": "Role-Based Access",
-      "description": "Managed identities should not receive broad subscription roles beyond workload requirements."
+      "description": "Managed identities should not receive broad subscription roles beyond workload requirements.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Role-Based Access Control') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-015 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-BAK-001": {
       "control_id": "A1.2",
       "control_name": "Environmental Threats and Recovery",
-      "description": "The Recovery Services vault lacks the approved soft-delete recovery window, risking permanent loss of backup data before it can be restored."
+      "description": "The Recovery Services vault lacks the approved soft-delete recovery window, risking permanent loss of backup data before it can be restored.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion A1.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion A1.2 ('Environmental Threats and Recovery') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-BAK-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-BAK-002": {
       "control_id": "A1.2",
       "control_name": "Environmental Threats and Recovery",
-      "description": "Vault immutability is disabled, allowing destructive changes to protected recovery points and undermining the integrity of backup copies."
+      "description": "Vault immutability is disabled, allowing destructive changes to protected recovery points and undermining the integrity of backup copies.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion A1.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion A1.2 ('Environmental Threats and Recovery') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-BAK-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-BAK-004": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
-      "description": "The vault does not enable Resource Guard multiuser authorization, allowing a single compromised or malicious identity to disable backup protections unilaterally."
+      "description": "The vault does not enable Resource Guard multiuser authorization, allowing a single compromised or malicious identity to disable backup protections unilaterally.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-BAK-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-BAK-006": {
       "control_id": "CC7.2",
       "control_name": "System monitoring",
-      "description": "The Recovery Services vault does not enable built-in monitoring for backup job failures, so a failed or tampered backup could go undetected."
+      "description": "The Recovery Services vault does not enable built-in monitoring for backup job failures, so a failed or tampered backup could go undetected.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-BAK-006 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-FUNC-001": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "The Function App accepts unencrypted HTTP traffic, allowing requests and responses to cross the network boundary without encryption in transit."
+      "description": "The Function App accepts unencrypted HTTP traffic, allowing requests and responses to cross the network boundary without encryption in transit.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-FUNC-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-FUNC-002": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "The Function App permits TLS older than 1.2, weakening the network controls that protect traffic crossing the network boundary."
+      "description": "The Function App permits TLS older than 1.2, weakening the network controls that protect traffic crossing the network boundary.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-FUNC-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-FUNC-003": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "The Function App exposes an FTP or FTPS deployment channel, widening the network attack surface beyond the primary HTTPS endpoint."
+      "description": "The Function App exposes an FTP or FTPS deployment channel, widening the network attack surface beyond the primary HTTPS endpoint.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-FUNC-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-FUNC-004": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "Remote debugging expands the Function App management attack surface by opening an additional network-reachable control channel."
+      "description": "Remote debugging expands the Function App management attack surface by opening an additional network-reachable control channel.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-FUNC-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-FUNC-005": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "The Function App has no Azure managed identity for secretless resource access, pushing workloads toward long-lived credentials that cross network and service boundaries."
+      "description": "The Function App has no Azure managed identity for secretless resource access, pushing workloads toward long-lived credentials that cross network and service boundaries.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-FUNC-005 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PE-001": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A Storage Account remains publicly reachable; an approved private endpoint alone does not disable its public endpoint, leaving the network boundary uncontrolled."
+      "description": "A Storage Account remains publicly reachable; an approved private endpoint alone does not disable its public endpoint, leaving the network boundary uncontrolled.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-PE-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PE-002": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "An Azure SQL logical server remains publicly reachable, regardless of whether a private endpoint also exists, leaving the network boundary uncontrolled."
+      "description": "An Azure SQL logical server remains publicly reachable, regardless of whether a private endpoint also exists, leaving the network boundary uncontrolled.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-PE-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PE-003": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A PostgreSQL Flexible Server remains publicly reachable instead of using private networking only, leaving the network boundary uncontrolled."
+      "description": "A PostgreSQL Flexible Server remains publicly reachable instead of using private networking only, leaving the network boundary uncontrolled.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-PE-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PE-004": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "An App Service workload remains publicly reachable without a default-deny access policy, leaving the network boundary uncontrolled."
+      "description": "An App Service workload remains publicly reachable without a default-deny access policy, leaving the network boundary uncontrolled.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-PE-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PE-005": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A Recovery Services vault permits public access, even if a private endpoint also exists, leaving the network boundary uncontrolled."
+      "description": "A Recovery Services vault permits public access, even if a private endpoint also exists, leaving the network boundary uncontrolled.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-PE-005 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PE-006": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A private endpoint connection is pending, rejected, or disconnected and does not provide an active private path, leaving traffic to traverse the public network boundary instead."
+      "description": "A private endpoint connection is pending, rejected, or disconnected and does not provide an active private path, leaving traffic to traverse the public network boundary instead.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-PE-006 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
-    "AZ-IDN-016": {"control_id": "CC6.1", "control_name": "Logical and Physical Access Controls", "description": "Privileged users must register phishing-resistant authentication methods."},
-    "AZ-IDN-017": {"control_id": "CC6.3", "control_name": "Role-Based Access", "description": "Global Administrator access must be time-bound and governed through PIM."},
-    "AZ-IDN-018": {"control_id": "CC6.3", "control_name": "Role-Based Access", "description": "All privileged role assignments must be managed through PIM with time and approval controls."},
-    "AZ-IDN-019": {"control_id": "CC6.2", "control_name": "User Registration and Authorization", "description": "Dormant privileged accounts must be reviewed and access revoked."},
-    "AZ-IDN-020": {"control_id": "CC6.3", "control_name": "Role-Based Access", "description": "Emergency access accounts ensure continuity of administrative access."},
-    "AZ-IDN-021": {"control_id": "CC6.1", "control_name": "Logical and Physical Access Controls", "description": "Legacy authentication protocols that bypass MFA must be blocked."},
-    "AZ-IDN-022": {"control_id": "CC6.6", "control_name": "Logical Access Security Measures", "description": "Azure management portal and API access must be protected by MFA."},
-    "AZ-IDN-023": {"control_id": "CC7.2", "control_name": "System Monitoring", "description": "Identity Protection risk policies must detect and respond to anomalous authentication events."},
-    "AZ-IDN-024": {"control_id": "CC6.3", "control_name": "Role-Based Access", "description": "Workload identities must not be broadly excluded from Conditional Access MFA requirements."},
-    "AZ-IDN-025": {"control_id": "CC6.3", "control_name": "Role-Based Access", "description": "Role-assignable groups must have owners to control privileged access grants."},
-
+    "AZ-IDN-016": {
+      "control_id": "CC6.1",
+      "control_name": "Logical and Physical Access Controls",
+      "description": "Privileged users must register phishing-resistant authentication methods.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical and Physical Access Controls') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-016 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-IDN-017": {
+      "control_id": "CC6.3",
+      "control_name": "Role-Based Access",
+      "description": "Global Administrator access must be time-bound and governed through PIM.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Role-Based Access') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-017 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-IDN-018": {
+      "control_id": "CC6.3",
+      "control_name": "Role-Based Access",
+      "description": "All privileged role assignments must be managed through PIM with time and approval controls.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Role-Based Access') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-018 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-IDN-019": {
+      "control_id": "CC6.2",
+      "control_name": "User Registration and Authorization",
+      "description": "Dormant privileged accounts must be reviewed and access revoked.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.2 ('User Registration and Authorization') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-019 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-IDN-020": {
+      "control_id": "CC6.3",
+      "control_name": "Role-Based Access",
+      "description": "Emergency access accounts ensure continuity of administrative access.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Role-Based Access') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-020 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-IDN-021": {
+      "control_id": "CC6.1",
+      "control_name": "Logical and Physical Access Controls",
+      "description": "Legacy authentication protocols that bypass MFA must be blocked.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical and Physical Access Controls') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-021 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-IDN-022": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Azure management portal and API access must be protected by MFA.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-022 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-IDN-023": {
+      "control_id": "CC7.2",
+      "control_name": "System Monitoring",
+      "description": "Identity Protection risk policies must detect and respond to anomalous authentication events.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-023 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-IDN-024": {
+      "control_id": "CC6.3",
+      "control_name": "Role-Based Access",
+      "description": "Workload identities must not be broadly excluded from Conditional Access MFA requirements.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Role-Based Access') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-024 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-IDN-025": {
+      "control_id": "CC6.3",
+      "control_name": "Role-Based Access",
+      "description": "Role-assignable groups must have owners to control privileged access grants.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.3",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.3 ('Role-Based Access') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-IDN-025 evaluates one Azure technical setting that provides supporting automated evidence toward this criterion, not an audit opinion.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
     "AZ-SC-001": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
-      "description": "The Container Registry admin user is enabled, providing a shared credential that bypasses individual identity management and cannot be attributed to a single user."
+      "description": "The Container Registry admin user is enabled, providing a shared credential that bypasses individual identity management and cannot be attributed to a single user.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SC-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-002": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "The Container Registry is reachable from the public internet, leaving the network boundary that protects the organization's built container images uncontrolled."
+      "description": "The Container Registry is reachable from the public internet, leaving the network boundary that protects the organization's built container images uncontrolled.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SC-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-003": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
-      "description": "The Container Registry allows anonymous pull, letting any client access every image without an authenticated, individually attributable identity."
+      "description": "The Container Registry allows anonymous pull, letting any client access every image without an authenticated, individually attributable identity.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SC-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-004": {
       "control_id": "CC7.1",
       "control_name": "System Vulnerabilities are Identified and Managed",
-      "description": "The Container Registry has no retention or quarantine policy, so stale images accumulate and newly pushed images are deployable before any vulnerability scan evaluates them."
+      "description": "The Container Registry has no retention or quarantine policy, so stale images accumulate and newly pushed images are deployable before any vulnerability scan evaluates them.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.1 ('Detection and Monitoring of New Vulnerabilities') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SC-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-005": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
-      "description": "A Terraform remote state container is publicly readable, leaving the network boundary around infrastructure layout and captured secrets uncontrolled."
+      "description": "A Terraform remote state container is publicly readable, leaving the network boundary around infrastructure layout and captured secrets uncontrolled.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SC-005 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-006": {
       "control_id": "A1.2",
       "control_name": "Environmental Threats and Recovery",
-      "description": "A storage account holding Terraform remote state has neither versioning nor soft delete enabled, so an overwritten or deleted state file cannot be recovered."
+      "description": "A storage account holding Terraform remote state has neither versioning nor soft delete enabled, so an overwritten or deleted state file cannot be recovered.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion A1.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion A1.2 ('Environmental Threats and Recovery') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SC-006 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-007": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
-      "description": "A pipeline service connection is scoped to the entire subscription rather than a single resource group, so every pipeline that uses it inherits subscription-wide access beyond what it needs."
+      "description": "A pipeline service connection is scoped to the entire subscription rather than a single resource group, so every pipeline that uses it inherits subscription-wide access beyond what it needs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SC-007 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SC-008": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
-      "description": "A pipeline service connection authenticates with a stored service principal secret instead of a federated credential, leaving a static credential to rotate and potentially leak."
+      "description": "A pipeline service connection authenticates with a stored service principal secret instead of a federated credential, leaving a static credential to rotate and potentially leak.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.1 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SC-008 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DL-001": {
       "control_id": "CC6.7",
       "control_name": "Restricts Transmission and Movement of Information",
-      "description": "MACsec protects traffic crossing the customer-visible ExpressRoute Direct Ethernet boundary."
+      "description": "MACsec protects traffic crossing the customer-visible ExpressRoute Direct Ethernet boundary.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.7",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.7 ('Restricts Transmission and Movement of Information') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-DL-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-DL-002": {
       "control_id": "CC6.7",
       "control_name": "Restricts Transmission and Movement of Information",
-      "description": "XPN MACsec provides suitable packet-number capacity for high-speed protected links."
+      "description": "XPN MACsec provides suitable packet-number capacity for high-speed protected links.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.7",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.7 ('Restricts Transmission and Movement of Information') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-DL-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-016": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "NIC IP forwarding is restricted to reviewed network virtual appliances and routing functions."
+      "description": "NIC IP forwarding is restricted to reviewed network virtual appliances and routing functions.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-016 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-017": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "User-defined default routes preserve approved inspected egress paths."
+      "description": "User-defined default routes preserve approved inspected egress paths.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-017 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-018": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "Private Link targets restrict unnecessary public network access."
+      "description": "Private Link targets restrict unnecessary public network access.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-018 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-019": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "Private Endpoint connections are approved and operational before they are relied upon as an access boundary."
+      "description": "Private Endpoint connections are approved and operational before they are relied upon as an access boundary.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-019 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-020": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "Private DNS association preserves the approved private access path."
+      "description": "Private DNS association preserves the approved private access path.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-020 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-021": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "Private Endpoint ARM DNS configuration associates service names with private addresses; effective resolver-path validation remains separate evidence."
+      "description": "Private Endpoint service names resolve to private addresses within the approved access boundary.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-021 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-022": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "Critical PaaS resources restrict public access unless an approved exception exists."
+      "description": "Critical PaaS resources restrict public access unless an approved exception exists.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-022 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-023": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "Azure Firewall denies traffic involving infrastructure identified by threat intelligence."
+      "description": "Azure Firewall denies traffic involving infrastructure identified by threat intelligence.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-023 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-024": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "Application Gateway WAF Prevention mode blocks matching malicious requests."
+      "description": "Application Gateway WAF Prevention mode blocks matching malicious requests.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-024 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-025": {
       "control_id": "CC7.2",
       "control_name": "System monitoring",
-      "description": "Application Gateway SKU-supported diagnostic logs support anomaly monitoring; v2 performance telemetry is supplied through metrics."
+      "description": "Application Gateway access, performance, and firewall logs support anomaly monitoring.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-025 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-026": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "Current application and bot managed rules protect the logical access boundary."
+      "description": "Current application and bot managed rules protect the logical access boundary.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-026 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-NET-027": {
       "control_id": "CC6.6",
       "control_name": "Logical Access Security Measures",
-      "description": "Rate-limit rules protect public application access from abusive request volume."
+      "description": "Rate-limit rules protect public application access from abusive request volume.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Logical Access Security Measures') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-NET-027 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SECOPS-001": {
       "control_id": "CC7.2",
       "control_name": "System Monitoring",
-      "description": "The subscription's Activity Log is not exported to an approved central destination. CC7.2 requires the entity to monitor system components for anomalies; an unexported Activity Log removes the raw evidence that monitoring depends on."
+      "description": "The subscription's Activity Log is not exported to an approved central destination. CC7.2 requires the entity to monitor system components for anomalies; an unexported Activity Log removes the raw evidence that monitoring depends on.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SECOPS-001 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SECOPS-002": {
       "control_id": "CC7.2",
       "control_name": "System Monitoring",
-      "description": "Required Activity Log categories are missing from the central export. CC7.2 requires monitoring to cover the events relevant to detecting security anomalies; a partial category export leaves gaps in what can be monitored."
+      "description": "Required Activity Log categories are missing from the central export. CC7.2 requires monitoring to cover the events relevant to detecting security anomalies; a partial category export leaves gaps in what can be monitored.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SECOPS-002 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SECOPS-003": {
       "control_id": "CC7.2",
       "control_name": "System Monitoring",
-      "description": "A critical resource lacks diagnostic settings exporting to an approved destination. CC7.2 requires monitoring of infrastructure and software for anomalies; a critical resource with no export is not being monitored at all."
+      "description": "A critical resource lacks diagnostic settings exporting to an approved destination. CC7.2 requires monitoring of infrastructure and software for anomalies; a critical resource with no export is not being monitored at all.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SECOPS-003 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SECOPS-004": {
       "control_id": "CC7.2",
       "control_name": "System Monitoring",
-      "description": "A security-relevant log export's retention is below the organisation's minimum. CC7.2's monitoring objective depends on evidence remaining available long enough to detect and investigate anomalies; retention below the organisation's minimum shortens that window."
+      "description": "A security-relevant log export's retention is below the organisation's minimum. CC7.2's monitoring objective depends on evidence remaining available long enough to detect and investigate anomalies; retention below the organisation's minimum shortens that window.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SECOPS-004 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SECOPS-005": {
       "control_id": "CC7.2",
       "control_name": "System Monitoring",
-      "description": "A critical resource's only log export sits in a destination its own workload administrators can modify. CC7.2 requires monitoring information to be reliable; a destination the monitored workload's own administrators can alter undermines that reliability."
+      "description": "A critical resource's only log export sits in a destination its own workload administrators can modify. CC7.2 requires monitoring information to be reliable; a destination the monitored workload's own administrators can alter undermines that reliability.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SECOPS-005 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SECOPS-006": {
       "control_id": "CC7.1",
       "control_name": "Detection and Monitoring of New Vulnerabilities",
-      "description": "A required Microsoft Defender for Cloud plan is not enabled for a critical workload type. CC7.1 requires the entity to use detection and monitoring procedures to identify changes and vulnerabilities; Defender for Cloud is the mechanism providing that detection for the affected workload type."
+      "description": "A required Microsoft Defender for Cloud plan is not enabled for a critical workload type. CC7.1 requires the entity to use detection and monitoring procedures to identify changes and vulnerabilities; Defender for Cloud is the mechanism providing that detection for the affected workload type.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.1 ('Detection and Monitoring of New Vulnerabilities') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SECOPS-006 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SECOPS-007": {
       "control_id": "CC7.1",
       "control_name": "Detection and Monitoring of New Vulnerabilities",
-      "description": "A High-severity Defender recommendation remains unresolved beyond the organisation's SLA. CC7.1 requires identified vulnerabilities to be evaluated and addressed; an SLA breach indicates the vulnerability-management process required by CC7.1 is not operating effectively."
+      "description": "A High-severity Defender recommendation remains unresolved beyond the organisation's SLA. CC7.1 requires identified vulnerabilities to be evaluated and addressed; an SLA breach indicates the vulnerability-management process required by CC7.1 is not operating effectively.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.1",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.1 ('Detection and Monitoring of New Vulnerabilities') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SECOPS-007 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SECOPS-008": {
       "control_id": "CC7.2",
       "control_name": "System Monitoring",
-      "description": "A required Sentinel data connector is missing or unhealthy. CC7.2 requires monitoring of system components for anomalies; a disconnected connector is a monitored source that has stopped contributing data without detection."
+      "description": "A required Sentinel data connector is missing or unhealthy. CC7.2 requires monitoring of system components for anomalies; a disconnected connector is a monitored source that has stopped contributing data without detection.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SECOPS-008 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SECOPS-009": {
       "control_id": "CC7.2",
       "control_name": "System Monitoring",
-      "description": "Sentinel lacks enabled High-severity analytics coverage for a required detection use case. CC7.2 requires monitoring to actually evaluate collected data for anomalies; ingested logs with no analytics rule evaluating a known high-risk pattern do not fulfil that requirement for that use case."
+      "description": "Sentinel lacks enabled High-severity analytics coverage for a required detection use case. CC7.2 requires monitoring to actually evaluate collected data for anomalies; ingested logs with no analytics rule evaluating a known high-risk pattern do not fulfil that requirement for that use case.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.2",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.2 ('System Monitoring') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SECOPS-009 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-SECOPS-010": {
       "control_id": "CC7.4",
       "control_name": "Incident Response",
-      "description": "No monitored destination exists for security alerts or Sentinel incidents. CC7.4 requires the entity to respond to identified security incidents; an alert nobody is notified of cannot trigger the incident-response process CC7.4 requires."
-    },
-    "AZ-NET-018": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Private Link targets restrict unnecessary public network access."
-    },
-    "AZ-NET-019": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Private Endpoint connections are approved and operational before they are relied upon as an access boundary."
-    },
-    "AZ-NET-020": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Private DNS association preserves the approved private access path."
-    },
-    "AZ-NET-021": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Private Endpoint service names resolve to private addresses within the approved access boundary."
-    },
-    "AZ-NET-022": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Critical PaaS resources restrict public access unless an approved exception exists."
-    },
-    "AZ-NET-023": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Azure Firewall denies traffic involving infrastructure identified by threat intelligence."
-    },
-    "AZ-NET-024": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Application Gateway WAF Prevention mode blocks matching malicious requests."
-    },
-    "AZ-NET-025": {
-      "control_id": "CC7.2",
-      "control_name": "System monitoring",
-      "description": "Application Gateway access, performance, and firewall logs support anomaly monitoring."
-    },
-    "AZ-NET-026": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Current application and bot managed rules protect the logical access boundary."
-    },
-    "AZ-NET-027": {
-      "control_id": "CC6.6",
-      "control_name": "Logical Access Security Measures",
-      "description": "Rate-limit rules protect public application access from abusive request volume."
+      "description": "No monitored destination exists for security alerts or Sentinel incidents. CC7.4 requires the entity to respond to identified security incidents; an alert nobody is notified of cannot trigger the incident-response process CC7.4 requires.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC7.4",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC7.4 ('Incident Response') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-SECOPS-010 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   }
 }
