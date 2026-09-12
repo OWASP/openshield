@@ -1,6 +1,8 @@
 """Unit tests for sentinel/ingest.py — HMAC signing and field mappings."""
 
 import base64
+
+import pytest
 import hashlib
 import hmac
 import importlib
