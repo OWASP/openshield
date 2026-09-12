@@ -153,24 +153,12 @@ def test_normalise_severity_scores():
 
 def test_normalise_unknown_severity_raises_validation_error():
     """Unknown severity raises ValidationError per sentinel/ingest.py validation."""
+    from api.validation import ValidationError
 
     ingest = _make_ingest()
     finding = {**RAW_FINDING, "severity": "UNKNOWN"}
-    try:
-        from api.validation import ValidationError
-
-        raised = False
-        try:
-            ingest.normalise(finding, "scan-001")
-        except (ValidationError, Exception) as exc:
-            raised = True
-            assert "severity" in str(exc).lower() or "unknown" in str(exc).lower() or raised
-    except ImportError:
-        # ValidationError not importable — just verify the call raises
-        import pytest
-
-        with pytest.raises(Exception):
-            ingest.normalise(finding, "scan-001")
+    with pytest.raises(ValidationError, match="severity"):
+        ingest.normalise(finding, "scan-001")
 
 
 def test_normalise_missing_fields_use_defaults():
