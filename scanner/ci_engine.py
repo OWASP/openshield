@@ -98,6 +98,15 @@ class CIScanEngine:
                 )
             return evaluations
 
+        # Pre-fetch and cache all workflow content once, keyed by path,
+        # so each file is fetched exactly once instead of 4N times
+        # (4 rules x N files). None means the content was unreadable.
+        content_cache: dict = {}
+        for wf in workflows:
+            path = wf.get("path", "")
+            if path and path not in content_cache:
+                content_cache[path] = self.client.get_workflow_content(path)
+
         # Build a set of workflow paths that had findings per rule
         for rule in _CI_RULES:
             try:
@@ -117,15 +126,14 @@ class CIScanEngine:
                 continue
 
             # Map findings to workflow paths
-            finding_paths = {f.get("resource_name", "") for f in findings}
-
+            finding_paths = {f.get("metadata", {}).get("workflow_path", "") for f in findings}
             # Emit one evaluation per workflow
             for wf in workflows:
                 path = wf.get("path", "")
                 if not path:
                     continue
 
-                content = self.client.get_workflow_content(path)
+                content = content_cache.get(path)
                 if content is None:
                     evaluations.append(
                         RuleEvaluation(
@@ -147,7 +155,7 @@ class CIScanEngine:
                     (
                         f
                         for f in findings
-                        if f.get("resource_name") == path
+                        if f.get("metadata", {}).get("workflow_path") == path
                         and f.get("metadata", {}).get("effective_permissions") == "UNKNOWN"
                     ),
                     None,
@@ -167,7 +175,7 @@ class CIScanEngine:
                 elif path in finding_paths:
                     # FAIL — workflow has a real finding
                     finding = next(
-                        (f for f in findings if f.get("resource_name") == path),
+                        (f for f in findings if f.get("metadata", {}).get("workflow_path") == path),
                         None,
                     )
                     evaluations.append(
