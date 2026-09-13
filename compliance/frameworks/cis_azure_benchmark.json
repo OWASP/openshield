@@ -33,12 +33,36 @@
       "control_name": "Required Blob Container Immutability Missing",
       "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation."
     },
-    "AZ-DB-005": {"control_id": "N/A-DB-005", "control_name": "SQL Server Microsoft Entra-Only Authentication Not Enforced", "description": "Service-specific OpenShield control."},
-    "AZ-DB-006": {"control_id": "N/A-DB-006", "control_name": "SQL Vulnerability Assessment Not Configured", "description": "Service-specific OpenShield control."},
-    "AZ-DB-007": {"control_id": "N/A-DB-007", "control_name": "SQL Auditing Retention Below Minimum", "description": "Service-specific OpenShield control."},
-    "AZ-COSMOS-001": {"control_id": "N/A-COSMOS-001", "control_name": "Cosmos DB Local Authentication Enabled", "description": "Service-specific OpenShield control."},
-    "AZ-COSMOS-002": {"control_id": "N/A-COSMOS-002", "control_name": "Cosmos DB Public Network Access Enabled", "description": "Service-specific OpenShield control."},
-    "AZ-CACHE-001": {"control_id": "N/A-CACHE-001", "control_name": "Managed Cache Public or Non-TLS Access", "description": "Service-specific OpenShield control."},
+    "AZ-DB-005": {
+      "control_id": "N/A-DB-005",
+      "control_name": "SQL Server Microsoft Entra-Only Authentication Not Enforced",
+      "description": "Service-specific OpenShield control."
+    },
+    "AZ-DB-006": {
+      "control_id": "N/A-DB-006",
+      "control_name": "SQL Vulnerability Assessment Not Configured",
+      "description": "Service-specific OpenShield control."
+    },
+    "AZ-DB-007": {
+      "control_id": "N/A-DB-007",
+      "control_name": "SQL Auditing Retention Below Minimum",
+      "description": "Service-specific OpenShield control."
+    },
+    "AZ-COSMOS-001": {
+      "control_id": "N/A-COSMOS-001",
+      "control_name": "Cosmos DB Local Authentication Enabled",
+      "description": "Service-specific OpenShield control."
+    },
+    "AZ-COSMOS-002": {
+      "control_id": "N/A-COSMOS-002",
+      "control_name": "Cosmos DB Public Network Access Enabled",
+      "description": "Service-specific OpenShield control."
+    },
+    "AZ-CACHE-001": {
+      "control_id": "N/A-CACHE-001",
+      "control_name": "Managed Cache Public or Non-TLS Access",
+      "description": "Service-specific OpenShield control."
+    },
     "AZ-NET-001": {
       "control_id": "6.2",
       "control_name": "Ensure that SSH access from the Internet is evaluated and restricted",
@@ -217,7 +241,7 @@
     "AZ-DB-004": {
       "control_id": "4.1.2",
       "control_name": "Ensure that 'Allow access to Azure services' for SQL Servers is disabled",
-      "description": "Enabling 'Allow access to Azure services' on a SQL Server firewall creates a rule that permits any Azure-hosted resource — including services from other tenants — to connect to the server. This significantly increases the attack surface. Access should be restricted to specific trusted IP ranges or private endpoints."
+      "description": "Enabling 'Allow access to Azure services' on a SQL Server firewall creates a rule that permits any Azure-hosted resource \u2014 including services from other tenants \u2014 to connect to the server. This significantly increases the attack surface. Access should be restricted to specific trusted IP ranges or private endpoints."
     },
     "AZ-IDN-004": {
       "control_id": "1.16",
@@ -324,32 +348,81 @@
       "control_name": "Managed Identity least privilege (not mapped in CIS Azure Foundations 2.0.0)",
       "description": "Microsoft recommends least-privilege roles and scopes for managed identities. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
     },
-    "AZ-FUNC-001": {"control_id":"N/A-FUNC-001","control_name":"Function App HTTPS enforcement","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific HTTPS control."},
-    "AZ-FUNC-002": {"control_id":"N/A-FUNC-002","control_name":"Function App minimum TLS version","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific TLS control."},
-    "AZ-FUNC-003": {"control_id":"N/A-FUNC-003","control_name":"Function App FTP publishing","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific publishing control."},
-    "AZ-FUNC-004": {"control_id":"N/A-FUNC-004","control_name":"Function App remote debugging","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific debugging control."},
-    "AZ-FUNC-005": {"control_id":"N/A-FUNC-005","control_name":"Function App managed identity","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific identity control."},
-    "AZ-PE-001": {"control_id":"N/A-PE-001","control_name":"Storage public network access","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."},
-    "AZ-PE-002": {"control_id":"N/A-PE-002","control_name":"SQL public network access","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."},
-    "AZ-PE-003": {"control_id":"N/A-PE-003","control_name":"PostgreSQL public network access","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific private-networking control."},
-    "AZ-PE-004": {"control_id":"N/A-PE-004","control_name":"App Service public network access","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."},
-    "AZ-PE-005": {"control_id":"N/A-PE-005","control_name":"Recovery Services public network access","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."},
-    "AZ-PE-006": {"control_id":"N/A-PE-006","control_name":"Private endpoint connection approval","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the private-endpoint connection state."},
-    "AZ-BAK-001": {"control_id":"N/A-BAK-001","control_name":"Backup soft-delete protection","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup recovery control."},
-    "AZ-BAK-002": {"control_id":"N/A-BAK-002","control_name":"Backup vault immutability","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup immutability control."},
-    "AZ-BAK-004": {"control_id":"N/A-BAK-004","control_name":"Backup multi-user authorization","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup authorization control."},
-    "AZ-BAK-006": {"control_id":"N/A-BAK-006","control_name":"Backup security monitoring","description":"No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup monitoring control."},
-    "AZ-IDN-016": {"control_id": "N/A-IDN-016", "control_name": "Privileged User Missing Phishing-Resistant MFA", "description": "Service-specific OpenShield control for phishing-resistant MFA enforcement on privileged users."},
-    "AZ-IDN-017": {"control_id": "N/A-IDN-017", "control_name": "Global Administrator Permanently Assigned Outside PIM", "description": "Service-specific OpenShield control for PIM-governed Global Administrator assignments."},
-    "AZ-IDN-018": {"control_id": "N/A-IDN-018", "control_name": "Privileged Role Assigned Outside PIM", "description": "Service-specific OpenShield control requiring all privileged roles to be managed via PIM."},
-    "AZ-IDN-019": {"control_id": "N/A-IDN-019", "control_name": "Stale Privileged Account Retains Active Access", "description": "Service-specific OpenShield control for dormant privileged accounts."},
-    "AZ-IDN-020": {"control_id": "N/A-IDN-020", "control_name": "Emergency Access Accounts Missing or Misconfigured", "description": "Service-specific OpenShield control for break-glass account configuration."},
-    "AZ-IDN-021": {"control_id": "N/A-IDN-021", "control_name": "Legacy Authentication Not Blocked by Conditional Access", "description": "Service-specific OpenShield control for blocking legacy authentication protocols."},
-    "AZ-IDN-022": {"control_id": "N/A-IDN-022", "control_name": "Azure Management Not Protected by Conditional Access", "description": "Service-specific OpenShield control requiring CA protection for Azure management."},
-    "AZ-IDN-023": {"control_id": "N/A-IDN-023", "control_name": "Identity Protection Risk Policies Not Enabled", "description": "Service-specific OpenShield control for Identity Protection risk policy enablement."},
-    "AZ-IDN-024": {"control_id": "N/A-IDN-024", "control_name": "Workload Identities Excluded From Conditional Access", "description": "Service-specific OpenShield control for workload identity CA coverage."},
-    "AZ-IDN-025": {"control_id": "N/A-IDN-025", "control_name": "Privileged Role-Assignable Group Has No Owner", "description": "Service-specific OpenShield control for privileged group ownership governance."},
-
+    "AZ-FUNC-001": {
+      "control_id": "N/A-FUNC-001",
+      "control_name": "Function App HTTPS enforcement",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific HTTPS control."
+    },
+    "AZ-FUNC-002": {
+      "control_id": "N/A-FUNC-002",
+      "control_name": "Function App minimum TLS version",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific TLS control."
+    },
+    "AZ-FUNC-003": {
+      "control_id": "N/A-FUNC-003",
+      "control_name": "Function App FTP publishing",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific publishing control."
+    },
+    "AZ-FUNC-004": {
+      "control_id": "N/A-FUNC-004",
+      "control_name": "Function App remote debugging",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific debugging control."
+    },
+    "AZ-FUNC-005": {
+      "control_id": "N/A-FUNC-005",
+      "control_name": "Function App managed identity",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific identity control."
+    },
+    "AZ-PE-001": {
+      "control_id": "N/A-PE-001",
+      "control_name": "Storage public network access",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."
+    },
+    "AZ-PE-002": {
+      "control_id": "N/A-PE-002",
+      "control_name": "SQL public network access",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."
+    },
+    "AZ-PE-003": {
+      "control_id": "N/A-PE-003",
+      "control_name": "PostgreSQL public network access",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific private-networking control."
+    },
+    "AZ-PE-004": {
+      "control_id": "N/A-PE-004",
+      "control_name": "App Service public network access",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."
+    },
+    "AZ-PE-005": {
+      "control_id": "N/A-PE-005",
+      "control_name": "Recovery Services public network access",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the service-specific Private Link control."
+    },
+    "AZ-PE-006": {
+      "control_id": "N/A-PE-006",
+      "control_name": "Private endpoint connection approval",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the private-endpoint connection state."
+    },
+    "AZ-BAK-001": {
+      "control_id": "N/A-BAK-001",
+      "control_name": "Backup soft-delete protection",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup recovery control."
+    },
+    "AZ-BAK-002": {
+      "control_id": "N/A-BAK-002",
+      "control_name": "Backup vault immutability",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup immutability control."
+    },
+    "AZ-BAK-004": {
+      "control_id": "N/A-BAK-004",
+      "control_name": "Backup multi-user authorization",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup authorization control."
+    },
+    "AZ-BAK-006": {
+      "control_id": "N/A-BAK-006",
+      "control_name": "Backup security monitoring",
+      "description": "No direct CIS Azure recommendation is assigned; OpenShield evaluates the Azure Backup monitoring control."
+    },
     "AZ-SC-001": {
       "control_id": "N/A-SC-001",
       "control_name": "Container Registry admin user baseline (not mapped in CIS Azure Foundations 2.0.0)",
@@ -510,55 +583,25 @@
       "control_name": "Ensure That 'Notify about alerts with the following severity' is Set to 'High'",
       "description": "No enabled Azure Monitor action group with a notification receiver exists, and no Sentinel automation rule routes incidents onward. CIS 2.1.20 requires Defender security alerts to notify a monitored destination; this rule generalizes that requirement to the concrete Azure notification primitive (action groups) and the Sentinel-native incident routing mechanism (automation rules)."
     },
-    "AZ-NET-018": {
-      "control_id": "N/A-NET-018",
-      "control_name": "Private Endpoint public access baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private connectivity should replace unnecessary public PaaS exposure; CIS Azure Foundations 2.0.0 has no universal control covering every supported Private Link target."
+    "AZ-CI-001": {
+      "control_id": "N/A-CI-001",
+      "control_name": "CI/CD Workflow Uses Long-Lived Azure Credentials",
+      "description": "CI/CD workflows should use workload identity federation (OIDC) instead of long-lived client secrets or storage keys stored as repository secrets."
     },
-    "AZ-NET-019": {
-      "control_id": "N/A-NET-019",
-      "control_name": "Private Endpoint connection approval baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private Endpoint connections must be approved to provide the intended private path; no universal CIS Azure Foundations 2.0.0 recommendation covers this state."
+    "AZ-CI-002": {
+      "control_id": "N/A-CI-002",
+      "control_name": "CI/CD Workflow Has Unnecessarily Broad Token Permissions",
+      "description": "Workflow GITHUB_TOKEN permissions should follow least privilege with an explicit permissions block granting only required scopes."
     },
-    "AZ-NET-020": {
-      "control_id": "N/A-NET-020",
-      "control_name": "Private Endpoint DNS association baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private Endpoints require service-appropriate private DNS integration; CIS Azure Foundations 2.0.0 has no universal recommendation for this association."
+    "AZ-CI-003": {
+      "control_id": "N/A-CI-003",
+      "control_name": "Third-Party Workflow Action Not Pinned to Immutable Commit SHA",
+      "description": "Third-party GitHub Actions must be pinned to a full 40-character commit SHA to prevent supply-chain attacks via mutable tags."
     },
-    "AZ-NET-021": {
-      "control_id": "N/A-NET-021",
-      "control_name": "Private Endpoint FQDN resolution baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Private Endpoint names should resolve to private addresses; CIS Azure Foundations 2.0.0 has no universal recommendation for this resolution evidence."
-    },
-    "AZ-NET-022": {
-      "control_id": "N/A-NET-022",
-      "control_name": "Critical PaaS public exposure baseline (no universal CIS Azure Foundations 2.0.0 control)",
-      "description": "Critical PaaS resources should use private access or an approved exception; CIS Azure Foundations 2.0.0 provides service-specific rather than universal coverage."
-    },
-    "AZ-NET-023": {
-      "control_id": "N/A-NET-023",
-      "control_name": "Azure Firewall threat intelligence enforcement baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "AlertAndDeny blocks traffic involving known malicious addresses and domains; CIS Azure Foundations 2.0.0 has no direct recommendation for this mode."
-    },
-    "AZ-NET-024": {
-      "control_id": "N/A-NET-024",
-      "control_name": "Application Gateway WAF Prevention mode baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Prevention mode blocks matching application attacks; CIS Azure Foundations 2.0.0 has no direct recommendation for the gateway mode."
-    },
-    "AZ-NET-025": {
-      "control_id": "N/A-NET-025",
-      "control_name": "Application Gateway WAF diagnostic logging baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Access, performance, and firewall logs support perimeter monitoring; CIS Azure Foundations 2.0.0 has no direct universal recommendation for all categories."
-    },
-    "AZ-NET-026": {
-      "control_id": "N/A-NET-026",
-      "control_name": "Current WAF managed rules and bot protection baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Current base and bot managed rule sets protect the application perimeter; CIS Azure Foundations 2.0.0 has no direct rule-set-version recommendation."
-    },
-    "AZ-NET-027": {
-      "control_id": "N/A-NET-027",
-      "control_name": "Internet-facing application rate limiting baseline (no direct CIS Azure Foundations 2.0.0 control)",
-      "description": "Rate limiting protects public applications from abusive request volume; CIS Azure Foundations 2.0.0 has no direct Application Gateway rate-rule recommendation."
+    "AZ-CI-004": {
+      "control_id": "N/A-CI-004",
+      "control_name": "Untrusted Pull-Request Input Reaches Privileged Workflow Context",
+      "description": "Workflows triggered by pull_request_target or workflow_run must not check out or execute untrusted PR code in a context with secret access."
     }
   }
 }

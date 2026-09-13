@@ -71,6 +71,12 @@ class ScanEngine:
         # counts. A misnamed scratch module must never execute against a real
         # subscription without first passing the rule checks.
         for rule_path in sorted(RULES_DIR.glob("az_*.py")):
+            # AZ-CI rules require a GitHubClient, not an AzureClient.
+            # They are excluded from the Azure scan engine and invoked
+            # separately by the CI/CD scan entry point.
+            if rule_path.stem.startswith("az_ci_"):
+                logger.debug("Skipping CI rule %s (requires GitHubClient)", rule_path.name)
+                continue
             try:
                 spec = importlib.util.spec_from_file_location(rule_path.stem, rule_path)
                 module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
