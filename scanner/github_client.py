@@ -52,9 +52,9 @@ def _get_app_token() -> Optional[str]:
             "GitHub App token request failed (HTTP status indicates rejection)"
         )  # nosemgrep: python-logger-credential-disclosure
     except Exception as exc:
-        logger.error(
+        logger.error(  # nosemgrep: python-logger-credential-disclosure
             "GitHub App token generation failed (check GITHUB_APP_* env vars): %s",
-            type(exc).__name__,  # nosemgrep: python-logger-credential-disclosure
+            type(exc).__name__,
         )
     return None
 
