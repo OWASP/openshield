@@ -6,11 +6,34 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
+from urllib.parse import urlsplit
 
 import requests
 from azure.core.exceptions import AzureError
 
 ARM_ENDPOINT = "https://management.azure.com"
+_ARM_HOST = "management.azure.com"
+
+
+def _is_safe_arm_continuation(url: Any) -> bool:
+    """Return True only when url is an HTTPS URL on the exact ARM origin.
+
+    Rejects lookalike hostnames, userinfo (SSRF via @-notation), unexpected
+    ports, and non-HTTPS schemes that startswith(ARM_ENDPOINT) would accept.
+    """
+    if not isinstance(url, str) or not url:
+        return False
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    return (
+        parts.scheme == "https"
+        and parts.hostname == _ARM_HOST
+        and parts.port in (None, 443)
+        and not parts.username
+        and not parts.password
+    )
 
 
 @dataclass(frozen=True)
@@ -109,11 +132,11 @@ class GovernanceCollector:
         return {"Authorization": f"Bearer {token.token}", "Content-Type": "application/json"}
 
     def _get_all(self, path: str) -> list[dict[str, Any]] | None:
-        url = path if path.startswith("https://") else f"{ARM_ENDPOINT}{path}"
+        url = path if _is_safe_arm_continuation(path) else f"{ARM_ENDPOINT}{path}"
         items: list[dict[str, Any]] = []
         try:
             while url:
-                response = self.session.get(url, headers=self._headers(), timeout=30)
+                response = self.session.get(url, headers=self._headers(), timeout=30, allow_redirects=False)
                 response.raise_for_status()
                 payload = response.json()
                 if not isinstance(payload, dict):
@@ -123,7 +146,11 @@ class GovernanceCollector:
                     return None
                 items.extend(item for item in values if isinstance(item, dict))
                 next_link = payload.get("nextLink")
-                url = next_link if isinstance(next_link, str) and next_link.startswith(ARM_ENDPOINT) else ""
+                if next_link is None:
+                    break
+                if not _is_safe_arm_continuation(next_link):
+                    return None
+                url = next_link
             return items
         except (requests.RequestException, AzureError, ValueError, TypeError):
             return None
@@ -131,6 +158,7 @@ class GovernanceCollector:
     def _post_graph(self, query: str) -> list[dict[str, Any]] | None:
         items: list[dict[str, Any]] = []
         options: dict[str, Any] = {"resultFormat": "objectArray"}
+        seen_tokens: set[str] = set()
         try:
             while True:
                 response = self.session.post(
@@ -146,8 +174,9 @@ class GovernanceCollector:
                     return None
                 items.extend(data)
                 skip_token = payload.get("$skipToken")
-                if not isinstance(skip_token, str) or not skip_token:
+                if not isinstance(skip_token, str) or not skip_token or skip_token in seen_tokens:
                     return items
+                seen_tokens.add(skip_token)
                 options = {"resultFormat": "objectArray", "$skipToken": skip_token}
         except (requests.RequestException, AzureError, ValueError, TypeError, AttributeError):
             return None
@@ -157,15 +186,19 @@ class GovernanceCollector:
         items: list[dict[str, Any]] = []
         try:
             while url:
-                response = self.session.post(url, headers=self._headers(), json={}, timeout=30)
+                response = self.session.post(url, headers=self._headers(), json={}, timeout=30, allow_redirects=False)
                 response.raise_for_status()
                 payload = response.json()
                 values = payload.get("value")
-                if not isinstance(values, list) or not all(isinstance(item, dict) for item in values):
+                if not isinstance(values, list):
                     return None
-                items.extend(values)
+                items.extend(item for item in values if isinstance(item, dict))
                 next_link = payload.get("@odata.nextLink", payload.get("nextLink"))
-                url = next_link if isinstance(next_link, str) and next_link.startswith(ARM_ENDPOINT) else ""
+                if next_link is None:
+                    break
+                if not _is_safe_arm_continuation(next_link):
+                    return None
+                url = next_link
             return items
         except (requests.RequestException, AzureError, ValueError, TypeError, AttributeError):
             return None

@@ -36,16 +36,19 @@ def load_context(azure_client: Any, subscription_id: str, rule_id: str) -> tuple
     if not path:
         logger.warning("%s: %s is unset; result is UNKNOWN", rule_id, POLICY_ENV)
         return None
-    try:
-        policy = load_governance_policy(path)
-    except (OSError, ValueError) as exc:
-        logger.warning("%s: governance policy is invalid or unavailable: %s", rule_id, exc)
-        return None
-    cache = getattr(azure_client, "_governance_snapshot_cache", None)
-    if cache is None:
-        cache = GovernanceCollector(azure_client.credential, subscription_id).collect()
-        setattr(azure_client, "_governance_snapshot_cache", cache)
-    return policy, cache
+    cache_by_sub: dict = getattr(azure_client, "_governance_cache", None)  # type: ignore[assignment]
+    if cache_by_sub is None:
+        cache_by_sub = {}
+        setattr(azure_client, "_governance_cache", cache_by_sub)
+    if subscription_id not in cache_by_sub:
+        try:
+            policy = load_governance_policy(path)
+        except (OSError, ValueError) as exc:
+            logger.warning("%s: governance policy is invalid or unavailable: %s", rule_id, exc)
+            return None
+        snapshot = GovernanceCollector(azure_client.credential, subscription_id).collect()
+        cache_by_sub[subscription_id] = (policy, snapshot)
+    return cache_by_sub[subscription_id]
 
 
 def _resource_name(resource_id: str) -> str:
@@ -242,7 +245,9 @@ def evaluate(spec: Mapping[str, Any], azure_client: Any, subscription_id: str) -
             if isinstance(expires, str):
                 try:
                     parsed_expiration = datetime.fromisoformat(expires.replace("Z", "+00:00"))
-                    expired = parsed_expiration.tzinfo is None or parsed_expiration <= now
+                    if parsed_expiration.tzinfo is None:
+                        parsed_expiration = parsed_expiration.replace(tzinfo=timezone.utc)
+                    expired = parsed_expiration <= now
                 except (TypeError, ValueError):
                     expired = True
             metadata = props.get("metadata", {}) if isinstance(props.get("metadata", {}), Mapping) else {}
@@ -378,6 +383,9 @@ def evaluate(spec: Mapping[str, Any], azure_client: Any, subscription_id: str) -
             if normal(value(item, "registrationState")) == "registered"
             and normal(value(item, "namespace")) not in policy.approved_provider_namespaces
         ]
+
+    if rule_id != "AZ-GOV-010":
+        raise ValueError(f"unrecognised governance rule_id: {rule_id}")
 
     states = snapshot.get("policy_states")
     if states is None:

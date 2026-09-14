@@ -223,3 +223,36 @@ def test_gov_005_missing_locks_evidence_is_unknown(run):
 )
 def test_missing_evidence_never_becomes_failure(run, module, source):
     assert run(module, {source: None}) == []
+
+
+# Bug fixes
+
+
+def test_gov_004_date_only_expiry_string_is_not_flagged(run):
+    """An expiresOn value like '2099-12-31' (no timezone) must not be treated as expired."""
+    future_date_only = "2099-12-31"
+    exemption = {
+        "id": f"{SCOPE}/providers/Microsoft.Authorization/policyExemptions/approved",
+        "properties": {
+            "expiresOn": future_date_only,
+            "metadata": {"owner": "team", "justification": "approved"},
+        },
+    }
+    assert run(az_gov_004, {"policy_exemptions": [exemption]}) == []
+
+
+def test_evaluate_raises_for_unknown_rule_id(monkeypatch, policy):
+    """evaluate() must raise ValueError for an unrecognised rule_id, not silently run drift logic."""
+    monkeypatch.setattr(common, "load_context", lambda *_args: (policy, {"policy_states": []}))
+    unknown_spec = {
+        "id": "AZ-GOV-999",
+        "name": "Unknown Rule",
+        "severity": "HIGH",
+        "description": "test",
+        "remediation": "test",
+        "playbook": "test",
+        "frameworks": {},
+        "permissions": "test",
+    }
+    with pytest.raises(ValueError, match="AZ-GOV-999"):
+        common.evaluate(unknown_spec, object(), SUB)

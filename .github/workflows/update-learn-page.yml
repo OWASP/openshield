@@ -7,6 +7,7 @@ on:
 # Only the final commit step writes; nothing here needs any other scope.
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: update-learn-page-${{ github.ref }}
@@ -40,10 +41,23 @@ jobs:
       - name: Commit and push
         if: steps.diff.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           TARGET_REF: ${{ github.ref_name }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/learn/index.html README.md
           git commit -s -m "docs: refresh learn page and README statistics [skip ci]"
-          git push origin "HEAD:$TARGET_REF"
+          BRANCH="auto/update-learn-page-${TARGET_REF}"
+          git push origin "HEAD:${BRANCH}" --force
+          gh pr create \
+            --base "${TARGET_REF}" \
+            --head "${BRANCH}" \
+            --title "docs: refresh learn page and README statistics" \
+            --body "Automated statistics refresh triggered by push to \`${TARGET_REF}\`. [skip ci]" \
+            2>/dev/null || true
+          gh pr merge "${BRANCH}" \
+            --auto \
+            --squash \
+            --delete-branch \
+            2>/dev/null || true

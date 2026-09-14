@@ -34,6 +34,17 @@ Every accepted token must carry:
   4,000 characters, and at most 1,000 finding objects.
 - Full boundary details are maintained in `docs/input-validation-audit.md`.
 
+## Input limits
+
+- Request bodies are limited to 2 MiB.
+- Scan and subscription identifiers use canonical UUID format.
+- Finding filters accept only `severity`, `category`, `rule_id`, and `scan_id`;
+  unknown or repeated parameters return `400`.
+- AI routes accept a supported provider, an API key of at most 4,096 characters,
+  an optional model identifier of at most 128 characters, questions of at most
+  4,000 characters, and at most 1,000 finding objects.
+- Full boundary details are maintained in `docs/input-validation-audit.md`.
+
 ### Public demo mode
 
 Set `OPENSHIELD_PUBLIC_DEMO=true` to allow unauthenticated GET requests to `/api/*`. This is intended for local development and public demo dashboards where the data is not sensitive. POST endpoints (scan trigger, AI) always require a valid JWT regardless of this setting.
