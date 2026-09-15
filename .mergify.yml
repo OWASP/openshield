@@ -35,13 +35,12 @@ queue_rules:
     # These conditions must hold at the moment Mergify merges the PR.
     # Mergify re-evaluates them after rebasing onto the current dev HEAD.
     #
-    # CI Summary aggregates all jobs inside ci.yml, including the Astro
-    # website build and rendered-site verification added by PR #329
-    # (now on dev). CodeQL runs in a separate workflow (codeql.yml) and
-    # is NOT included in CI Summary, so it is gated explicitly below.
-    # Build site is gated explicitly for belt-and-braces coverage: it
-    # runs unconditionally on every dev-targeted PR (no paths filter)
-    # so it cannot stall the queue.
+    # CI Summary aggregates all jobs inside ci.yml, including the frontend
+    # build (Frontend (lint + build)) and website script tests (Website
+    # (script tests)) added by PR #329. CodeQL runs in a separate workflow
+    # (codeql.yml) and is NOT included in CI Summary; it posts two check
+    # runs named "Analyze (python)" and "Analyze (javascript)", both listed
+    # below.
     #
     # External Semgrep app checks (Semgrep OSS, semgrep-cloud-platform/scan)
     # are deliberately not gated: their coverage duplicates the SAST
@@ -52,10 +51,8 @@ queue_rules:
       - check-success=CI Summary
       - check-success=DCO sign-off
       - check-success=dependency-review
-      - check-success=CodeQL
       - check-success=Analyze (python)
       - check-success=Analyze (javascript)
-      - check-success=Build site
       # terraform-plan only runs for PRs touching infra/terraform/**. An
       # unconditional check-success would stall every non-terraform PR
       # forever. This condition passes when the PR touches no terraform
@@ -94,6 +91,9 @@ pull_request_rules:
   - name: dismiss stale approvals on new push
     conditions:
       - base=dev
+      # Exclude Mergify's own queue-rebase commits so they don't strip
+      # approvals mid-flight and cause an infinite dequeue/re-approve cycle.
+      - sender!=mergify[bot]
     actions:
       dismiss_reviews:
         approved: true
@@ -110,10 +110,8 @@ pull_request_rules:
       - check-success=CI Summary
       - check-success=DCO sign-off
       - check-success=dependency-review
-      - check-success=CodeQL
       - check-success=Analyze (python)
       - check-success=Analyze (javascript)
-      - check-success=Build site
       - or:
           - -files~=^infra/terraform/
           - check-success=Terraform fmt / validate / plan
