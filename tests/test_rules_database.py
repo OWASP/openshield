@@ -6,6 +6,7 @@ import scanner.rules.az_db_001 as az_db_001
 import scanner.rules.az_db_002 as az_db_002
 import scanner.rules.az_db_003 as az_db_003
 import scanner.rules.az_db_004 as az_db_004
+import scanner.rules.az_db_008 as az_db_008
 from tests.helpers.mock_azure import make_resource
 
 try:
@@ -255,3 +256,61 @@ def test_db_003_noncompliant_returns_one_finding(mock_azure, subscription_id):
     assert findings[0]["rule_id"] == "AZ-DB-003"
     assert findings[0]["severity"] == "HIGH"
     assert findings[0]["resource_name"] == "pgflex-nossl"
+
+
+# ── AZ-DB-008: SQL server minimum TLS version below 1.2 ────────────────────
+
+
+def test_db_008_compliant_tls_1_2_returns_no_findings(mock_azure, subscription_id):
+    server = make_resource(id=_sql_id("sql-tls12"), name="sql-tls12", minimal_tls_version="1.2")
+    mock_azure.set_sql_servers([server])
+    assert az_db_008.scan(mock_azure, subscription_id) == []
+
+
+def test_db_008_compliant_tls_1_3_returns_no_findings(mock_azure, subscription_id):
+    server = make_resource(id=_sql_id("sql-tls13"), name="sql-tls13", minimal_tls_version="1.3")
+    mock_azure.set_sql_servers([server])
+    assert az_db_008.scan(mock_azure, subscription_id) == []
+
+
+def test_db_008_noncompliant_tls_1_0_returns_one_finding(mock_azure, subscription_id):
+    server = make_resource(id=_sql_id("sql-tls10"), name="sql-tls10", minimal_tls_version="1.0")
+    mock_azure.set_sql_servers([server])
+    findings = az_db_008.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    finding = findings[0]
+    assert _REQUIRED_FIELDS.issubset(finding.keys())
+    assert finding["rule_id"] == "AZ-DB-008"
+    assert finding["severity"] == "HIGH"
+    assert finding["category"] == "Database"
+    assert finding["resource_name"] == "sql-tls10"
+    assert finding["resource_type"] == "Microsoft.Sql/servers"
+    assert finding["metadata"]["resource_group"] == _RG
+    assert finding["metadata"]["minimal_tls_version"] == "1.0"
+
+
+def test_db_008_noncompliant_tls_1_1_returns_one_finding(mock_azure, subscription_id):
+    server = make_resource(id=_sql_id("sql-tls11"), name="sql-tls11", minimal_tls_version="1.1")
+    mock_azure.set_sql_servers([server])
+    findings = az_db_008.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["rule_id"] == "AZ-DB-008"
+
+
+def test_db_008_noncompliant_explicit_none_returns_one_finding(mock_azure, subscription_id):
+    """The real Azure API allows an explicit 'None' string meaning no minimum is enforced,
+    distinct from the attribute simply being unset."""
+    server = make_resource(id=_sql_id("sql-tls-none"), name="sql-tls-none", minimal_tls_version="None")
+    mock_azure.set_sql_servers([server])
+    findings = az_db_008.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["metadata"]["minimal_tls_version"] == "None"
+
+
+def test_db_008_missing_attribute_defaults_to_noncompliant(mock_azure, subscription_id):
+    """A server with no minimal_tls_version attribute at all must not be silently skipped."""
+    server = make_resource(id=_sql_id("sql-tls-unset"), name="sql-tls-unset")
+    mock_azure.set_sql_servers([server])
+    findings = az_db_008.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["metadata"]["minimal_tls_version"] == "not set"
