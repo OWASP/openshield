@@ -1,27 +1,33 @@
 # API Reference
 
 The OpenShield API is a Flask app registered in `api/app.py`. By default, every
-`/api/*` route requires an `Authorization: Bearer <jwt>` header signed with
-`JWT_SECRET`; only the explicitly listed health and observability endpoints are
-public. Read-only API routes become public only when the deliberate demo-mode
-setting is enabled.
+`/api/*` route requires an `Authorization: Bearer <jwt>` header; only the
+explicitly listed health and observability endpoints are public. Read-only API
+routes become public only when the deliberate demo-mode setting is enabled.
 
 ## Authentication
 
-`/`, `/health`, `/ready`, and `/metrics` are always public. All other routes — including all `/api/*` GET endpoints — require an `Authorization: Bearer <jwt>` header signed with `JWT_SECRET`.
+`/`, `/health`, `/ready`, and `/metrics` are always public. All other routes — including all `/api/*` GET endpoints — require an `Authorization: Bearer <jwt>` header, verified by `api/auth.py` according to `OPENSHIELD_AUTH_MODE`:
 
-Every accepted token must carry:
+| Mode | Verification | Role source | Intended for |
+|---|---|---|---|
+| `shared_secret` (default) | HS256 with `JWT_SECRET`; `exp` and `sub` required; `iss`/`aud` checked when `JWT_ISSUER`/`JWT_AUDIENCE` are set | `role` claim | Local development, CI smoke tests |
+| `oidc` | Asymmetric signature (default `RS256`) against `OIDC_JWKS_URL`; `iss`=`OIDC_ISSUER`, `aud`=`OIDC_AUDIENCE`, `exp`, `iat`, `sub` required; `tid` must be in `OIDC_ALLOWED_TENANTS` when set | IdP-assigned app roles (`OIDC_ROLE_CLAIM`, default `roles`) mapped by `OIDC_ROLE_MAP` | Enterprise deployments |
 
-- `exp` — a token with no expiry is rejected outright. There is no way to mint a permanently-valid token; regenerate before it expires.
-- `role` — one of `viewer`, `operator`, or `admin`. A missing or unrecognized role is treated the same as an invalid signature (`401`).
+Every accepted token resolves to one of `viewer`, `operator`, or `admin`:
 
-`viewer` is read-only: any non-`GET`/`HEAD` request (scan trigger, AI endpoints) from a `viewer` token is rejected with `403`, regardless of demo mode. Only `operator` and `admin` may perform a write. This is enforced in `api/app.py`'s JWT middleware, not per-route, so it applies uniformly to every current and future write endpoint.
+- `exp` is always required; a token with no expiry is rejected.
+- In `shared_secret` mode a missing or unrecognized `role` is rejected with `401`.
+- In `oidc` mode a valid identity with no mapped OpenShield app role is rejected with `403`, and a self-asserted `role` claim is ignored. HS256 and unsigned tokens are refused, so a token minted with `JWT_SECRET` can never pass as an IdP token. If the JWKS endpoint cannot be reached the API fails closed with `503`.
+- `OPENSHIELD_AUTH_MODE=oidc` with a missing `OIDC_ISSUER`, `OIDC_AUDIENCE` or `OIDC_JWKS_URL`, a non-HTTPS JWKS URL, or a symmetric algorithm stops the API at startup.
 
-`scripts/generate_demo_jwt.py` mints a `viewer` token with a bounded expiry (`DEMO_JWT_TTL_HOURS`, default 24h) — see the script's own docstring before embedding one as `VITE_JWT_TOKEN`.
+`viewer` is read-only: any non-`GET`/`HEAD` request (scan trigger, AI endpoints) from a `viewer` token is rejected with `403`, regardless of demo mode. Only `operator` and `admin` may perform a write. This is enforced in `api/app.py`'s middleware, not per-route, so it applies uniformly to every current and future write endpoint.
+
+The dashboard never embeds a token (see [authentication and containment](security/authentication.md)). `scripts/generate_demo_jwt.py` mints a short-lived `viewer` token for local API calls in `shared_secret` mode only.
 
 ### Subscription authorization
 
-`POST /api/scans/trigger` also checks `subscription_id` against `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS`, a comma-separated allowlist. A valid `operator`/`admin` token can otherwise trigger a scan against *any* subscription_id — role alone doesn't say which subscription a caller is entitled to. Left unset, every subscription_id is accepted (matches historical behavior); the API logs a loud startup warning when it's unset. This is a single-tenant containment boundary, not a substitute for real per-tenant authorization — see issue #294 for the full multi-tenant/OIDC scope this is a stopgap for.
+`POST /api/scans/trigger` also checks `subscription_id` against `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS`, a comma-separated allowlist. A valid `operator`/`admin` token can otherwise trigger a scan against *any* subscription_id — role alone doesn't say which subscription a caller is entitled to. Left unset, every subscription_id is accepted (matches historical behavior); the API logs a loud startup warning when it's unset. This is a single-tenant containment boundary, not a substitute for real per-tenant authorization — see issue #294 for the remaining tenant-ownership scope this is a stopgap for.
 
 ## Input limits
 

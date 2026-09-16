@@ -4,12 +4,12 @@ import logging
 import os
 import sys
 
-import jwt
 from dotenv import load_dotenv
 from flask import Flask, g, jsonify, request
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from api.auth import AUTH_MODE_SHARED_SECRET, KNOWN_ROLES, WRITE_ROLES, TokenRejected, build_verifier
 from api.models.finding import DatabaseManager, get_pool_stats
 from api.observability import (
     configure_logging,
@@ -40,14 +40,13 @@ _MAX_AUTHORIZATION_HEADER_LENGTH = 8192
 _GENERATE_CMD = 'python -c "import secrets; print(secrets.token_urlsafe(32))"'
 
 # A token's signature proves who signed it, not what the bearer is allowed to
-# do. Every accepted token must carry one of these roles (see issue #294):
-# a missing/unrecognized role is treated the same as an invalid signature.
-# Only operator/admin may perform a write (any non-GET/HEAD); viewer is
-# read-only. This is enforced regardless of demo mode - public_demo only
-# ever widens *read* access to skip the token requirement entirely, it does
-# not touch write authorization.
-_KNOWN_ROLES = {"viewer", "operator", "admin"}
-_WRITE_ROLES = {"operator", "admin"}
+# do. Every accepted token must carry one of these roles (see issue #294 and
+# api/auth.py). Only operator/admin may perform a write (any non-GET/HEAD);
+# viewer is read-only. This is enforced regardless of demo mode - public_demo
+# only ever widens *read* access to skip the token requirement entirely, it
+# does not touch write authorization.
+_KNOWN_ROLES = KNOWN_ROLES
+_WRITE_ROLES = WRITE_ROLES
 
 # Generous enough for legitimate manual or automated readiness checks from
 # one source, but bounded well under the default pool size
@@ -156,6 +155,16 @@ def create_app() -> Flask:
     # Configuration & Security                                             #
     # ------------------------------------------------------------------ #
     app.config["JWT_SECRET"] = _resolve_jwt_secret()
+    # Read at request time so a rotated secret or test override applies.
+    verifier = build_verifier(lambda: app.config["JWT_SECRET"])
+    app.config["AUTH_MODE"] = verifier.mode
+    if verifier.mode == AUTH_MODE_SHARED_SECRET and _is_production():
+        logger.warning(
+            "!!! SECURITY WARNING: OPENSHIELD_AUTH_MODE=shared_secret IN PRODUCTION !!! "
+            "Anyone holding JWT_SECRET can mint any role. Configure OPENSHIELD_AUTH_MODE=oidc "
+            "with OIDC_ISSUER, OIDC_AUDIENCE and OIDC_JWKS_URL for enterprise deployments "
+            "(docs/security/authentication.md)."
+        )
     app.config["MAX_CONTENT_LENGTH"] = _MAX_CONTENT_LENGTH
 
     # ------------------------------------------------------------------ #
@@ -226,28 +235,12 @@ def create_app() -> Flask:
 
         token = auth.split(" ", 1)[1]
         try:
-            payload = jwt.decode(
-                token,
-                app.config["JWT_SECRET"],
-                algorithms=["HS256"],
-                # A token with no expiry can never be invalidated short of a
-                # full JWT_SECRET rotation - require every accepted token to
-                # carry one (issue #294). MissingRequiredClaimError is a
-                # subclass of InvalidTokenError, so it's already handled by
-                # the except clause below.
-                options={"require": ["exp"]},
-            )
-            g.user = payload
-        except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token has expired", "request_id": get_request_id()}), 401
-        except jwt.InvalidTokenError:
-            logger.warning("Invalid JWT token")
-            return jsonify({"error": "Invalid token", "request_id": get_request_id()}), 401
+            principal = verifier.verify(token)
+        except TokenRejected as rejected:
+            return jsonify({"error": rejected.message, "request_id": get_request_id()}), rejected.status
+        g.user = principal
 
-        role = payload.get("role")
-        if role not in _KNOWN_ROLES:
-            logger.warning("JWT rejected: missing or unrecognized role %r", role)
-            return jsonify({"error": "Invalid token", "request_id": get_request_id()}), 401
+        role = principal["role"]
         if request.method not in ("GET", "HEAD") and role not in _WRITE_ROLES:
             return jsonify(
                 {

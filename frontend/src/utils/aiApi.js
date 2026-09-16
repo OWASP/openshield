@@ -11,6 +11,8 @@
 // CVE analysis calls the public GET /api/score/cve-summary endpoint.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { getToken } from './api.js';
+
 const API_BASE = import.meta.env.VITE_API_URL
   || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://openshield-api.onrender.com');
 const TIMEOUT = 30000;
@@ -50,7 +52,6 @@ export const aiSettings = {
 };
 
 // ── Core fetch ─────────────────────────────────────────────────────────────
-function getToken() { return localStorage.getItem('jwt_token'); }
 
 async function aiApiFetch(path, body) {
   const ctrl = new AbortController();
