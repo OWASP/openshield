@@ -7,7 +7,7 @@ export async function GET(context: APIContext) {
   const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
     (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
   );
-  const siteRoot = context.site ?? new URL('https://openshield-org.github.io');
+  const siteRoot = context.site ?? new URL('https://owasp.github.io');
   return rss({
     title: 'OpenShield Blog',
     description:
