@@ -6,6 +6,11 @@ Welcome! OpenShield is built by the community - students, developers, and securi
 
 ## What Can I Contribute?
 
+For Python development on Linux/Python 3.11, install the runtime and test tools with
+`python -m pip install --require-hashes --only-binary=:all: -r requirements-dev.txt`.
+Production installs use `requirements.txt` and exclude test/lint tools. See
+[dependency locking](docs/dependency-locking.md) before changing dependencies.
+
 | Contribution Type | Difficulty | Time |
 |---|---|---|
 | New misconfiguration scan rule | Beginner | 20–30 min |

@@ -49,8 +49,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --require-hashes --only-binary=:all: -r requirements.txt
+          python -m pip check
 
       # This must remain before either create step: invalid branch/environment
       # combinations and missing configuration must result in zero Render POSTs.
