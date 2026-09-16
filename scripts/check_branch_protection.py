@@ -21,9 +21,9 @@ reports them as unverified instead of treating them as compliant.
 import argparse
 import json
 import os
+import ssl
 import sys
-import urllib.error
-import urllib.request
+import http.client
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -31,7 +31,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG_DIR = REPO_ROOT / ".github" / "branch-protection"
 DEFAULT_BRANCHES = ("dev", "main")
-API_ROOT = "https://api.github.com"
+API_HOST = "api.github.com"
 
 # Promotion to main must never be approvable by its own author alone.
 MIN_APPROVALS = {"dev": 1, "main": 2}
@@ -155,17 +155,44 @@ def audit_bypass(branch: str, rulesets: List[Dict[str, Any]]) -> Tuple[List[str]
     return problems, notes
 
 
+class GitHubApiError(Exception):
+    """The GitHub API returned a non-success status."""
+
+    def __init__(self, status: int) -> None:
+        super().__init__(f"GitHub API returned HTTP {status}")
+        self.status = status
+
+
 def github_fetcher(token: Optional[str]) -> Fetcher:
-    """Return a JSON GET helper for the GitHub REST API."""
+    """Return a JSON GET helper bound to the GitHub REST API host.
+
+    The host and scheme are fixed; only the request path varies, so a crafted
+    value can never redirect the request to another host or a file:// URL.
+    """
 
     def fetch(path: str) -> Any:
-        request = urllib.request.Request(f"{API_ROOT}{path}")  # noqa: S310 - fixed https API root
-        request.add_header("Accept", "application/vnd.github+json")
-        request.add_header("X-GitHub-Api-Version", "2022-11-28")
+        if not path.startswith("/"):
+            raise ValueError(f"API path must be absolute: {path!r}")
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "openshield-branch-protection-audit",
+        }
         if token:
-            request.add_header("Authorization", f"Bearer {token}")
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed https API root
-            return json.load(response)
+            headers["Authorization"] = f"Bearer {token}"
+        # Fixed host with certificate and hostname verification from the default context.
+        connection = http.client.HTTPSConnection(  # nosemgrep: python.lang.security.audit.httpsconnection-detected.httpsconnection-detected  # noqa: E501
+            API_HOST, timeout=30, context=ssl.create_default_context()
+        )
+        try:
+            connection.request("GET", path, headers=headers)
+            response = connection.getresponse()
+            body = response.read()
+        finally:
+            connection.close()
+        if response.status >= 400:
+            raise GitHubApiError(response.status)
+        return json.loads(body)
 
     return fetch
 
@@ -234,14 +261,15 @@ def main(argv: Optional[List[str]] = None, fetch: Optional[Fetcher] = None) -> i
     for branch in branches:
         try:
             records.append(audit_branch(args.repo, branch, expected[branch], fetch))
-        except urllib.error.HTTPError as exc:
+        except GitHubApiError as exc:
             records.append(
-                {"branch": branch, "compliant": False, "problems": [f"{branch}: GitHub API error {exc.code}"]}
+                {"branch": branch, "compliant": False, "problems": [f"{branch}: GitHub API error {exc.status}"]}
             )
-        except urllib.error.URLError as exc:
-            # An unreachable API is not evidence of protection: fail closed.
+        except (OSError, http.client.HTTPException, ValueError) as exc:
+            # An unreachable API or unreadable response is not evidence of
+            # protection: fail closed.
             records.append(
-                {"branch": branch, "compliant": False, "problems": [f"{branch}: GitHub API unreachable: {exc.reason}"]}
+                {"branch": branch, "compliant": False, "problems": [f"{branch}: GitHub API unreachable: {exc}"]}
             )
 
     compliant = all(record["compliant"] for record in records)

@@ -172,10 +172,16 @@ def test_classic_protection_is_noted_but_not_counted_as_enforcement():
 
 
 def test_unreachable_api_fails_closed(capsys):
-    import urllib.error
-
     def fetch(_path):
-        raise urllib.error.URLError("offline")
+        raise OSError("offline")
 
     assert audit.main(["--repo", "o/r"], fetch=fetch) == 1
     assert "GitHub API unreachable" in capsys.readouterr().out
+
+
+def test_api_error_status_fails_closed(capsys):
+    def fetch(_path):
+        raise audit.GitHubApiError(403)
+
+    assert audit.main(["--repo", "o/r", "--branch", "dev"], fetch=fetch) == 1
+    assert "GitHub API error 403" in capsys.readouterr().out
