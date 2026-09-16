@@ -13,6 +13,8 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Branch protection declared as versioned GitHub rulesets for `dev` and `main`, with a scheduled drift audit that retains evidence (#298)
+- CI and CodeQL post-merge runs on `dev` and `main` (#298)
 - Azure Network Layer Assurance API with 20-domain coverage, network-rule classification, and authoritative IP forwarding and direct Internet route checks
 - Azure Resource Graph inventory snapshots as the first OpenShield Evidence Graph foundation
 - Azure Data Link Layer Assurance API with LLC and MAC coverage plus ExpressRoute Direct MACsec checks
