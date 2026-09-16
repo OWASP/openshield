@@ -245,7 +245,7 @@ function releaseHistory(): ReleaseEntry[] {
       return {
         tag: `v${version}`,
         date: match[2],
-        href: references.get(version) ?? `https://github.com/openshield-org/openshield/releases/tag/v${version}`,
+        href: references.get(version) ?? `https://github.com/OWASP/openshield/releases/tag/v${version}`,
       };
     });
 }

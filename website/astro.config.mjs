@@ -3,7 +3,7 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://openshield-org.github.io',
+  site: 'https://owasp.github.io',
   base: '/openshield',
   integrations: [sitemap()],
   build: {

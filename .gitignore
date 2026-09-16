@@ -151,6 +151,8 @@ activemq-data/
 .env
 .envrc
 .venv
+.lock-tools/
+.test-venv/
 env/
 venv/
 ENV/

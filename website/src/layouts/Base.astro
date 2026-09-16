@@ -28,7 +28,7 @@ const {
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, Astro.site);
-const GITHUB = 'https://github.com/openshield-org/openshield';
+const GITHUB = 'https://github.com/OWASP/openshield';
 const year = new Date().getFullYear();
 
 /* Structured data: Organization + WebSite on every page. Read by search
@@ -214,7 +214,7 @@ const siteJsonLd = {
     }
   });
 
-  fetch('https://api.github.com/repos/openshield-org/openshield')
+  fetch('https://api.github.com/repos/OWASP/openshield')
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => {
       const el = document.getElementById('starCount');

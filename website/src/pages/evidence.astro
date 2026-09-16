@@ -2,7 +2,7 @@
 import Base from '../layouts/Base.astro';
 import { repoData } from '../lib/repoData';
 
-const GITHUB = 'https://github.com/openshield-org/openshield';
+const GITHUB = 'https://github.com/OWASP/openshield';
 const maxDomainCount = Math.max(...repoData.domains.map((domain) => domain.count));
 const assurance = [
   ['Continuous integration', '.github/workflows/ci.yml'],

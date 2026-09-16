@@ -1,20 +1,89 @@
-name: Docker Build and Push
+name: Verified Container Release
 
+# Only the signed source-release workflow calls this publisher.
 on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+      release_commit:
+        required: true
+        type: string
+      tag_object:
+        required: true
+        type: string
 
 permissions:
   contents: read
   packages: write
+  id-token: write
+  attestations: write
 
 jobs:
   docker:
+    # Owner opt-in after confirming OWASP package rights and the first-release plan.
+    if: github.repository == 'OWASP/openshield' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.CONTAINER_RELEASE_ENABLED == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      RELEASE_COMMIT: ${{ inputs.release_commit }}
+      EXPECTED_TAG_OBJECT: ${{ inputs.tag_object }}
+      IMAGE_NAME: ghcr.io/owasp/openshield
+      CANDIDATE: ghcr.io/owasp/openshield:candidate-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Checkout immutable release commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ inputs.release_commit }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Reverify signed source before build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release_integrity.py verify > "$RUNNER_TEMP/release-source.json"
+
+      - name: Build once and save the exact image
+        run: |
+          set -euo pipefail
+          docker build --tag "$CANDIDATE" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${RELEASE_COMMIT}" \
+            --label "org.opencontainers.image.version=${RELEASE_TAG}" .
+          docker image inspect "$CANDIDATE" --format '{{.Id}}' > "$RUNNER_TEMP/image-id"
+          docker save --output "$RUNNER_TEMP/image.tar" "$CANDIDATE"
+
+      - name: Scan saved image before registry publication
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          input: ${{ runner.temp }}/image.tar
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          format: json
+          output: ${{ runner.temp }}/image-trivy.json
+
+      - name: Install checksum-verified Syft
+        env:
+          SYFT_VERSION: "1.46.0"
+          SYFT_SHA256: d654f678b709eb53c393d38519d5ed7d2e57205529404018614cfefa0fb2b5ca
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location --output "$archive" \
+            "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          echo "${SYFT_SHA256}  ${archive}" | sha256sum --check --strict
+          sudo tar --extract --gzip --file "$archive" --directory /usr/local/bin syft
+
+      - name: Generate image SBOM from scanned archive
+        run: syft "docker-archive:$RUNNER_TEMP/image.tar" -o "cyclonedx-json=$RUNNER_TEMP/image.cdx.json"
+
+      - name: Reverify tag before any registry write
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release_integrity.py verify
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -23,20 +92,71 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ghcr.io/openshield-org/openshield
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Push scanned candidate and capture registry digest
+        id: push
+        run: |
+          set -euo pipefail
+          test "$(docker image inspect "$CANDIDATE" --format '{{.Id}}')" = "$(< "$RUNNER_TEMP/image-id")"
+          docker push "$CANDIDATE"
+          docker image inspect "$CANDIDATE" --format '{{json .RepoDigests}}' | \
+            python3 scripts/release_integrity.py digest --image "$IMAGE_NAME" > "$RUNNER_TEMP/image-digest.json"
 
-      - name: Build and push
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+      - name: Attest image provenance by digest
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest image SBOM by the same digest
+        uses: actions/attest-sbom@4651f806c01d8637787e274ac3bdf724ef169f34 # v3
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: ${{ runner.temp }}/image.cdx.json
+          push-to-registry: true
+
+      - name: Verify both attestations before version promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          gh attestation verify "oci://${IMAGE_NAME}@${DIGEST}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/docker.yml" \
+            --source-digest "$RELEASE_COMMIT" --source-ref "refs/tags/$RELEASE_TAG"
+          gh attestation verify "oci://${IMAGE_NAME}@${DIGEST}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/docker.yml" \
+            --source-digest "$RELEASE_COMMIT" --source-ref "refs/tags/$RELEASE_TAG" \
+            --predicate-type https://cyclonedx.org/bom
+
+      - name: Promote verified image without rebuilding
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          python3 scripts/release_integrity.py verify
+          test "$(docker image inspect "$CANDIDATE" --format '{{.Id}}')" = "$(< "$RUNNER_TEMP/image-id")"
+          VERSION_REF="${IMAGE_NAME}:${RELEASE_TAG#v}"
+          docker tag "$CANDIDATE" "$VERSION_REF"
+          docker push "$VERSION_REF"
+          docker image inspect "$VERSION_REF" --format '{{json .RepoDigests}}' | \
+            python3 scripts/release_integrity.py digest --image "$IMAGE_NAME" --expect "$DIGEST"
+          printf 'Verified image: `%s@%s`\nSource: `%s`\nVersion: `%s`\n' \
+            "$IMAGE_NAME" "$DIGEST" "$RELEASE_COMMIT" "$VERSION_REF" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain container release evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: container-release-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/image-trivy.json
+            ${{ runner.temp }}/image.cdx.json
+            ${{ runner.temp }}/image-digest.json
+            ${{ runner.temp }}/release-source.json
+          if-no-files-found: warn
+          retention-days: 90
