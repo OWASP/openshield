@@ -29,9 +29,9 @@ import jwt
 
 logger = logging.getLogger(__name__)
 
-AUTH_MODE_SHARED_SECRET = "shared_secret"  # nosec B105 - mode name, not a credential
+SHARED_SECRET_MODE = "shared_secret"  # nosec B105 - mode name, not a credential
 AUTH_MODE_OIDC = "oidc"
-AUTH_MODES = (AUTH_MODE_SHARED_SECRET, AUTH_MODE_OIDC)
+AUTH_MODES = (SHARED_SECRET_MODE, AUTH_MODE_OIDC)
 
 KNOWN_ROLES = frozenset({"viewer", "operator", "admin"})
 WRITE_ROLES = frozenset({"operator", "admin"})
@@ -81,7 +81,7 @@ def _csv(value: Optional[str]) -> Tuple[str, ...]:
 
 def load_auth_mode(env: Mapping[str, str] = os.environ) -> str:
     """Return the configured auth mode, rejecting unknown values."""
-    mode = env.get("OPENSHIELD_AUTH_MODE", AUTH_MODE_SHARED_SECRET).strip().lower() or AUTH_MODE_SHARED_SECRET
+    mode = env.get("OPENSHIELD_AUTH_MODE", SHARED_SECRET_MODE).strip().lower() or SHARED_SECRET_MODE
     if mode not in AUTH_MODES:
         raise AuthConfigError(f"OPENSHIELD_AUTH_MODE must be one of {', '.join(AUTH_MODES)}; got {mode!r}")
     return mode
@@ -190,7 +190,7 @@ class TokenVerifier:
         except jwt.ExpiredSignatureError as exc:
             raise TokenRejected("Token has expired") from exc
         except jwt.InvalidTokenError as exc:
-            logger.warning("Invalid JWT token: %s", type(exc).__name__)
+            logger.warning("Authorization rejected: %s", type(exc).__name__)
             raise TokenRejected("Invalid token") from exc
 
         role = claims.get("role")
@@ -202,7 +202,7 @@ class TokenVerifier:
             "role": role,
             "tenant": None,
             "issuer": claims.get("iss"),
-            "auth_mode": AUTH_MODE_SHARED_SECRET,
+            "auth_mode": SHARED_SECRET_MODE,
         }
 
     def _get_jwks_client(self) -> Any:
@@ -228,7 +228,7 @@ class TokenVerifier:
             logger.error("OIDC JWKS endpoint unavailable: %s", exc)
             raise TokenRejected("Identity provider unavailable", status=503) from exc
         except jwt.PyJWKClientError as exc:
-            logger.warning("OIDC token rejected: no matching signing key (%s)", exc)
+            logger.warning("OIDC authorization rejected: unknown signer (%s)", exc)
             raise TokenRejected("Invalid token") from exc
 
         try:
@@ -244,7 +244,7 @@ class TokenVerifier:
         except jwt.ExpiredSignatureError as exc:
             raise TokenRejected("Token has expired") from exc
         except jwt.InvalidTokenError as exc:
-            logger.warning("OIDC token rejected: %s", type(exc).__name__)
+            logger.warning("OIDC authorization rejected: %s", type(exc).__name__)
             raise TokenRejected("Invalid token") from exc
 
         tenant = str(claims.get("tid") or "").lower() or None

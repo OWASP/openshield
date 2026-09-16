@@ -9,7 +9,7 @@ from flask import Flask, g, jsonify, request
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from api.auth import AUTH_MODE_SHARED_SECRET, KNOWN_ROLES, WRITE_ROLES, TokenRejected, build_verifier
+from api.auth import SHARED_SECRET_MODE, KNOWN_ROLES, WRITE_ROLES, TokenRejected, build_verifier
 from api.models.finding import DatabaseManager, get_pool_stats
 from api.observability import (
     configure_logging,
@@ -158,7 +158,7 @@ def create_app() -> Flask:
     # Read at request time so a rotated secret or test override applies.
     verifier = build_verifier(lambda: app.config["JWT_SECRET"])
     app.config["AUTH_MODE"] = verifier.mode
-    if verifier.mode == AUTH_MODE_SHARED_SECRET and _is_production():
+    if verifier.mode == SHARED_SECRET_MODE and _is_production():
         logger.warning(
             "!!! SECURITY WARNING: OPENSHIELD_AUTH_MODE=shared_secret IN PRODUCTION !!! "
             "Anyone holding JWT_SECRET can mint any role. Configure OPENSHIELD_AUTH_MODE=oidc "

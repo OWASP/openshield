@@ -4,6 +4,7 @@ Tokens are signed with a throwaway RSA key and served through a stub JWKS
 client, so every rejection path is exercised without network access.
 """
 
+import secrets
 import time
 
 import jwt
@@ -224,7 +225,7 @@ def test_app_refuses_to_start_with_incomplete_oidc_config(monkeypatch):
 
 # ── shared-secret mode hardening ────────────────────────────────────────────
 
-_SECRET = "s" * 40
+_SECRET = secrets.token_urlsafe(32)
 
 
 def _hs_token(**overrides):
