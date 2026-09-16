@@ -6,6 +6,8 @@ import re
 import uuid
 from typing import Any, Iterable
 
+from openshield.severity import ACCEPTED_SEVERITIES, SeverityContractError, normalize_severity
+
 
 class ValidationError(ValueError):
     """Raised when a client-controlled value violates the public API contract."""
@@ -17,7 +19,7 @@ VALIDATION_ERROR_MESSAGE = "Invalid request parameters"
 RULE_ID_RE = re.compile(r"^[A-Z0-9]+(?:-[A-Z0-9]+)*$")
 MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$")
 
-SEVERITIES = frozenset({"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "INFORMATIONAL"})
+SEVERITIES = ACCEPTED_SEVERITIES
 CATEGORIES = frozenset(
     {
         "Backup",
@@ -96,6 +98,15 @@ def canonical_choice(value: Any, field: str, allowed: Iterable[str]) -> str:
         raise ValidationError(f"Unsupported {field}") from exc
 
 
+def severity_value(value: Any, field: str = "severity") -> str:
+    """Validate a public severity value and return its canonical ID."""
+    bounded_string(value, field, maximum=128)
+    try:
+        return normalize_severity(value)
+    except SeverityContractError as exc:
+        raise ValidationError(f"Unsupported {field}") from exc
+
+
 def uuid_string(value: Any, field: str) -> str:
     result = bounded_string(value, field, maximum=36)
     try:
@@ -146,5 +157,8 @@ def findings_list(value: Any, *, required: bool = False) -> list[dict[str, Any]]
                 raise ValidationError(
                     f"findings[{index}].{key} must be a string of at most {MAX_FINDING_TEXT_LENGTH} characters"
                 )
-        validated.append(finding)
+        normalized = dict(finding)
+        if normalized.get("severity") is not None:
+            normalized["severity"] = severity_value(normalized["severity"], f"findings[{index}].severity")
+        validated.append(normalized)
     return validated

@@ -1,6 +1,7 @@
 """Azure SDK wrapper providing typed accessors for all CSPM scan operations."""
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
@@ -59,6 +60,9 @@ class AzureClient:
         self._managed_identity_principals_cache: Any = _UNSET
         self._subscription_role_assignments_cache: Any = _UNSET
         self._container_registries_cache: Any = _UNSET
+        self._critical_paas_cache: Any = _UNSET
+        self._application_gateways_cache: Any = _UNSET
+        self._waf_policies_cache: Any = _UNSET
         self._disks_cache: Dict[str, Any] = {}
         self.devops_client = self._build_devops_client()
 
@@ -306,6 +310,253 @@ class AzureClient:
             logger.error("get_public_ip_addresses failed: %s", exc)
             return []
 
+    def get_private_link_inventory(self) -> Optional[List[Dict[str, Any]]]:
+        """Collect Private Endpoint state without collapsing API failures.
+
+        The network list operation is authoritative for applicability. A failed
+        list returns ``None`` (UNKNOWN); an empty list means NOT_APPLICABLE.
+        DNS-zone-group failures are recorded per endpoint as ``None`` so rules
+        do not confuse missing permissions with a missing association.
+        """
+        collected_at = datetime.now(timezone.utc).isoformat()
+        try:
+            client = NetworkManagementClient(self.credential, self.subscription_id)
+            endpoints = list(client.private_endpoints.list_by_subscription())
+        except Exception as exc:
+            logger.error("get_private_link_inventory failed: %s", exc)
+            return None
+
+        inventory: List[Dict[str, Any]] = []
+        for endpoint in endpoints:
+            endpoint_id = getattr(endpoint, "id", "") or ""
+            parsed = self.parse_resource_id(endpoint_id)
+            resource_group = parsed.get("resource_group", "")
+            endpoint_name = getattr(endpoint, "name", "") or parsed.get("name", "")
+            connections = getattr(endpoint, "private_link_service_connections", None) or []
+            manual_connections = getattr(endpoint, "manual_private_link_service_connections", None) or []
+            connections = [*connections, *manual_connections]
+
+            try:
+                zone_groups = list(client.private_dns_zone_groups.list(resource_group, endpoint_name))
+                zone_ids = [
+                    getattr(config, "private_dns_zone_id", "")
+                    for group in zone_groups
+                    for config in (getattr(group, "private_dns_zone_configs", None) or [])
+                    if getattr(config, "private_dns_zone_id", "")
+                ]
+            except Exception as exc:
+                logger.error("private DNS zone groups unavailable for %s: %s", endpoint_name, exc)
+                zone_ids = None
+
+            dns_configs = []
+            for config in getattr(endpoint, "custom_dns_configs", None) or []:
+                dns_configs.append(
+                    {
+                        "fqdn": getattr(config, "fqdn", "") or "",
+                        "ip_addresses": list(getattr(config, "ip_addresses", None) or []),
+                    }
+                )
+
+            if not connections:
+                inventory.append(
+                    {
+                        "endpoint_id": endpoint_id,
+                        "endpoint_name": endpoint_name,
+                        "resource_group": resource_group,
+                        "location": getattr(endpoint, "location", "") or "",
+                        "target_id": "",
+                        "connection_status": None,
+                        "dns_zone_ids": zone_ids,
+                        "dns_configs": dns_configs,
+                        "public_network_access": None,
+                        "collected_at": collected_at,
+                    }
+                )
+                continue
+
+            for connection in connections:
+                target_id = getattr(connection, "private_link_service_id", "") or ""
+                state = getattr(connection, "private_link_service_connection_state", None)
+                inventory.append(
+                    {
+                        "endpoint_id": endpoint_id,
+                        "endpoint_name": endpoint_name,
+                        "resource_group": resource_group,
+                        "location": getattr(endpoint, "location", "") or "",
+                        "target_id": target_id,
+                        "connection_status": getattr(state, "status", None),
+                        "dns_zone_ids": zone_ids,
+                        "dns_configs": dns_configs,
+                        "public_network_access": self._get_private_link_target_public_access(target_id),
+                        "collected_at": collected_at,
+                    }
+                )
+        return inventory
+
+    def _get_private_link_target_public_access(self, resource_id: str) -> Optional[bool]:
+        """Return public-access state for supported Private Link PaaS targets."""
+        parts = [part for part in (resource_id or "").split("/") if part]
+        lowered = [part.lower() for part in parts]
+        try:
+            rg_index = lowered.index("resourcegroups")
+            provider_index = lowered.index("providers")
+            resource_group = parts[rg_index + 1]
+            provider = lowered[provider_index + 1]
+            resource_type = lowered[provider_index + 2]
+            name = parts[provider_index + 3]
+        except (ValueError, IndexError):
+            return None
+
+        try:
+            if provider == "microsoft.storage" and resource_type == "storageaccounts":
+                resource = StorageManagementClient(
+                    self.credential, self.subscription_id
+                ).storage_accounts.get_properties(resource_group, name)
+            elif provider == "microsoft.keyvault" and resource_type == "vaults":
+                resource = KeyVaultManagementClient(self.credential, self.subscription_id).vaults.get(
+                    resource_group, name
+                )
+            elif provider == "microsoft.sql" and resource_type == "servers":
+                resource = SqlManagementClient(self.credential, self.subscription_id).servers.get(resource_group, name)
+            else:
+                return None
+            value = getattr(resource, "public_network_access", None)
+            if value is None:
+                value = getattr(getattr(resource, "properties", None), "public_network_access", None)
+            normalized = enum_str(value).lower()
+            if normalized in {"enabled", "true", "1"}:
+                return True
+            if normalized in {"disabled", "false", "0"}:
+                return False
+            return None
+        except Exception as exc:
+            logger.error("public network access unavailable for %s: %s", resource_id, exc)
+            return None
+
+    def get_critical_paas_inventory(self) -> Dict[str, Optional[List[Dict[str, Any]]]]:
+        """Collect public-access state for critical PaaS services independently.
+
+        Each service returns a list on a successful API call (including an
+        empty list) or ``None`` on failure. Rules can therefore evaluate
+        successful services without treating a denied service as compliant.
+        """
+        if self._critical_paas_cache is not _UNSET:
+            return self._critical_paas_cache
+
+        collected_at = datetime.now(timezone.utc).isoformat()
+        collectors = {
+            "storage": self._collect_public_storage_accounts,
+            "key_vault": self._collect_public_key_vaults,
+            "sql": self._collect_public_sql_servers,
+            "postgresql": self._collect_public_postgresql_servers,
+            "app_service": self._collect_public_web_apps,
+        }
+        result: Dict[str, Optional[List[Dict[str, Any]]]] = {}
+        for service, collector in collectors.items():
+            try:
+                result[service] = collector(collected_at)
+            except Exception as exc:
+                logger.error("critical PaaS inventory failed for %s: %s", service, exc)
+                result[service] = None
+        self._critical_paas_cache = result
+        return result
+
+    @staticmethod
+    def _public_access_value(resource: Any) -> Optional[bool]:
+        value = getattr(resource, "public_network_access", None)
+        if value is None:
+            value = getattr(getattr(resource, "properties", None), "public_network_access", None)
+        normalized = enum_str(value).lower()
+        if normalized in {"enabled", "true", "1"}:
+            return True
+        if normalized in {"disabled", "false", "0"}:
+            return False
+        return None
+
+    def _paas_record(self, resource: Any, service: str, collected_at: str) -> Dict[str, Any]:
+        resource_id = getattr(resource, "id", "") or ""
+        parsed = self.parse_resource_id(resource_id)
+        return {
+            "resource_id": resource_id,
+            "resource_name": getattr(resource, "name", "") or parsed.get("name", ""),
+            "resource_type": service,
+            "resource_group": parsed.get("resource_group", ""),
+            "location": getattr(resource, "location", "") or "",
+            "public_network_access": self._public_access_value(resource),
+            "collected_at": collected_at,
+        }
+
+    def _collect_public_storage_accounts(self, collected_at: str) -> List[Dict[str, Any]]:
+        resources = StorageManagementClient(self.credential, self.subscription_id).storage_accounts.list()
+        return [self._paas_record(item, "Microsoft.Storage/storageAccounts", collected_at) for item in resources]
+
+    def _collect_public_key_vaults(self, collected_at: str) -> List[Dict[str, Any]]:
+        resources = KeyVaultManagementClient(self.credential, self.subscription_id).vaults.list_by_subscription()
+        return [self._paas_record(item, "Microsoft.KeyVault/vaults", collected_at) for item in resources]
+
+    def _collect_public_sql_servers(self, collected_at: str) -> List[Dict[str, Any]]:
+        resources = SqlManagementClient(self.credential, self.subscription_id).servers.list()
+        return [self._paas_record(item, "Microsoft.Sql/servers", collected_at) for item in resources]
+
+    def _collect_public_postgresql_servers(self, collected_at: str) -> List[Dict[str, Any]]:
+        resources = PostgreSQLManagementClient(self.credential, self.subscription_id).servers.list()
+        return [self._paas_record(item, "Microsoft.DBforPostgreSQL/servers", collected_at) for item in resources]
+
+    def _collect_public_web_apps(self, collected_at: str) -> List[Dict[str, Any]]:
+        from azure.mgmt.web import WebSiteManagementClient
+
+        resources = WebSiteManagementClient(self.credential, self.subscription_id).web_apps.list()
+        return [self._paas_record(item, "Microsoft.Web/sites", collected_at) for item in resources]
+
+    def get_application_gateways(self) -> Optional[List[Any]]:
+        """List Application Gateways, preserving API failure as UNKNOWN."""
+        if self._application_gateways_cache is not _UNSET:
+            return self._application_gateways_cache
+        try:
+            client = NetworkManagementClient(self.credential, self.subscription_id)
+            self._application_gateways_cache = list(client.application_gateways.list_all())
+        except Exception as exc:
+            logger.error("get_application_gateways failed: %s", exc)
+            self._application_gateways_cache = None
+        return self._application_gateways_cache
+
+    def get_waf_policies(self) -> Optional[List[Any]]:
+        """List regional Application Gateway WAF policies with failure state."""
+        if self._waf_policies_cache is not _UNSET:
+            return self._waf_policies_cache
+        try:
+            client = NetworkManagementClient(self.credential, self.subscription_id)
+            self._waf_policies_cache = list(client.web_application_firewall_policies.list_all())
+        except Exception as exc:
+            logger.error("get_waf_policies failed: %s", exc)
+            self._waf_policies_cache = None
+        return self._waf_policies_cache
+
+    def get_waf_diagnostic_logging(self, resource_id: str, sku_name: str) -> Optional[bool]:
+        """Return whether the SKU-supported Application Gateway log categories are enabled."""
+        normalized_sku = (sku_name or "").strip().lower()
+        if not normalized_sku:
+            logger.warning("Application Gateway SKU unavailable for %s", resource_id)
+            return None
+        required = {"ApplicationGatewayAccessLog", "ApplicationGatewayFirewallLog"}
+        # ApplicationGatewayPerformanceLog is exposed by v1 only. v2 publishes
+        # performance telemetry through Azure Monitor metrics instead.
+        if not normalized_sku.endswith("_v2"):
+            required.add("ApplicationGatewayPerformanceLog")
+        try:
+            client = MonitorManagementClient(self.credential, self.subscription_id)
+            settings = list(client.diagnostic_settings.list(resource_id))
+            enabled = {
+                getattr(log, "category", "")
+                for setting in settings
+                for log in (getattr(setting, "logs", None) or [])
+                if getattr(log, "enabled", False)
+            }
+            return required.issubset(enabled)
+        except Exception as exc:
+            logger.error("get_waf_diagnostic_logging failed for %s: %s", resource_id, exc)
+            return None
+
     def get_azure_firewalls(self, resource_group: str) -> List[Any]:
         """List all Azure Firewalls in a resource group."""
         try:
@@ -444,6 +695,23 @@ class AzureClient:
         except Exception as exc:
             logger.error("get_web_apps failed: %s", exc)
             return []
+
+    def get_jit_network_access_policies(self) -> Optional[List[Any]]:
+        """List Microsoft Defender for Cloud Just-In-Time VM access policies.
+
+        Returns a list (including an empty list) when Defender for Cloud responds,
+        or ``None`` when permissions, networking, the SDK, or a subscription
+        without Defender for Cloud prevent the collection from being evaluated.
+        Callers must treat ``None`` as "JIT coverage unknown", never as "no JIT".
+        """
+        try:
+            from azure.mgmt.security import SecurityCenter
+
+            client = SecurityCenter(self.credential, self.subscription_id)
+            return list(client.jit_network_access_policies.list())
+        except Exception as exc:
+            logger.error("get_jit_network_access_policies failed: %s", exc)
+            return None
 
     def get_function_app_security_posture(self) -> Optional[List[Dict[str, Any]]]:
         """Return a cached, secret-free posture for Function Apps."""
@@ -690,8 +958,31 @@ class AzureClient:
         try:
             client = SqlManagementClient(self.credential, self.subscription_id)
             return client.server_blob_auditing_policies.get(resource_group, server_name)
+        except ResourceNotFoundError:
+            return False
         except Exception as exc:
             logger.error("get_sql_server_auditing_policy(%s) failed: %s", server_name, exc)
+            return None
+
+    def get_sql_server_azure_ad_only_authentication(self, resource_group: str, server_name: str) -> Optional[bool]:
+        """Return whether Microsoft Entra-only authentication is enabled.
+
+        The setting is a child resource and is not populated on objects from
+        ``servers.list()``. ``False`` represents a confirmed absent/disabled
+        configuration; ``None`` preserves an indeterminate API failure.
+        """
+        try:
+            client = SqlManagementClient(self.credential, self.subscription_id)
+            authentication = client.server_azure_ad_only_authentications.get(resource_group, server_name, "Default")
+            return bool(getattr(authentication, "azure_ad_only_authentication", False))
+        except ResourceNotFoundError:
+            return False
+        except Exception as exc:
+            logger.error(
+                "get_sql_server_azure_ad_only_authentication(%s) failed: %s",
+                server_name,
+                exc,
+            )
             return None
 
     def get_sql_server_firewall_rules(self, resource_group: str, server_name: str) -> List[Any]:
@@ -702,6 +993,39 @@ class AzureClient:
         except Exception as exc:
             logger.error("get_sql_server_firewall_rules(%s) failed: %s", server_name, exc)
             return []
+
+    def get_sql_server_vulnerability_assessment(self, resource_group: str, server_name: str) -> Optional[Any]:
+        """Fetch the default vulnerability-assessment configuration for a SQL server."""
+        try:
+            client = SqlManagementClient(self.credential, self.subscription_id)
+            return client.server_vulnerability_assessments.get(resource_group, server_name, "default")
+        except ResourceNotFoundError:
+            return False
+        except Exception as exc:
+            logger.error("get_sql_server_vulnerability_assessment(%s) failed: %s", server_name, exc)
+            return None
+
+    def get_cosmos_accounts(self) -> Optional[List[Any]]:
+        """List Cosmos DB accounts, if the optional management SDK is available."""
+        try:
+            from azure.mgmt.cosmosdb import CosmosDBManagementClient
+
+            client = CosmosDBManagementClient(self.credential, self.subscription_id)
+            return list(client.database_accounts.list())
+        except Exception as exc:
+            logger.error("get_cosmos_accounts failed: %s", exc)
+            return None
+
+    def get_managed_caches(self) -> Optional[List[Any]]:
+        """List Azure Managed Redis/Cache accounts, if the SDK is available."""
+        try:
+            from azure.mgmt.redis import RedisManagementClient
+
+            client = RedisManagementClient(self.credential, self.subscription_id)
+            return list(client.redis.list())
+        except Exception as exc:
+            logger.error("get_managed_caches failed: %s", exc)
+            return None
 
     # ------------------------------------------------------------------ #
     # Key Vault                                                             #
@@ -939,6 +1263,46 @@ class AzureClient:
             logger.error("get_network_watcher_regions failed: %s", exc)
             return []
 
+    def get_flow_logs(self) -> Dict[str, Optional[List[Any]]]:
+        """Return Network Watcher flow log configurations, keyed by normalized region.
+
+        Flow logs (both legacy NSG-scoped and current VNet-scoped) are only
+        listable per-region Network Watcher, never in one subscription-wide
+        call, so a failure enumerating or querying one region's watcher must
+        not discard - or fabricate absence for - flow logs in a different
+        region.
+
+        Returns:
+            A dict from normalized region name to that region's list of
+            FlowLog resources, or ``None`` when that specific region's
+            watcher/flow-log listing failed. A region simply absent from the
+            dict means no Network Watcher was found there. Callers must treat
+            both ``None`` and a missing key as indeterminate, never as
+            "no flow log configured".
+        """
+        result: Dict[str, Optional[List[Any]]] = {}
+        try:
+            client = NetworkManagementClient(self.credential, self.subscription_id)
+            watchers = list(client.network_watchers.list_all())
+        except Exception as exc:
+            logger.error("get_flow_logs failed to list network watchers: %s", exc)
+            return result
+
+        for watcher in watchers:
+            location = (getattr(watcher, "location", "") or "").lower().replace(" ", "")
+            watcher_id = getattr(watcher, "id", "") or ""
+            parsed = self.parse_resource_id(watcher_id)
+            watcher_rg = parsed.get("resource_group", "")
+            watcher_name = getattr(watcher, "name", "")
+            if not location or not watcher_rg or not watcher_name:
+                continue
+            try:
+                result[location] = list(client.flow_logs.list(watcher_rg, watcher_name))
+            except Exception as exc:
+                logger.error("get_flow_logs failed for watcher %s/%s: %s", watcher_rg, watcher_name, exc)
+                result[location] = None
+        return result
+
     # ------------------------------------------------------------------ #
     # Supply chain: Container Registry, IaC state                          #
     # ------------------------------------------------------------------ #
@@ -1009,3 +1373,175 @@ class AzureClient:
                 exc,
             )
             return None
+
+    # ------------------------------------------------------------------ #
+    # Privileged Access & Identity (issue #258)                            #
+    # ------------------------------------------------------------------ #
+
+    def get_privileged_role_members(self) -> Optional[List[Dict[str, Any]]]:
+        """Return users assigned to top privileged directory roles.
+
+        Each item: {userId, userDisplayName, userPrincipalName, accountEnabled,
+                    lastSignInDateTime, roleId, roleName}
+
+        Requires RoleManagement.Read.Directory and AuditLog.Read.All.
+        Returns None on permission failure so rules return no findings.
+        """
+        _PRIVILEGED_ROLE_IDS = {
+            "62e90394-69f5-4237-9190-012177145e10": "Global Administrator",
+            "e8611ab8-c189-46e8-94e1-60213ab1f814": "Privileged Role Administrator",
+            "194ae4cb-b126-40b2-bd5b-6091b380977d": "Security Administrator",
+            "9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3": "Application Administrator",
+            "29232cdf-9323-42fd-ade2-1d097af3e4de": "Exchange Administrator",
+            "f28a1f50-f6e7-4571-818b-6a12f2af6b6c": "SharePoint Administrator",
+        }
+        url = (
+            "https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignments"
+            "?$expand=principal($select=id,displayName,userPrincipalName,accountEnabled,signInActivity)"
+            "&$filter=roleDefinitionId ne null&$top=100"
+        )
+        raw = self._get_graph_collection(url, "get_privileged_role_members")
+        if raw is None:
+            return None
+        members = []
+        for assignment in raw:
+            role_def_id = (assignment.get("roleDefinitionId") or "").split("/")[-1].lower()
+            role_name = _PRIVILEGED_ROLE_IDS.get(role_def_id)
+            if not role_name:
+                continue
+            principal = assignment.get("principal") or {}
+            user_id = principal.get("id") or assignment.get("principalId", "")
+            if not user_id:
+                continue
+            sign_in = principal.get("signInActivity") or {}
+            members.append(
+                {
+                    "userId": user_id,
+                    "userDisplayName": principal.get("displayName", user_id),
+                    "userPrincipalName": principal.get("userPrincipalName", ""),
+                    "accountEnabled": principal.get("accountEnabled", True),
+                    "lastSignInDateTime": sign_in.get("lastSignInDateTime"),
+                    "roleId": role_def_id,
+                    "roleName": role_name,
+                }
+            )
+        return members
+
+    def get_privileged_users_mfa_methods(self) -> Optional[List[Dict[str, Any]]]:
+        """Return authentication method types registered for admin users.
+
+        Each item: {userId, userDisplayName, userPrincipalName, authMethodTypes: [...]}
+
+        Requires UserAuthenticationMethod.Read.All.
+        Returns None on permission failure.
+        """
+        url = (
+            "https://graph.microsoft.com/v1.0/reports/authenticationMethods"
+            "/userRegistrationDetails?$filter=isAdmin eq true&$top=100"
+        )
+        raw = self._get_graph_collection(url, "get_privileged_users_mfa_methods")
+        if raw is None:
+            return None
+        return [
+            {
+                "userId": item.get("id", ""),
+                "userDisplayName": item.get("userDisplayName", item.get("userPrincipalName", "")),
+                "userPrincipalName": item.get("userPrincipalName", ""),
+                "authMethodTypes": item.get("methodsRegistered") or [],
+            }
+            for item in raw
+        ]
+
+    def get_pim_role_assignments(self) -> Optional[List[Dict[str, Any]]]:
+        """Return PIM eligible and active role assignment schedules.
+
+        Queries both roleAssignmentSchedules (Active assignments) and
+        roleEligibilitySchedules (Eligible assignments) and combines them.
+
+        Each item: {principalId, principalType, roleId, assignmentType} where
+        assignmentType is 'Active' or 'Eligible' and principalType is one of
+        'user', 'group', or 'servicePrincipal'.
+
+        Requires RoleManagement.Read.Directory.
+        Returns None on permission failure.
+        """
+        results = []
+        active_url = "https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentSchedules?$top=100"
+        active_raw = self._get_graph_collection(active_url, "get_pim_role_assignments/active")
+        if active_raw is None:
+            return None
+        for item in active_raw:
+            role_def_id = (item.get("roleDefinitionId") or "").split("/")[-1].lower()
+            results.append(
+                {
+                    "principalId": item.get("principalId", ""),
+                    "principalType": item.get("principalType", "user"),
+                    "roleId": role_def_id,
+                    "assignmentType": "Active",
+                }
+            )
+        eligible_url = "https://graph.microsoft.com/v1.0/roleManagement/directory/roleEligibilitySchedules?$top=100"
+        eligible_raw = self._get_graph_collection(eligible_url, "get_pim_role_assignments/eligible")
+        if eligible_raw is None:
+            return None
+        for item in eligible_raw:
+            role_def_id = (item.get("roleDefinitionId") or "").split("/")[-1].lower()
+            results.append(
+                {
+                    "principalId": item.get("principalId", ""),
+                    "principalType": item.get("principalType", "user"),
+                    "roleId": role_def_id,
+                    "assignmentType": "Eligible",
+                }
+            )
+        return results
+
+    def get_identity_protection_policies(self) -> Optional[Dict[str, Any]]:
+        """Detect risk-based protection via Conditional Access risk conditions.
+
+        Rather than querying the unreliable identityProtection/policies endpoints,
+        this method inspects Conditional Access policies for risk-based conditions,
+        which is the recommended approach for modern tenants.
+
+        Returns dict with keys: userRiskPolicy, signInRiskPolicy — each {isEnabled: bool}.
+        Returns None on permission failure.
+        """
+        policies = self.get_conditional_access_policies()
+        if policies is None:
+            return None
+        user_risk_covered = any(
+            p.get("state") == "enabled" and (p.get("conditions") or {}).get("userRiskLevels") for p in policies
+        )
+        sign_in_risk_covered = any(
+            p.get("state") == "enabled" and (p.get("conditions") or {}).get("signInRiskLevels") for p in policies
+        )
+        return {
+            "userRiskPolicy": {"isEnabled": user_risk_covered},
+            "signInRiskPolicy": {"isEnabled": sign_in_risk_covered},
+        }
+
+    def get_privileged_groups(self) -> Optional[List[Dict[str, Any]]]:
+        """Return Entra ID groups that are assignable to directory roles.
+
+        Each item: {id, displayName, ownerCount}
+
+        Requires GroupMember.Read.All and RoleManagement.Read.Directory.
+        Returns None on permission failure.
+        """
+        url = (
+            "https://graph.microsoft.com/v1.0/groups"
+            "?$filter=isAssignableToRole eq true"
+            "&$select=id,displayName&$expand=owners($select=id)&$top=100"
+        )
+        raw = self._get_graph_collection(url, "get_privileged_groups")
+        if raw is None:
+            return None
+        return [
+            {
+                "id": grp.get("id", ""),
+                "displayName": grp.get("displayName", ""),
+                "ownerCount": len(grp.get("owners") or []),
+            }
+            for grp in raw
+            if grp.get("id")
+        ]

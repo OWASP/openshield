@@ -1,6 +1,8 @@
 
+import { SEVERITY_IDS } from '../../utils/severity';
+
 const TYPES = ['All', 'ADDED', 'REMOVED', 'MODIFIED'];
-const SEVERITIES = ['All', 'HIGH', 'MEDIUM', 'LOW'];
+const SEVERITIES = ['All', ...SEVERITY_IDS];
 
 export default function DriftFilters({ filters, onChange }) {
   const set = (key, val) => onChange({ ...filters, [key]: val });

@@ -76,12 +76,13 @@ class MockAzureClient:
         self._kv_keys: Dict[str, List[Any]] = {}
         self._diagnostic_settings: Dict[str, Optional[bool]] = {}
         self._diagnostic_default: Optional[bool] = False
+        self._jit_policies: Optional[List[Any]] = []
         self._conditional_access_policies: List[Any] = []
         # Credential stub for Graph/SDK-based rules (idn_003..009).
         self.credential = _StubCredential()
         self._regions_with_resources: List[str] = []
         self._network_watcher_regions: List[str] = []
-        self._nsg_flow_logs: Dict[str, List[Any]] = {}
+        self._flow_logs_by_region: Dict[str, Optional[List[Any]]] = {}
         self._dns_zones: List[Any] = []
         self._dns_record_sets: Dict[Tuple[str, str], List[Any]] = {}
         self._web_apps: List[Any] = []
@@ -95,6 +96,15 @@ class MockAzureClient:
         self._blob_service_properties: Dict[Tuple[str, str], Optional[Any]] = {}
         # None by default, matching AzureClient.devops_client's "not configured" state.
         self.devops_client: Optional[Any] = None
+        # Privileged access / identity collectors (issue #258)
+        self._privileged_role_members: Optional[List[Dict[str, Any]]] = []
+        self._privileged_users_mfa_methods: Optional[List[Dict[str, Any]]] = []
+        self._pim_role_assignments: Optional[List[Dict[str, Any]]] = []
+        self._identity_protection_policies: Optional[Dict[str, Any]] = {
+            "userRiskPolicy": {"isEnabled": True, "riskLevel": "medium"},
+            "signInRiskPolicy": {"isEnabled": True, "riskLevel": "medium"},
+        }
+        self._privileged_groups: Optional[List[Dict[str, Any]]] = []
         # Some rules read azure_client.subscription_id when constructing an
         # SDK management client inside scan() (e.g. AZ-NET-007..010).
         self.subscription_id = "00000000-0000-0000-0000-000000000001"
@@ -266,6 +276,14 @@ class MockAzureClient:
     def get_disk(self, disk_id: str) -> Optional[Any]:
         return self._disks.get(disk_id)
 
+    def set_jit_policies(self, policies: Optional[List[Any]]) -> "MockAzureClient":
+        """Configure the Defender for Cloud JIT policies; ``None`` represents an unreadable/indeterminate result."""
+        self._jit_policies = policies
+        return self
+
+    def get_jit_network_access_policies(self) -> Optional[List[Any]]:
+        return self._jit_policies
+
     # ------------------------------------------------------------------ #
     # Storage — lifecycle & service logging (three-state: True/False/None) #
     # ------------------------------------------------------------------ #
@@ -327,17 +345,16 @@ class MockAzureClient:
     def get_vnet_peerings(self, resource_group: str, vnet_name: str) -> List[Any]:
         return self._vnet_peerings.get((resource_group, vnet_name), [])
 
-    def set_nsg_flow_logs(self, resource_group: str, flow_logs: List[Any]) -> "MockAzureClient":
-        # NOTE: az_net_012 calls get_nsg_flow_logs(resource_group) with a single
-        # argument and iterates the result. This mock matches that *expected*
-        # contract so the rule's detection logic can be exercised. The real
-        # AzureClient does not implement get_nsg_flow_logs at all — see the
-        # validation report (AZ-NET-012 always false-positives in production).
-        self._nsg_flow_logs[resource_group] = flow_logs
+    def set_flow_logs_by_region(self, region: str, flow_logs: Optional[List[Any]]) -> "MockAzureClient":
+        # ``None`` models a region whose Network Watcher/flow-log listing
+        # failed (or wasn't set at all - regions absent from this dict are
+        # the same case). A region simply never set here means "no Network
+        # Watcher found there", matching AzureClient.get_flow_logs()'s contract.
+        self._flow_logs_by_region[region] = flow_logs
         return self
 
-    def get_nsg_flow_logs(self, resource_group: str) -> List[Any]:
-        return self._nsg_flow_logs.get(resource_group, [])
+    def get_flow_logs(self) -> Dict[str, Optional[List[Any]]]:
+        return self._flow_logs_by_region
 
     def set_regions_with_resources(self, regions: List[str]) -> "MockAzureClient":
         self._regions_with_resources = regions
@@ -443,6 +460,45 @@ class MockAzureClient:
 
     def get_web_apps(self) -> List[Any]:
         return self._web_apps
+
+    # ------------------------------------------------------------------ #
+    # Privileged Access & Identity (issue #258)                            #
+    # ------------------------------------------------------------------ #
+
+    def set_privileged_role_members(self, members: Optional[List[Dict[str, Any]]]) -> "MockAzureClient":
+        self._privileged_role_members = members
+        return self
+
+    def get_privileged_role_members(self) -> Optional[List[Dict[str, Any]]]:
+        return self._privileged_role_members
+
+    def set_privileged_users_mfa_methods(self, methods: Optional[List[Dict[str, Any]]]) -> "MockAzureClient":
+        self._privileged_users_mfa_methods = methods
+        return self
+
+    def get_privileged_users_mfa_methods(self) -> Optional[List[Dict[str, Any]]]:
+        return self._privileged_users_mfa_methods
+
+    def set_pim_role_assignments(self, assignments: Optional[List[Dict[str, Any]]]) -> "MockAzureClient":
+        self._pim_role_assignments = assignments
+        return self
+
+    def get_pim_role_assignments(self) -> Optional[List[Dict[str, Any]]]:
+        return self._pim_role_assignments
+
+    def set_identity_protection_policies(self, policies: Optional[Dict[str, Any]]) -> "MockAzureClient":
+        self._identity_protection_policies = policies
+        return self
+
+    def get_identity_protection_policies(self) -> Optional[Dict[str, Any]]:
+        return self._identity_protection_policies
+
+    def set_privileged_groups(self, groups: Optional[List[Dict[str, Any]]]) -> "MockAzureClient":
+        self._privileged_groups = groups
+        return self
+
+    def get_privileged_groups(self) -> Optional[List[Dict[str, Any]]]:
+        return self._privileged_groups
 
     @staticmethod
     def parse_resource_id(resource_id: str) -> Dict[str, str]:

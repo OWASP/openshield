@@ -13,6 +13,32 @@
       "control_name": "Data-in-transit is protected",
       "description": "Requiring secure transfer ensures data in transit between clients and Azure Storage is encrypted using HTTPS, protecting against interception and tampering."
     },
+    "AZ-STOR-006": {
+      "control_id": "N/A-STOR-006",
+      "control_name": "Storage Account Shared-Key Authorization Enabled",
+      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation."
+    },
+    "AZ-STOR-007": {
+      "control_id": "N/A-STOR-007",
+      "control_name": "Storage Account Allows TLS Below 1.2",
+      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation."
+    },
+    "AZ-STOR-008": {
+      "control_id": "N/A-STOR-008",
+      "control_name": "Required Storage Customer-Managed Key Protection Missing",
+      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation."
+    },
+    "AZ-STOR-009": {
+      "control_id": "N/A-STOR-009",
+      "control_name": "Required Blob Container Immutability Missing",
+      "description": "OpenShield checks this service-specific control without claiming an unrelated NIST recommendation."
+    },
+    "AZ-DB-005": {"control_id": "PR.AC-6", "control_name": "Identity proofing and authentication", "description": "SQL authentication is restricted to approved Entra identities."},
+    "AZ-DB-006": {"control_id": "DE.CM-8", "control_name": "Vulnerability scans are performed", "description": "Required SQL vulnerability assessment is configured."},
+    "AZ-DB-007": {"control_id": "PR.PT-1", "control_name": "Audit/log records are determined, documented, implemented, and reviewed", "description": "SQL audit logs are retained for at least 90 days in accordance with the defined audit policy."},
+    "AZ-COSMOS-001": {"control_id": "PR.AC-6", "control_name": "Identity proofing and authentication", "description": "Cosmos authentication is restricted to approved Entra identities."},
+    "AZ-COSMOS-002": {"control_id": "PR.AC-5", "control_name": "Network integrity is protected", "description": "Cosmos public network access is restricted according to policy."},
+    "AZ-CACHE-001": {"control_id": "PR.AC-5", "control_name": "Network integrity is protected", "description": "Managed cache access is private and uses approved TLS."},
     "AZ-NET-001": {
       "control_id": "PR.AC-3",
       "control_name": "Remote access is managed",
@@ -133,6 +159,11 @@
       "control_name": "A vulnerability management plan is developed and implemented",
       "description": "The virtual machine does not have automatic OS patching enabled. PR.IP-12 requires that a vulnerability management plan is developed and implemented. Without automatic patching, known OS vulnerabilities remain unmitigated and exploitable."
     },
+    "AZ-CMP-007": {
+      "control_id": "PR.AC-3",
+      "control_name": "Remote access is managed",
+      "description": "A VM has management ports (SSH/RDP) open to the internet with no Just-In-Time VM access policy covering them. PR.AC-3 requires that remote access is managed. JIT restricts management-port access to approved, time-boxed requests instead of leaving the ports standing open."
+    },
     "AZ-KV-001": {
       "control_id": "PR.IP-4",
       "control_name": "Backups of information are conducted, maintained, and tested",
@@ -171,7 +202,7 @@
     "AZ-NET-012": {
       "control_id": "DE.CM-1",
       "control_name": "The network is monitored to detect potential cybersecurity events",
-      "description": "Network Security Group flow logs provide visibility into network traffic patterns and blocked or allowed flows. Without flow logs, potential cybersecurity events in network traffic cannot be detected or reconstructed."
+      "description": "A VNet flow log (or an existing legacy NSG flow log) provides visibility into network traffic patterns and blocked or allowed flows. New NSG flow log creation is blocked as of 2025-06-30, so VNet flow logs are the current mechanism. Without either, potential cybersecurity events in network traffic cannot be detected or reconstructed."
     },
     "AZ-DB-003": {
       "control_id": "PR.DS-2",
@@ -443,6 +474,17 @@
       "control_name": "Network integrity is protected",
       "description": "A private endpoint connection is pending, rejected, or disconnected and does not provide an active private path, leaving traffic to traverse the public network boundary instead."
     },
+    "AZ-IDN-016": {"control_id": "PR.AC-7", "control_name": "Users, devices, and other assets are authenticated", "description": "Privileged users must register phishing-resistant authentication methods."},
+    "AZ-IDN-017": {"control_id": "PR.AC-4", "control_name": "Access permissions and authorizations are managed", "description": "Global Administrator assignments must be time-bound and managed through PIM."},
+    "AZ-IDN-018": {"control_id": "PR.AC-4", "control_name": "Access permissions and authorizations are managed", "description": "All privileged role assignments must be governed through Privileged Identity Management."},
+    "AZ-IDN-019": {"control_id": "PR.AC-1", "control_name": "Identities and credentials are managed", "description": "Dormant privileged accounts must be reviewed and disabled."},
+    "AZ-IDN-020": {"control_id": "PR.AC-4", "control_name": "Access permissions and authorizations are managed", "description": "At least two correctly configured emergency access accounts must exist."},
+    "AZ-IDN-021": {"control_id": "PR.AC-7", "control_name": "Users, devices, and other assets are authenticated", "description": "Legacy authentication protocols that bypass MFA must be blocked."},
+    "AZ-IDN-022": {"control_id": "PR.AC-4", "control_name": "Access permissions and authorizations are managed", "description": "Azure management interfaces require MFA enforcement via Conditional Access."},
+    "AZ-IDN-023": {"control_id": "DE.CM-3", "control_name": "Personnel activity is monitored to detect potential cybersecurity events", "description": "Identity Protection risk policies must be enabled to detect and respond to compromised accounts."},
+    "AZ-IDN-024": {"control_id": "PR.AC-4", "control_name": "Access permissions and authorizations are managed", "description": "Workload identities with privileged roles must not be broadly excluded from CA policies."},
+    "AZ-IDN-025": {"control_id": "PR.AC-4", "control_name": "Access permissions and authorizations are managed", "description": "Role-assignable groups must have designated owners to control privileged group membership."},
+
     "AZ-SC-001": {
       "control_id": "PR.AC-1",
       "control_name": "Identities and credentials are issued, managed, verified, revoked, and audited",
@@ -503,6 +545,56 @@
       "control_name": "Network integrity is protected",
       "description": "An explicit default Internet UDR can bypass the approved inspected egress path."
     },
+    "AZ-NET-018": {
+      "control_id": "PR.AC-3",
+      "control_name": "Remote access is managed",
+      "description": "Disabling unnecessary public access ensures the Private Endpoint is the managed remote access path."
+    },
+    "AZ-NET-019": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "Approved Private Endpoint connections preserve the intended private network boundary."
+    },
+    "AZ-NET-020": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "Private DNS zone association directs service names through the intended private endpoint path."
+    },
+    "AZ-NET-021": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "Private Endpoint ARM DNS configuration associates service names with private addresses; effective resolver-path validation remains separate evidence."
+    },
+    "AZ-NET-022": {
+      "control_id": "PR.AC-3",
+      "control_name": "Remote access is managed",
+      "description": "Critical PaaS public access is disabled unless an explicit approved exception exists."
+    },
+    "AZ-NET-023": {
+      "control_id": "DE.CM-1",
+      "control_name": "The network is monitored",
+      "description": "Azure Firewall threat intelligence alerts on and denies traffic involving known malicious infrastructure."
+    },
+    "AZ-NET-024": {
+      "control_id": "PR.PT-4",
+      "control_name": "Communications and control networks are protected",
+      "description": "Application Gateway WAF Prevention mode actively blocks matching application attacks."
+    },
+    "AZ-NET-025": {
+      "control_id": "DE.CM-1",
+      "control_name": "The network is monitored",
+      "description": "Application Gateway SKU-supported diagnostic logs provide perimeter monitoring evidence; v2 performance telemetry is supplied through metrics."
+    },
+    "AZ-NET-026": {
+      "control_id": "PR.PT-4",
+      "control_name": "Communications and control networks are protected",
+      "description": "Current base and bot managed rules protect the web application perimeter."
+    },
+    "AZ-NET-027": {
+      "control_id": "PR.PT-4",
+      "control_name": "Communications and control networks are protected",
+      "description": "Rate-limit rules protect internet-facing applications from abusive request volume."
+    },
     "AZ-SECOPS-001": {
       "control_id": "PR.PT-1",
       "control_name": "Audit/log records are determined, documented, implemented, and reviewed in accordance with policy",
@@ -552,6 +644,56 @@
       "control_id": "RS.CO-2",
       "control_name": "Incidents are reported consistent with established criteria",
       "description": "No monitored destination exists for security alerts or Sentinel incidents. RS.CO-2 requires incidents to be reported consistent with established criteria; an alert with no notified recipient is never reported to anyone who can act on it."
+    },
+    "AZ-NET-018": {
+      "control_id": "PR.AC-3",
+      "control_name": "Remote access is managed",
+      "description": "Disabling unnecessary public access ensures the Private Endpoint is the managed remote access path."
+    },
+    "AZ-NET-019": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "Approved Private Endpoint connections preserve the intended private network boundary."
+    },
+    "AZ-NET-020": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "Private DNS zone association directs service names through the intended private endpoint path."
+    },
+    "AZ-NET-021": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "Private address resolution provides evidence that service traffic follows the private network boundary."
+    },
+    "AZ-NET-022": {
+      "control_id": "PR.AC-3",
+      "control_name": "Remote access is managed",
+      "description": "Critical PaaS public access is disabled unless an explicit approved exception exists."
+    },
+    "AZ-NET-023": {
+      "control_id": "DE.CM-1",
+      "control_name": "The network is monitored",
+      "description": "Azure Firewall threat intelligence alerts on and denies traffic involving known malicious infrastructure."
+    },
+    "AZ-NET-024": {
+      "control_id": "PR.PT-4",
+      "control_name": "Communications and control networks are protected",
+      "description": "Application Gateway WAF Prevention mode actively blocks matching application attacks."
+    },
+    "AZ-NET-025": {
+      "control_id": "DE.CM-1",
+      "control_name": "The network is monitored",
+      "description": "Application Gateway access, performance, and firewall logs provide perimeter monitoring evidence."
+    },
+    "AZ-NET-026": {
+      "control_id": "PR.PT-4",
+      "control_name": "Communications and control networks are protected",
+      "description": "Current base and bot managed rules protect the web application perimeter."
+    },
+    "AZ-NET-027": {
+      "control_id": "PR.PT-4",
+      "control_name": "Communications and control networks are protected",
+      "description": "Rate-limit rules protect internet-facing applications from abusive request volume."
     }
   }
 }

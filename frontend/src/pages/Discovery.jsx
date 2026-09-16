@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { api } from '../utils/api';
 import ResourceSummary from '../components/discovery/ResourceSummary';
 import ResourceFilter from '../components/discovery/ResourceFilter';
 import ResourceTable from '../components/discovery/ResourceTable';
 import Loader from '../components/shared/Loader';
+import EmptyState from '../components/shared/EmptyState';
+import ErrorState from '../components/shared/ErrorState';
+import usePageData from '../hooks/usePageData';
 
 const DEFAULT_FILTERS = {
   search: '',
@@ -45,29 +48,43 @@ function buildIssueCounts(findings, matrix) {
 }
 
 export default function Discovery() {
-  const [data, setData] = useState(null);
-  const [issueCounts, setIssueCounts] = useState({});
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
-
-  useEffect(() => {
-    Promise.all([
+  const loadDiscovery = useCallback(async () => {
+    const [resourceData, findings, prio] = await Promise.all([
       api.getResources(),
       api.getFindings(),
       api.getPrioritization(),
-    ]).then(([resourceData, findings, prio]) => {
-      setData(resourceData);
-      setIssueCounts(buildIssueCounts(findings, prio.matrix));
-    });
+    ]);
+    return {
+      resourceData,
+      issueCounts: buildIssueCounts(findings, prio.matrix),
+    };
   }, []);
+  const { status, data, retry } = usePageData(loadDiscovery);
 
-  if (!data) return <Loader rows={8} />;
+  if (status === 'loading') return <Loader rows={8} />;
+  if (status === 'error') return (
+    <ErrorState
+      title="Could not load discovery data"
+      description="Resources and their security findings are unavailable right now."
+      onRetry={retry}
+    />
+  );
 
-  const filtered = applyFilters(data.resources, filters);
+  const { resourceData, issueCounts } = data;
+  if (resourceData.resources.length === 0) return (
+    <EmptyState
+      title="No resources discovered"
+      description="Run a scan to populate your cloud resource inventory."
+    />
+  );
+
+  const filtered = applyFilters(resourceData.resources, filters);
 
   return (
     <div className="space-y-6">
       <ResourceSummary
-        summary={data.summary}
+        summary={resourceData.summary}
         activeCategory={filters.category}
         onCategoryClick={(cat) => setFilters((p) => ({ ...p, category: cat }))}
       />
@@ -78,7 +95,7 @@ export default function Discovery() {
             <h2 className="text-base font-semibold text-text-primary dark:text-text-dark-primary">
               Resources
               <span className="ml-2 text-sm font-normal text-text-tertiary dark:text-text-dark-tertiary">
-                {filtered.length} of {data.resources.length} shown
+                {filtered.length} of {resourceData.resources.length} shown
               </span>
             </h2>
             <div className="flex items-center gap-2 flex-wrap justify-end">

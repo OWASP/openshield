@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 RULE_ID = "AZ-XXXX-000"  # Unique ID. Check existing rules to avoid clashes.
 RULE_NAME = "Human-readable name"  # Shown in the dashboard and reports.
-SEVERITY = "HIGH"  # HIGH | MEDIUM | LOW | INFO
+SEVERITY = "HIGH"  # CRITICAL | HIGH | MEDIUM | LOW | INFO
 CATEGORY = "Storage"  # Storage | Network | Identity | Database | Compute | Key Vault | Kubernetes
 FRAMEWORKS = {
     "CIS": "3.5",  # CIS Azure Benchmark control ID
@@ -100,7 +100,7 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
 | Field | What to write |
 |---|---|
 | `RULE_ID` | `AZ-[CATEGORY]-[NUMBER]`. Prefix map: STOR, NET, IDN, DB, CMP, KV. Look at existing rules for the next number. |
-| `SEVERITY` | `HIGH` = direct exploitation risk, `MEDIUM` = indirect or partial risk, `LOW` = best practice, `INFO` = informational only |
+| `SEVERITY` | Use the canonical [finding severity contract](severity-contract.md): `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `INFO` |
 | `CATEGORY` | Matches the resource type being scanned |
 | `FRAMEWORKS` | Use real CIS, NIST, and ISO 27001 control IDs. SOC 2 is mapped in `compliance/frameworks/soc2.json`. |
 | `DESCRIPTION` | Focus on WHY it matters — what is the real-world attack scenario? |
@@ -146,6 +146,31 @@ List methods return an empty list on failure. Single-resource methods return `No
 When a helper returns `None`, skip the resource and log a warning. Never create a finding from an unknown state.
 
 `azure_client.devops_client` is `None` whenever Azure DevOps is not configured for the scanned subscription — treat that the same as "not applicable" and return no findings, not as an indeterminate failure.
+
+---
+
+## Optional: Reporting Evaluation Coverage (`evaluate()`)
+
+`scan()` only ever reports violations, so a scan with no findings for your rule is indistinguishable from "everything is compliant," "nothing of this resource type exists," and "the rule errored before it could check anything." A rule can additionally expose:
+
+```python
+from scanner.evaluation import EvaluationStatus, RuleEvaluation, subscription_scope_id
+
+
+def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
+    """Report a status for every resource this rule looked at, PASS included."""
+```
+
+to state a `PASS`/`FAIL`/`UNKNOWN`/`ERROR`/`NOT_APPLICABLE` result per resource instead of only per violation. This is additive: `scan()` keeps working unchanged, and a rule without `evaluate()` still runs, its coverage is just recorded as `UNKNOWN`/`LEGACY_RULE_NOT_MIGRATED` rather than assumed to be a pass.
+
+Rules of the contract (see `scanner/evaluation.py` and `scanner/rules/az_kv_006.py` for the reference implementation):
+
+- `resource_id` must be a real, non-empty identifier. For a subscription-level result with no single resource to blame, use `subscription_scope_id(subscription_id)`, never `""`.
+- `UNKNOWN`, `ERROR`, and `NOT_APPLICABLE` require a `reason_code` explaining why — never leave one unexplained.
+- A `FAIL` result may attach `finding=` with the same dict shape `scan()` returns; the engine deduplicates it against anything `scan()` already reported for the same `(rule_id, resource_id)`, so implementing both never double-counts.
+- If you can't tell "no resources of this type exist" apart from "the list call failed" (a real gap in some `AzureClient` methods today), report `NOT_APPLICABLE` rather than guessing `PASS`.
+
+You don't need to migrate an existing rule's `scan()` to add `evaluate()` — most rules can leave `scan()` exactly as-is.
 
 ---
 

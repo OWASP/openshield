@@ -8,7 +8,20 @@ setting is enabled.
 
 ## Authentication
 
-`/health` and `/` are always public. All other routes — including all `/api/*` GET endpoints — require an `Authorization: Bearer <jwt>` header signed with `JWT_SECRET`.
+`/`, `/health`, `/ready`, and `/metrics` are always public. All other routes — including all `/api/*` GET endpoints — require an `Authorization: Bearer <jwt>` header signed with `JWT_SECRET`.
+
+Every accepted token must carry:
+
+- `exp` — a token with no expiry is rejected outright. There is no way to mint a permanently-valid token; regenerate before it expires.
+- `role` — one of `viewer`, `operator`, or `admin`. A missing or unrecognized role is treated the same as an invalid signature (`401`).
+
+`viewer` is read-only: any non-`GET`/`HEAD` request (scan trigger, AI endpoints) from a `viewer` token is rejected with `403`, regardless of demo mode. Only `operator` and `admin` may perform a write. This is enforced in `api/app.py`'s JWT middleware, not per-route, so it applies uniformly to every current and future write endpoint.
+
+`scripts/generate_demo_jwt.py` mints a `viewer` token with a bounded expiry (`DEMO_JWT_TTL_HOURS`, default 24h) — see the script's own docstring before embedding one as `VITE_JWT_TOKEN`.
+
+### Subscription authorization
+
+`POST /api/scans/trigger` also checks `subscription_id` against `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS`, a comma-separated allowlist. A valid `operator`/`admin` token can otherwise trigger a scan against *any* subscription_id — role alone doesn't say which subscription a caller is entitled to. Left unset, every subscription_id is accepted (matches historical behavior); the API logs a loud startup warning when it's unset. This is a single-tenant containment boundary, not a substitute for real per-tenant authorization — see issue #294 for the full multi-tenant/OIDC scope this is a stopgap for.
 
 ## Input limits
 
@@ -57,7 +70,7 @@ Query parameters:
 
 | Name | Description |
 |---|---|
-| `severity` | `HIGH`, `MEDIUM`, `LOW`, or `INFO` |
+| `severity` | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `INFO` (`INFORMATIONAL` is normalized to `INFO`) |
 | `category` | Rule category, such as `Storage`, `Network`, `Identity`, `Database`, `Compute`, or `Key Vault` |
 | `rule_id` | Rule ID, such as `AZ-STOR-001` |
 | `scan_id` | UUID of a specific scan |
@@ -219,7 +232,7 @@ Missing subscription response:
 
 ## GET /api/score
 
-Returns the overall security posture score from 0 to 100. The score starts at 100 and deducts 10 per HIGH finding, 5 per MEDIUM finding, and 2 per LOW finding.
+Returns the overall security posture score from 0 to 100. Under [severity contract v1](severity-contract.md), the score starts at 100 and deducts 20 per CRITICAL finding, 10 per HIGH finding, 5 per MEDIUM finding, and 2 per LOW finding. INFO findings deduct zero.
 
 Query parameters: none
 
@@ -294,7 +307,7 @@ Example response:
   "summary": {
     "total": 12,
     "by_category": { "Storage": 3, "Network": 4, "Identity": 3, "Database": 2 },
-    "by_risk_level": { "HIGH": 4, "MEDIUM": 6, "LOW": 2 },
+    "by_risk_level": { "CRITICAL": 1, "HIGH": 3, "MEDIUM": 6, "LOW": 2, "INFO": 0, "NONE": 0 },
     "last_scan_at": "2026-06-03T15:12:51Z"
   },
   "resources": [

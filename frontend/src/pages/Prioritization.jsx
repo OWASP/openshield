@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { FiX } from 'react-icons/fi';
 import { api } from '../utils/api';
 import PriorityMatrix from '../components/prioritization/PriorityMatrix';
@@ -8,21 +8,35 @@ import PriorityFilters from '../components/prioritization/PriorityFilters';
 import QuickRemediation from '../components/prioritization/QuickRemediation';
 import Card from '../components/shared/Card';
 import Loader from '../components/shared/Loader';
+import EmptyState from '../components/shared/EmptyState';
+import ErrorState from '../components/shared/ErrorState';
+import usePageData from '../hooks/usePageData';
 
 export default function Prioritization() {
-  const [data, setData] = useState(null);
-  const [findings, setFindings] = useState([]);
   const [filters, setFilters] = useState({ category: 'All', severity: 'All' });
   const [selectedId, setSelectedId] = useState(null);
-
-  useEffect(() => {
-    Promise.all([api.getPrioritization(), api.getFindings()]).then(([prio, scan]) => {
-      setData(prio);
-      setFindings(scan);
-    });
+  const loadPrioritization = useCallback(async () => {
+    const [data, findings] = await Promise.all([api.getPrioritization(), api.getFindings()]);
+    return { data, findings };
   }, []);
+  const { status, data: loaded, retry } = usePageData(loadPrioritization);
 
-  if (!data) return <Loader rows={8} />;
+  if (status === 'loading') return <Loader rows={8} />;
+  if (status === 'error') return (
+    <ErrorState
+      title="Could not load prioritization data"
+      description="Risk rankings and action items are unavailable right now."
+      onRetry={retry}
+    />
+  );
+
+  const { data, findings } = loaded;
+  if (data.matrix.length === 0 && data.rankings.length === 0 && data.actionItems.length === 0) return (
+    <EmptyState
+      title="No issues to prioritize"
+      description="Prioritization results will appear after a scan finds security issues."
+    />
+  );
 
   const filteredMatrix = data.matrix.filter((item) => {
     if (filters.category !== 'All' && item.category !== filters.category) return false;

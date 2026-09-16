@@ -1,18 +1,37 @@
 import { FiSearch, FiX, FiLayers, FiList } from 'react-icons/fi';
+import { SEVERITY_DEFINITIONS } from '../../utils/severity';
+
+const RISK_TEXT_STYLES = {
+  critical: 'text-severity-critical',
+  danger: 'text-severity-high',
+  warning: 'text-severity-medium',
+  success: 'text-severity-low',
+  neutral: 'text-severity-info',
+};
+
+const RISK_ACTIVE_TONE_STYLES = {
+  critical: 'bg-severity-critical text-white',
+  danger: 'bg-severity-high text-white',
+  warning: 'bg-severity-medium text-white',
+  success: 'bg-severity-low text-white',
+  neutral: 'bg-severity-info text-white',
+};
 
 const RISK_PILLS = [
   { value: 'ACTIVE', label: 'Active Issues', color: 'text-text-primary dark:text-text-dark-primary' },
-  { value: 'HIGH',   label: 'HIGH',          color: 'text-severity-high' },
-  { value: 'MEDIUM', label: 'MEDIUM',         color: 'text-severity-medium' },
-  { value: 'LOW',    label: 'LOW',            color: 'text-severity-low' },
+  ...SEVERITY_DEFINITIONS.map((level) => ({
+    value: level.id,
+    label: level.id,
+    color: RISK_TEXT_STYLES[level.tone],
+  })),
   { value: 'CLEAN',  label: 'Clean Only',     color: 'text-brand-primary' },
 ];
 
 const RISK_ACTIVE_STYLES = {
   ACTIVE: 'bg-text-primary dark:bg-text-dark-primary text-bg-primary dark:text-bg-dark-primary',
-  HIGH:   'bg-severity-high text-white',
-  MEDIUM: 'bg-severity-medium text-white',
-  LOW:    'bg-severity-low text-white',
+  ...Object.fromEntries(
+    SEVERITY_DEFINITIONS.map((level) => [level.id, RISK_ACTIVE_TONE_STYLES[level.tone]]),
+  ),
   CLEAN:  'bg-brand-primary text-white',
 };
 

@@ -118,7 +118,7 @@ def test_network_layer_endpoint_returns_complete_report(client, auth_headers):
     assert len(payload["domains"]) == 20
     assert len(payload["subdomains"]) == 5
     assert len(payload["controls"]) == 20
-    assert len(payload["rule_classifications"]) == 19
+    assert len(payload["rule_classifications"]) == 29
 
 
 def test_network_layer_endpoint_hides_catalog_errors(client, auth_headers):

@@ -1,0 +1,85 @@
+---
+import Base from '../layouts/Base.astro';
+import { repoData } from '../lib/repoData';
+
+const GITHUB = 'https://github.com/openshield-org/openshield';
+const contributors = repoData.contributorActivity;
+
+const LEAD = new Set(['Vishnu Ajith']);
+const MAINTAINERS = new Set(['Ritik Sah', 'Tanvir Farhad', 'Parth Rohit']);
+
+function role(name: string): string {
+  if (LEAD.has(name)) return 'Project lead';
+  if (MAINTAINERS.has(name)) return 'Maintainer';
+  return 'Contributor';
+}
+
+function initials(name: string): string {
+  const parts = name.split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase();
+}
+---
+
+<Base title="Community · OpenShield" description="The people behind OpenShield: every contributor, maintainer and the project lead, plus how to join them." active="community">
+  <div class="wrap">
+    <div class="page-head">
+      <h1>Community.</h1>
+      <p class="sub">
+        {repoData.contributorCount} people have committed to OpenShield. Rules, playbooks and
+        docs are written in the open, reviewed in the open and released in the open.
+      </p>
+    </div>
+
+    <section style="padding-top:22px">
+      <div class="contrib-grid">
+        {contributors.map((contributor, i) => {
+          const { name, commits, github } = contributor;
+          const content = (
+            <>
+            <span class={`avatar r${(i % 6) + 1}`}>{initials(name)}</span>
+            <div class="contrib-copy">
+              <h3>{name}</h3>
+              <span class="role">{role(name)} / {commits} {commits === 1 ? 'commit' : 'commits'}</span>
+            </div>
+            {github && <span class="profile-link">GitHub &#8599;</span>}
+            </>
+          );
+          return github ? (
+            <a class="contrib" href={`https://github.com/${github}`} target="_blank" rel="noopener" aria-label={`${name} on GitHub`}>
+              {content}
+            </a>
+          ) : (
+            <div class="contrib">{content}</div>
+          );
+        })}
+      </div>
+      <p class="contrib-note mono">
+        Counted from git history at build time. Profile links appear only where a repository-recorded identity is available. See the full log on
+        <a href={`${GITHUB}/graphs/contributors`} target="_blank" rel="noopener">GitHub contributors &#8594;</a>
+      </p>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>Join in.</h2>
+      </div>
+      <div class="run-grid">
+        <div class="run">
+          <span class="tag">Write a rule</span>
+          <p>One Python file in scanner/rules/ is one rule. The contributing guide walks you from fork to merged rule.</p>
+          <a class="go" href={`${GITHUB}/blob/dev/CONTRIBUTING.md`} target="_blank" rel="noopener">Read CONTRIBUTING.md <span class="ar">&#8594;</span></a>
+        </div>
+        <div class="run">
+          <span class="tag">Report a gap</span>
+          <p>Found a misconfiguration the scanner misses? Open an issue and a maintainer will triage it with you.</p>
+          <a class="go" href={`${GITHUB}/issues`} target="_blank" rel="noopener">Open an issue <span class="ar">&#8594;</span></a>
+        </div>
+        <div class="run">
+          <span class="tag">Review a PR</span>
+          <p>Security tooling earns trust by being read. Reviews from newcomers are as welcome as reviews from maintainers.</p>
+          <a class="go" href={`${GITHUB}/pulls`} target="_blank" rel="noopener">Browse pull requests <span class="ar">&#8594;</span></a>
+        </div>
+      </div>
+    </section>
+  </div>
+</Base>

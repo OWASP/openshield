@@ -1,0 +1,1 @@
+"""Shared OpenShield domain contracts."""

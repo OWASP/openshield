@@ -17,6 +17,7 @@ export default function ResourceSummary({ summary, activeCategory, onCategoryCli
 
   const stats = [
     { label: 'Total Resources', value: summary.total,                    sub: 'across all categories' },
+    { label: 'Critical Risk',   value: summary.byRiskLevel?.CRITICAL || 0, sub: 'require immediate action', color: 'text-severity-critical' },
     { label: 'High Risk',       value: summary.byRiskLevel?.HIGH   || 0, sub: 'require immediate action', color: 'text-severity-high' },
     { label: 'Medium Risk',     value: summary.byRiskLevel?.MEDIUM || 0, sub: 'need attention',           color: 'text-severity-medium' },
     { label: 'Clean',           value: summary.byRiskLevel?.NONE   || 0, sub: 'no issues found',          color: 'text-brand-primary' },
@@ -24,7 +25,7 @@ export default function ResourceSummary({ summary, activeCategory, onCategoryCli
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {stats.map(({ label, value, sub, color }) => (
           <Card key={label} className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-text-dark-tertiary mb-2">{label}</p>

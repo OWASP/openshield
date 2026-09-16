@@ -5,6 +5,7 @@ import os
 from flask import Blueprint, g, jsonify
 
 from api.models.finding import DatabaseManager
+from openshield.severity import LEVELS, severity_from_rank, severity_rank_sql
 
 resources_bp = Blueprint("resources", __name__)
 logger = logging.getLogger(__name__)
@@ -52,36 +53,33 @@ def get_resources():
                     }
                 )
 
+            rank_expression = severity_rank_sql("severity")
             cur.execute(
-                """
+                f"""
                 SELECT
                     resource_id,
                     resource_name,
                     resource_type,
                     category,
                     MIN(detected_at) AS discovered_at,
-                    MAX(CASE severity
-                        WHEN 'HIGH'   THEN 3
-                        WHEN 'MEDIUM' THEN 2
-                        WHEN 'LOW'    THEN 1
-                        ELSE 0 END) AS risk_rank
+                    MAX({rank_expression}) AS risk_rank
                 FROM findings
                 WHERE scan_id = %s
                 GROUP BY resource_id, resource_name, resource_type, category
                 ORDER BY risk_rank DESC, resource_name
-                """,
+                """,  # nosec B608 - expression is generated from the repository-owned contract
                 (str(latest_scan["scan_id"]),),
             )
             rows = cur.fetchall()
 
-        rank_to_risk = {3: "HIGH", 2: "MEDIUM", 1: "LOW", 0: "NONE"}
         by_category: dict = {}
-        by_risk_level: dict = {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "NONE": 0}
+        by_risk_level: dict = {level.id: 0 for level in LEVELS}
+        by_risk_level["NONE"] = 0
         resources = []
 
         for row in rows:
             sub_id, rg = _parse_resource_id(row["resource_id"])
-            risk = rank_to_risk.get(row["risk_rank"], "NONE")
+            risk = severity_from_rank(row["risk_rank"])
             detected = row["discovered_at"]
             discovered_at = detected.isoformat() if hasattr(detected, "isoformat") else str(detected)
 

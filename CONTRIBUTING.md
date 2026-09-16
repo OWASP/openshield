@@ -50,7 +50,7 @@ from typing import Any, Dict, List
 
 RULE_ID = "AZ-STOR-001"
 RULE_NAME = "Public Blob Access Enabled on Storage Account"
-SEVERITY = "HIGH"  # HIGH / MEDIUM / LOW / INFO
+SEVERITY = "HIGH"  # CRITICAL / HIGH / MEDIUM / LOW / INFO
 CATEGORY = "Storage"  # Storage / Network / Identity / Database / Compute / Key Vault / Kubernetes
 FRAMEWORKS = {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.9.4.1"}
 DESCRIPTION = (
@@ -89,6 +89,8 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
 ```
 
 That's it. One file, one rule.
+
+Choose severity using the versioned [finding severity contract](docs/severity-contract.md). Rule files must use a canonical contract value; aliases such as `INFORMATIONAL` are accepted at API boundaries but are not valid rule declarations.
 
 ### Step 4 - Add a Remediation Playbook
 

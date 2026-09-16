@@ -12,6 +12,15 @@ import psycopg2
 import psycopg2.extras
 import psycopg2.pool
 
+from openshield.severity import (
+    CONTRACT_VERSION,
+    normalize_severity,
+    score_counts,
+    score_findings,
+    severity_rank,
+)
+from scanner.evaluation import EvaluationStatus, aggregate_status
+
 logger = logging.getLogger(__name__)
 
 FRAMEWORKS_DIR = Path(__file__).parent.parent.parent / "compliance" / "frameworks"
@@ -38,7 +47,43 @@ def _get_pool(dsn: str) -> "psycopg2.pool.ThreadedConnectionPool":
         return pool
 
 
-SEVERITY_WEIGHTS = {"HIGH": 10, "MEDIUM": 5, "LOW": 2, "INFO": 0}
+def get_pool_stats(dsn: Optional[str] = None) -> Dict[str, Any]:
+    """Return a point-in-time snapshot of the shared connection pool's utilization.
+
+    Reports only counts (in-use / idle / configured maximum) - never the DSN,
+    host, credentials, or anything else that could describe the database
+    deployment. Safe to expose on a public surface (Prometheus /metrics, the
+    /ready probe) precisely because it carries no operational secrets, only
+    capacity numbers an operator needs to see the pool approaching exhaustion
+    before it happens.
+
+    Returns zeroed stats with no pool created yet (no request has connected
+    since process start) rather than raising, so callers on the request path
+    (like /ready) never fail because of a stats lookup.
+    """
+    dsn = dsn or os.environ.get("DATABASE_URL", "")
+    with _POOLS_LOCK:
+        pool = _POOLS.get(dsn)
+
+    if pool is None:
+        return {"max_connections": _POOL_MAX_CONN, "in_use": 0, "idle": 0, "utilization_percent": 0.0}
+
+    # psycopg2's pool has no public stats API; _used/_pool/maxconn are the
+    # same attributes getconn()/putconn() themselves mutate under this same
+    # lock, so a snapshot taken while holding it can't land mid-mutation.
+    with pool._lock:
+        in_use = len(pool._used)
+        idle = len(pool._pool)
+        max_connections = pool.maxconn
+
+    utilization_percent = round((in_use / max_connections) * 100, 1) if max_connections else 0.0
+    return {
+        "max_connections": max_connections,
+        "in_use": in_use,
+        "idle": idle,
+        "utilization_percent": utilization_percent,
+    }
+
 
 FRAMEWORK_FILE_MAP = {
     "cis": "cis_azure_benchmark.json",
@@ -159,75 +204,168 @@ class DatabaseManager:
 
     def save_scan(self, scan_result: Dict[str, Any]) -> None:
         """Persist a full scan result (scan header + all findings)."""
-        conn = self._get_conn()
         from datetime import datetime, timezone
 
+        # Validate and canonicalize the entire batch before issuing SQL. A bad
+        # severity must never be stored with a zero/default weight.
+        findings = []
+        for raw_finding in scan_result.get("findings", []):
+            finding = dict(raw_finding)
+            finding["severity"] = normalize_severity(finding.get("severity"))
+            findings.append(finding)
+
+        conn = self._get_conn()
         completed_at = scan_result.get("completed_at") or datetime.now(timezone.utc).isoformat()
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO scans (
-                    scan_id, subscription_id, started_at, completed_at,
-                    total_findings, score, cve_enrichment_status, status,
-                    attempt_count, error_message
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (scan_id) DO UPDATE SET
-                    completed_at = EXCLUDED.completed_at,
-                    total_findings = EXCLUDED.total_findings,
-                    score = EXCLUDED.score,
-                    status = EXCLUDED.status,
-                    error_message = EXCLUDED.error_message
-                """,
-                (
-                    scan_result["scan_id"],
-                    scan_result["subscription_id"],
-                    scan_result["started_at"],
-                    completed_at,
-                    scan_result.get("total_findings", 0),
-                    scan_result.get("score"),
-                    scan_result.get("cve_enrichment_status", "PENDING"),
-                    scan_result.get("status", "completed"),
-                    scan_result.get("attempt_count", 0),
-                    scan_result.get("error_message"),
-                ),
-            )
-            for f in scan_result.get("findings", []):
+        try:
+            with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO findings
-                        (scan_id, rule_id, rule_name, severity, category,
-                         resource_id, resource_name, resource_type,
-                         description, remediation, playbook,
-                         frameworks, metadata, cve_references,
-                         cvss_score, exploit_available, detected_at)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    INSERT INTO scans (
+                        scan_id, subscription_id, started_at, completed_at,
+                        total_findings, score, cve_enrichment_status, status,
+                        attempt_count, error_message, severity_contract_version
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (scan_id) DO UPDATE SET
+                        completed_at = EXCLUDED.completed_at,
+                        total_findings = EXCLUDED.total_findings,
+                        score = EXCLUDED.score,
+                        status = EXCLUDED.status,
+                        error_message = EXCLUDED.error_message,
+                        severity_contract_version = EXCLUDED.severity_contract_version
                     """,
                     (
-                        f.get("scan_id"),
-                        f.get("rule_id"),
-                        f.get("rule_name"),
-                        f.get("severity"),
-                        f.get("category"),
-                        f.get("resource_id"),
-                        f.get("resource_name"),
-                        f.get("resource_type"),
-                        f.get("description"),
-                        f.get("remediation"),
-                        f.get("playbook"),
-                        json.dumps(f.get("frameworks", {})),
-                        json.dumps(f.get("metadata", {})),
-                        json.dumps(f.get("cve_references", [])),
-                        f.get("cvss_score"),
-                        f.get("exploit_available", False),
-                        f.get("detected_at"),
+                        scan_result["scan_id"],
+                        scan_result["subscription_id"],
+                        scan_result["started_at"],
+                        completed_at,
+                        len(findings),
+                        score_findings(findings),
+                        scan_result.get("cve_enrichment_status", "PENDING"),
+                        scan_result.get("status", "completed"),
+                        scan_result.get("attempt_count", 0),
+                        scan_result.get("error_message"),
+                        CONTRACT_VERSION,
                     ),
                 )
-        conn.commit()
+                # A worker retry replaces the previous result atomically. This
+                # keeps the scan header, child rows, and recomputed score in
+                # agreement instead of duplicating findings on every attempt.
+                cur.execute("DELETE FROM findings WHERE scan_id = %s", (scan_result["scan_id"],))
+                finding_id_by_key: Dict[Any, int] = {}
+                for f in findings:
+                    cur.execute(
+                        """
+                        INSERT INTO findings
+                            (scan_id, rule_id, rule_name, severity, category,
+                             resource_id, resource_name, resource_type,
+                             description, remediation, playbook,
+                             frameworks, metadata, cve_references,
+                             cvss_score, exploit_available, detected_at)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        RETURNING id
+                        """,
+                        (
+                            # The parent scan owns every child in this batch.
+                            # Never trust a caller-supplied child scan_id.
+                            scan_result["scan_id"],
+                            f.get("rule_id"),
+                            f.get("rule_name"),
+                            f.get("severity"),
+                            f.get("category"),
+                            f.get("resource_id"),
+                            f.get("resource_name"),
+                            f.get("resource_type"),
+                            f.get("description"),
+                            f.get("remediation"),
+                            f.get("playbook"),
+                            json.dumps(f.get("frameworks", {})),
+                            json.dumps(f.get("metadata", {})),
+                            json.dumps(f.get("cve_references", [])),
+                            f.get("cvss_score"),
+                            f.get("exploit_available", False),
+                            f.get("detected_at"),
+                        ),
+                    )
+                    finding_id_by_key[(f.get("rule_id"), f.get("resource_id"))] = cur.fetchone()[0]
+
+                # Coverage rows (#263): a status for every resource a migrated
+                # rule looked at, not just its violations. A FAIL evaluation
+                # is durably linked to the finding row it corresponds to
+                # right here, in the same transaction, instead of leaving
+                # callers to infer the relationship from rule_id/resource_id.
+                #
+                # Upserted rather than replaced wholesale: a retried/replayed
+                # scan result must converge on the same rows instead of a
+                # delete-then-reinsert racing a concurrent reader that could
+                # briefly see zero coverage for a scan that already has some.
+                evaluated_at = completed_at
+                evaluations = scan_result.get("evaluations", [])
+                for evaluation in evaluations:
+                    status = evaluation.get("status")
+                    finding_id = None
+                    if status == EvaluationStatus.FAIL:
+                        finding_id = finding_id_by_key.get((evaluation.get("rule_id"), evaluation.get("resource_id")))
+                    cur.execute(
+                        """
+                        INSERT INTO rule_evaluations
+                            (scan_id, rule_id, resource_id, resource_type, status,
+                             reason_code, reason, evidence, finding_id, evaluated_at)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        ON CONFLICT (scan_id, rule_id, resource_id) DO UPDATE SET
+                            resource_type = EXCLUDED.resource_type,
+                            status = EXCLUDED.status,
+                            reason_code = EXCLUDED.reason_code,
+                            reason = EXCLUDED.reason,
+                            evidence = EXCLUDED.evidence,
+                            finding_id = EXCLUDED.finding_id,
+                            evaluated_at = EXCLUDED.evaluated_at
+                        """,
+                        (
+                            scan_result["scan_id"],
+                            evaluation.get("rule_id"),
+                            evaluation.get("resource_id"),
+                            evaluation.get("resource_type") or "",
+                            status,
+                            evaluation.get("reason_code"),
+                            evaluation.get("reason"),
+                            json.dumps(evaluation.get("evidence", {})),
+                            finding_id,
+                            evaluated_at,
+                        ),
+                    )
+
+                # A rule/resource that no longer appears (a rule removed from
+                # this scan's set, a resource that's gone) must not leave a
+                # stale coverage row behind once the current set is upserted.
+                if evaluations:
+                    cur.execute(
+                        """
+                        DELETE FROM rule_evaluations
+                        WHERE scan_id = %s
+                          AND (rule_id, resource_id) NOT IN (
+                              SELECT * FROM unnest(%s::text[], %s::text[])
+                          )
+                        """,
+                        (
+                            scan_result["scan_id"],
+                            [evaluation.get("rule_id") for evaluation in evaluations],
+                            [evaluation.get("resource_id") for evaluation in evaluations],
+                        ),
+                    )
+                else:
+                    cur.execute("DELETE FROM rule_evaluations WHERE scan_id = %s", (scan_result["scan_id"],))
+            conn.commit()
+        except Exception:
+            # psycopg2 connections remain in an aborted transaction after any
+            # SQL error. Roll back here so the worker can record failure and
+            # safely process subsequent scans on the same pooled connection.
+            conn.rollback()
+            raise
         logger.info(
             "Saved scan %s with %d findings",
             scan_result["scan_id"],
-            scan_result["total_findings"],
+            len(findings),
         )
 
     # ------------------------------------------------------------------ #
@@ -238,7 +376,7 @@ class DatabaseManager:
         """Return findings, optionally filtered by severity, category, or rule_id."""
         filters = filters or {}
         severity = filters.get("severity")
-        severity = severity.upper() if severity is not None else None
+        severity = normalize_severity(severity) if severity is not None else None
         category = filters.get("category")
         rule_id = filters.get("rule_id")
         scan_id = filters.get("scan_id")
@@ -473,7 +611,8 @@ class DatabaseManager:
 
         Scoped to the most recent scan so historical findings from older scans
         do not accumulate and drive the score to zero.
-        HIGH findings deduct 10 points each, MEDIUM 5, LOW 2. Floors at 0.
+        CRITICAL findings deduct 20 points each, HIGH 10, MEDIUM 5,
+        LOW 2, and INFO 0. Floors at 0.
         """
         conn = self._get_conn()
         with conn.cursor() as cur:
@@ -489,8 +628,7 @@ class DatabaseManager:
             )
             rows = cur.fetchall()
 
-        deduction = sum(SEVERITY_WEIGHTS.get(sev.upper(), 0) * count for sev, count in rows)
-        return max(0, 100 - deduction)
+        return score_counts({severity: count for severity, count in rows})
 
     def get_cve_summary(self) -> Dict[str, Any]:
         """Return high-level summary of CVE findings for the dashboard."""
@@ -555,42 +693,97 @@ class DatabaseManager:
 
         controls = framework_data.get("controls", {})
 
-        # Get rule IDs that fired in the latest completed scan only
+        # Finding detail (severity/category/resource count) still comes from
+        # findings — evaluations don't carry severity. Pass/fail/unknown/error
+        # status comes from rule_evaluations, so a rule that was never run,
+        # errored, or hasn't been migrated to evaluate() yet is never silently
+        # reported as PASS just because it produced no findings (#263).
         conn = self._get_conn()
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT DISTINCT rule_id FROM findings
+                SELECT rule_id, severity, category, COUNT(*)
+                FROM findings
+                WHERE scan_id = (
+                    SELECT scan_id FROM scans WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1
+                )
+                GROUP BY rule_id, severity, category
+                """
+            )
+            finding_rows = cur.fetchall()
+
+            cur.execute(
+                """
+                SELECT rule_id, status
+                FROM rule_evaluations
                 WHERE scan_id = (
                     SELECT scan_id FROM scans WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1
                 )
                 """
             )
-            failed_rule_ids = {row[0] for row in cur.fetchall()}
+            evaluation_rows = cur.fetchall()
+
+        failures: Dict[str, Dict[str, Any]] = {}
+        for rule_id, raw_severity, category, resource_count in finding_rows:
+            severity = normalize_severity(raw_severity)
+            current = failures.get(rule_id)
+            if current is None:
+                failures[rule_id] = {
+                    "severity": severity,
+                    "category": category,
+                    "resources": resource_count,
+                }
+                continue
+            current["resources"] += resource_count
+            if severity_rank(severity) > severity_rank(current["severity"]):
+                current["severity"] = severity
+                current["category"] = category
+
+        statuses_by_rule: Dict[str, List[str]] = {}
+        for rule_id, status in evaluation_rows:
+            statuses_by_rule.setdefault(rule_id, []).append(status)
+        aggregated_status = {rule_id: aggregate_status(statuses) for rule_id, statuses in statuses_by_rule.items()}
 
         results = []
         for rule_id, control in controls.items():
-            status = "FAIL" if rule_id in failed_rule_ids else "PASS"
+            failure = failures.get(rule_id)
+            # No evaluation row at all means this rule was never run against
+            # this scan (predates rule_evaluations, or was skipped) — report
+            # UNKNOWN rather than defaulting to PASS or inferring from findings.
+            status = aggregated_status.get(rule_id, EvaluationStatus.UNKNOWN)
             results.append(
                 {
                     "rule_id": rule_id,
                     "control_id": control["control_id"],
                     "control_name": control["control_name"],
                     "status": status,
+                    "severity": failure["severity"] if failure else None,
+                    "category": failure["category"] if failure else None,
+                    "resources": failure["resources"] if failure else 0,
                 }
             )
 
         total = len(results)
-        passed = sum(1 for r in results if r["status"] == "PASS")
-        failed = total - passed
-        score_pct = round((passed / total) * 100) if total else 0
+        counts = {
+            "passed": sum(1 for r in results if r["status"] == EvaluationStatus.PASS),
+            "failed": sum(1 for r in results if r["status"] == EvaluationStatus.FAIL),
+            "unknown": sum(1 for r in results if r["status"] == EvaluationStatus.UNKNOWN),
+            "error": sum(1 for r in results if r["status"] == EvaluationStatus.ERROR),
+            "not_applicable": sum(1 for r in results if r["status"] == EvaluationStatus.NOT_APPLICABLE),
+        }
+        # UNKNOWN/ERROR must never improve the score: they count against the
+        # denominator (evaluated coverage) without counting as a pass.
+        # NOT_APPLICABLE controls fall outside the denominator entirely.
+        evaluated = total - counts["not_applicable"]
+        score_pct = round((counts["passed"] / evaluated) * 100) if evaluated else 0
 
         return {
             "framework": framework_data.get("framework"),
             "version": framework_data.get("version"),
+            "contract_version": "2",
             "total_controls": total,
-            "passed": passed,
-            "failed": failed,
+            "evaluated": evaluated,
+            **counts,
             "score_percent": score_pct,
             "controls": results,
         }

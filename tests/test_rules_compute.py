@@ -12,6 +12,7 @@ import scanner.rules.az_cmp_001 as az_cmp_001
 import scanner.rules.az_cmp_002 as az_cmp_002
 import scanner.rules.az_cmp_003 as az_cmp_003
 import scanner.rules.az_cmp_004 as az_cmp_004
+import scanner.rules.az_cmp_007 as az_cmp_007
 from tests.helpers.mock_azure import make_resource
 
 try:
@@ -380,3 +381,209 @@ def test_cmp_004_noncompliant_no_patching_returns_one_finding(mock_azure, subscr
     assert f["rule_id"] == "AZ-CMP-004"
     assert f["severity"] == "HIGH"
     assert f["resource_name"] == "vm-stale"
+
+
+# ── AZ-CMP-007: management ports open without Just-In-Time (JIT) access ──────
+#
+# The rule resolves each VM's NIC -> NSG (by id, via get_network_security_groups)
+# to find management ports (22/3389) open to the internet, then cross-references
+# Defender for Cloud JIT policies (get_jit_network_access_policies) to see whether
+# those ports are covered. These fixtures mirror that wiring.
+
+
+def _nsg_id(name):
+    return f"/subscriptions/{_SUB}/resourceGroups/{_RG}/providers/Microsoft.Network/networkSecurityGroups/{name}"
+
+
+def _sec_rule(port, direction="Inbound", access="Allow", source="Internet"):
+    return make_resource(
+        direction=direction,
+        access=access,
+        source_address_prefix=source,
+        source_address_prefixes=[],
+        destination_port_range=str(port),
+        destination_port_ranges=[],
+    )
+
+
+def _nsg(name, rules):
+    return make_resource(id=_nsg_id(name), name=name, security_rules=rules)
+
+
+def _vm_on_nic(vm_name, nic_name):
+    return make_resource(
+        id=_vm_id(vm_name),
+        name=vm_name,
+        network_profile=make_resource(network_interfaces=[make_resource(id=_nic_id(nic_name))]),
+    )
+
+
+def _nic_on_nsg(nsg_name):
+    return make_resource(network_security_group=make_resource(id=_nsg_id(nsg_name)))
+
+
+def _jit_policy(vm_name, ports):
+    return make_resource(
+        virtual_machines=[make_resource(id=_vm_id(vm_name), ports=[make_resource(number=p) for p in ports])]
+    )
+
+
+def _wire(mock_azure, vm, nic_name, nic, nsg, jit):
+    mock_azure.set_virtual_machines([vm])
+    mock_azure.set_network_interface(_RG, nic_name, nic)
+    mock_azure.set_network_security_groups([nsg])
+    mock_azure.set_jit_policies(jit)
+
+
+def test_cmp_007_open_ssh_no_jit_returns_one_finding(mock_azure, subscription_id):
+    """SSH open to the internet with no JIT policy must be flagged MEDIUM."""
+    _wire(
+        mock_azure,
+        _vm_on_nic("vm-open", "nic1"),
+        "nic1",
+        _nic_on_nsg("nsg1"),
+        _nsg("nsg1", [_sec_rule("22")]),
+        [],
+    )
+    findings = az_cmp_007.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    f = findings[0]
+    assert _REQUIRED_FIELDS.issubset(f.keys())
+    assert f["rule_id"] == "AZ-CMP-007"
+    assert f["severity"] == "MEDIUM"
+    assert f["resource_name"] == "vm-open"
+    assert f["metadata"]["open_management_ports"] == ["22"]
+    assert f["metadata"]["uncovered_ports"] == ["22"]
+    assert f["metadata"]["jit_policy_present"] is False
+
+
+def test_cmp_007_open_ssh_with_jit_coverage_returns_no_findings(mock_azure, subscription_id):
+    """An open SSH port covered by a JIT policy for that VM is compliant."""
+    _wire(
+        mock_azure,
+        _vm_on_nic("vm-jit", "nic1"),
+        "nic1",
+        _nic_on_nsg("nsg1"),
+        _nsg("nsg1", [_sec_rule("22")]),
+        [_jit_policy("vm-jit", [22])],
+    )
+    assert az_cmp_007.scan(mock_azure, subscription_id) == []
+
+
+def test_cmp_007_no_management_ports_open_is_not_applicable(mock_azure, subscription_id):
+    """A VM whose NSG opens only non-management ports is NOT_APPLICABLE."""
+    _wire(
+        mock_azure,
+        _vm_on_nic("vm-web", "nic1"),
+        "nic1",
+        _nic_on_nsg("nsg1"),
+        _nsg("nsg1", [_sec_rule("443")]),
+        [],
+    )
+    assert az_cmp_007.scan(mock_azure, subscription_id) == []
+
+
+def test_cmp_007_management_port_from_trusted_source_not_flagged(mock_azure, subscription_id):
+    """RDP open only to a trusted CIDR (not the internet) must not be flagged."""
+    _wire(
+        mock_azure,
+        _vm_on_nic("vm-trusted", "nic1"),
+        "nic1",
+        _nic_on_nsg("nsg1"),
+        _nsg("nsg1", [_sec_rule("3389", source="10.0.0.0/24")]),
+        [],
+    )
+    assert az_cmp_007.scan(mock_azure, subscription_id) == []
+
+
+def test_cmp_007_partial_jit_coverage_flags_uncovered_port(mock_azure, subscription_id):
+    """When JIT covers SSH but RDP is also open, only the uncovered RDP port is reported."""
+    _wire(
+        mock_azure,
+        _vm_on_nic("vm-partial", "nic1"),
+        "nic1",
+        _nic_on_nsg("nsg1"),
+        _nsg("nsg1", [_sec_rule("22"), _sec_rule("3389")]),
+        [_jit_policy("vm-partial", [22])],
+    )
+    findings = az_cmp_007.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["metadata"]["open_management_ports"] == ["22", "3389"]
+    assert findings[0]["metadata"]["uncovered_ports"] == ["3389"]
+    assert findings[0]["metadata"]["jit_policy_present"] is True
+
+
+def test_cmp_007_indeterminate_jit_is_not_flagged(mock_azure, subscription_id):
+    """When Defender for Cloud cannot be queried (None), coverage is unknown, so no finding."""
+    _wire(
+        mock_azure,
+        _vm_on_nic("vm-x", "nic1"),
+        "nic1",
+        _nic_on_nsg("nsg1"),
+        _nsg("nsg1", [_sec_rule("3389")]),
+        None,
+    )
+    assert az_cmp_007.scan(mock_azure, subscription_id) == []
+
+
+def _subnet_id(name):
+    return f"/subscriptions/{_SUB}/resourceGroups/{_RG}/providers/Microsoft.Network/virtualNetworks/vnet/subnets/{name}"
+
+
+def test_cmp_007_port_range_covering_ssh_is_flagged(mock_azure, subscription_id):
+    """An NSG rule whose destination_port_range is a range (20-30) containing SSH (22)
+    exposes the port; the earlier exact-match logic treated 22 as closed."""
+    _wire(
+        mock_azure,
+        _vm_on_nic("vm-range", "nic1"),
+        "nic1",
+        _nic_on_nsg("nsg1"),
+        _nsg("nsg1", [_sec_rule("20-30")]),
+        [],
+    )
+    findings = az_cmp_007.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["metadata"]["open_management_ports"] == ["22"]
+
+
+def test_cmp_007_port_range_in_ranges_list_covering_rdp(mock_azure, subscription_id):
+    """A range in destination_port_ranges (3380-3400) containing RDP (3389) is detected."""
+    rule = make_resource(
+        direction="Inbound",
+        access="Allow",
+        source_address_prefix="Internet",
+        source_address_prefixes=[],
+        destination_port_range="",
+        destination_port_ranges=["3380-3400"],
+    )
+    _wire(
+        mock_azure,
+        _vm_on_nic("vm-range2", "nic1"),
+        "nic1",
+        _nic_on_nsg("nsg1"),
+        _nsg("nsg1", [rule]),
+        [],
+    )
+    findings = az_cmp_007.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["metadata"]["open_management_ports"] == ["3389"]
+
+
+def test_cmp_007_subnet_level_nsg_exposure_is_flagged(mock_azure, subscription_id):
+    """A VM with no NIC-level NSG is still exposed if the NSG on its subnet opens SSH."""
+    subnet_id = _subnet_id("subnet1")
+    nic = make_resource(
+        network_security_group=None,
+        ip_configurations=[make_resource(subnet=make_resource(id=subnet_id))],
+    )
+    subnet_nsg = make_resource(
+        id=_nsg_id("nsg-sub"),
+        name="nsg-sub",
+        security_rules=[_sec_rule("22")],
+        subnets=[make_resource(id=subnet_id)],
+    )
+    _wire(mock_azure, _vm_on_nic("vm-subnet", "nic1"), "nic1", nic, subnet_nsg, [])
+    findings = az_cmp_007.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["resource_name"] == "vm-subnet"
+    assert findings[0]["metadata"]["open_management_ports"] == ["22"]

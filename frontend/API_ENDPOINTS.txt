@@ -1,1104 +1,397 @@
-================================================================================
-  OPENSHIELD  —  BACKEND API ENDPOINTS REFERENCE
-  Frontend contract file  |  Last updated: 2026-06-01
-================================================================================
+OPENSHIELD FRONTEND API ENDPOINT REFERENCE
+Last verified: 2026-08-18
+Finding severity source: contracts/severity.v1.json
 
-  Base URL  :  http://localhost:5001   (set via VITE_API_URL in .env.local)
-  Auth      :  Bearer <jwt_token>      (stored in localStorage key "jwt_token")
-  Format    :  JSON  (Content-Type: application/json)
-
-  All protected endpoints need the Authorization header:
-    Authorization: Bearer dev-demo-token
-
-================================================================================
+This file describes the API contract used by the React frontend. The source of
+truth is the implementation in frontend/src/utils/api.js,
+frontend/src/utils/aiApi.js, api/app.py, and api/routes/.
 
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  1.  HEALTH CHECK
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BASE URL
+========
 
-  What it does:
-    Simple ping to check if the backend server is running.
-    The frontend calls this automatically when you switch from Demo → Live mode.
-    If it fails, the app stays in Demo mode and shows an error popup.
+Set VITE_API_URL to the API origin, without a trailing /api path.
 
-  Request
-  ───────
-  GET /health
-  (No authentication required)
+  Direct Flask default:       http://localhost:5000
+  Local Compose profile:      http://localhost:8000
+  Production fallback:        https://openshield-api.onrender.com
+  Example override:           VITE_API_URL=https://api.example.com
 
-  Response
-  ────────
+The frontend appends /api for application endpoints and calls /health directly.
+The Flask development server also defaults to port 5000 through PORT.
+
+
+AUTHENTICATION
+==============
+
+Default behavior
+----------------
+
+Every route except the always-public routes below requires a valid HS256 JWT:
+
+  Authorization: Bearer <jwt>
+
+The frontend reads this token from localStorage key jwt_token. App.jsx first
+uses VITE_JWT_TOKEN when it is configured. The API validates the token with
+JWT_SECRET; an arbitrary string is not a valid JWT.
+
+Always public:
+
+  GET /                 API metadata
+  GET /health           process liveness
+  GET /ready            database readiness
+  GET /metrics          observability metrics
+  OPTIONS *             CORS preflight
+
+Public demo behavior
+--------------------
+
+When the API is started with OPENSHIELD_PUBLIC_DEMO=true, unauthenticated GET
+requests are allowed. POST requests, including scan triggers and every AI
+request, still require a valid JWT. Do not enable this setting for deployments
+that contain real Azure scan data.
+
+OPENSHIELD_PUBLIC_DEMO is a backend read-only access mode. The current frontend
+does not have a Demo/Live data toggle, does not load frontend mock-data files,
+and does not fall back to mock security data when the backend is unavailable.
+
+
+COMMON REQUEST AND ERROR RULES
+==============================
+
+JSON request bodies use Content-Type: application/json. Request bodies are
+limited to 2 MiB. Validation failures return 400, missing or invalid auth
+returns 401, unknown resources return 404, and unexpected server failures
+return a safe JSON error response. Error responses generally have this shape:
+
+  { "error": "<safe message>", "request_id": "<request id when available>" }
+
+
+FRONTEND-CONSUMED ENDPOINTS
+===========================
+
+Method  Path                                  Frontend use
+------  ------------------------------------  ---------------------------------
+GET     /health                               Header connection indicator
+GET     /api/score                            Monitoring security score
+GET     /api/score/cve-summary                CVE summary and AI CVE panel
+GET     /api/findings                         Scan, monitoring, discovery, AI
+GET     /api/findings/<finding_id>            Exposed by the API service layer
+GET     /api/findings/<finding_id>/playbook   Detailed Scan remediation content
+GET     /api/scans                            Monitoring and scan history
+GET     /api/scans/<scan_id>                  Scan status polling
+POST    /api/scans/trigger                    Start a scan
+GET     /api/resources                        Discovery inventory
+GET     /api/prioritization                   Prioritization page
+GET     /api/drift                            Drift page
+GET     /api/compliance/<framework>           Compliance page
+POST    /api/ai/ask                           AI question and answer
+POST    /api/ai/summary                       AI executive summary
+POST    /api/ai/insights                      AI insights/remediation plan
+POST    /api/ai/prioritise                    AI-ranked findings
+
+There is no GET /api/monitoring endpoint. The Monitoring page composes its data
+from GET /api/score, GET /api/findings, and GET /api/scans.
+
+
+HEALTH
+======
+
+GET /health
+
+Authentication: always public.
+Response:
+
+  { "status": "ok" }
+
+
+SCORE AND CVE SUMMARY
+=====================
+
+GET /api/score
+
+Returns a JSON integer from 0 to 100. The frontend normalizes this number to
+{ score, max_score: 100 } for its components.
+
+  82
+
+GET /api/score/cve-summary
+
+Returns CVE enrichment status and summary values for the latest completed scan:
+
   {
-    "status": "ok"
+    "status": "COMPLETED",
+    "total_findings": 12,
+    "exploit_count": 2,
+    "max_cvss_score": 9.8,
+    "avg_cvss_score": 6.42,
+    "critical_cve_count": 1
   }
 
+When no completed scan exists, status is UNKNOWN, counts are zero, and score
+values are null.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  2.  SECURITY SCORE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  What it does:
-    Returns the overall security score for the Azure environment.
-    Shown as the big number in the donut chart on the Monitoring page.
-    Score is 0–100. Lower is worse. Target is 80+.
+FINDINGS AND PLAYBOOKS
+======================
 
-  Request
-  ───────
-  GET /api/score
-  Authorization: Bearer <token>
+GET /api/findings
 
-  Response
-  ────────
+Supported query parameters (each may appear at most once):
+
+  severity   CRITICAL, HIGH, MEDIUM, LOW, or INFO
+  category   A supported rule category
+  rule_id    A rule ID such as AZ-STOR-001
+  scan_id    Canonical scan UUID
+
+Unknown, repeated, or invalid query parameters return 400. This endpoint does
+not currently support limit or offset pagination parameters.
+
+Response:
+
   {
-    "score": 68,
-    "max_score": 100
-  }
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  3.  LIST ALL FINDINGS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  What it does:
-    Returns every security finding (misconfiguration or vulnerability) found
-    across all Azure resources. Used on the Scan page, AI page, and to count
-    issues per resource on the Discovery page.
-
-  Request
-  ───────
-  GET /api/findings
-  Authorization: Bearer <token>
-
-  Optional query parameters:
-    ?limit=100          How many findings to return (default 100)
-    ?offset=0           Skip this many findings (for pagination)
-    ?severity=HIGH      Filter to HIGH, MEDIUM, or LOW only
-    ?category=Network   Filter to one category (Storage, Compute, Network, etc.)
-    ?rule_id=AZ-NET-001 Filter to one specific rule
-
-  Examples:
-    GET /api/findings?severity=HIGH
-    GET /api/findings?limit=10&offset=20
-    GET /api/findings?category=Storage&severity=HIGH
-
-  Response
-  ────────
-  {
-    "count": 25,
-    "limit": 100,
-    "offset": 0,
+    "count": 1,
     "findings": [
       {
-        "id": 1,
+        "id": 42,
+        "scan_id": "<uuid>",
         "rule_id": "AZ-STOR-001",
-        "rule_name": "Storage allows public blob access",
+        "rule_name": "Public Blob Access Enabled",
         "severity": "HIGH",
         "category": "Storage",
-        "resource_id": "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/prod-storage-01",
-        "resource_name": "prod-storage-01",
+        "resource_id": "<Azure resource ID>",
+        "resource_name": "example-storage",
         "resource_type": "Microsoft.Storage/storageAccounts",
-        "description": "Storage account allows anonymous public read access",
-        "remediation": "Disable public blob access at the storage account level",
-        "detected_at": "2026-05-28T10:00:00Z"
-      },
-      {
-        "id": 2,
-        "rule_id": "AZ-NET-001",
-        "rule_name": "NSG allows unrestricted SSH",
-        "severity": "HIGH",
-        "category": "Network",
-        "resource_id": "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Network/networkSecurityGroups/nsg-web",
-        "resource_name": "nsg-web",
-        "resource_type": "Microsoft.Network/networkSecurityGroups",
-        "description": "Port 22 (SSH) open to 0.0.0.0/0",
-        "remediation": "Restrict SSH to specific trusted IP ranges",
-        "detected_at": "2026-05-28T13:00:00Z"
+        "description": "...",
+        "remediation": "...",
+        "detected_at": "<ISO-8601 timestamp>"
       }
     ]
   }
 
-  Severity values:   HIGH | MEDIUM | LOW
-  Category values:   Storage | Compute | Network | Identity | Database | KeyVault | Monitoring
+Finding records may also contain CVE, framework, metadata, and playbook fields
+persisted by the scanner.
 
+GET /api/findings/<finding_id>
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  4.  SINGLE FINDING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+finding_id is a positive integer. Returns one finding record, or 404 with
+{ "error": "Finding not found" }.
 
-  What it does:
-    Returns the details for one specific finding by its ID.
-    Called when a user clicks a finding on the Scan page to see
-    the full remediation playbook.
+GET /api/findings/<finding_id>/playbook
 
-  Request
-  ───────
-  GET /api/findings/1
-  Authorization: Bearer <token>
+The backend looks up the finding, loads the matching script from playbooks/cli,
+and returns structured remediation content:
 
-  Response
-  ────────
   {
-    "id": 1,
-    "rule_id": "AZ-STOR-001",
-    "rule_name": "Storage allows public blob access",
-    "severity": "HIGH",
-    "category": "Storage",
-    "resource_id": "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/prod-storage-01",
-    "resource_name": "prod-storage-01",
-    "resource_type": "Microsoft.Storage/storageAccounts",
-    "description": "Storage account allows anonymous public read access",
-    "remediation": "Disable public blob access at the storage account level",
-    "detected_at": "2026-05-28T10:00:00Z"
+    "portal_steps": ["..."],
+    "cli_commands": ["..."],
+    "validation_steps": ["..."],
+    "references": ["..."]
   }
 
-  Note: The frontend enriches this with portal steps and CLI commands
-        from its internal playbook library (scan.json).
+The frontend does not enrich findings from a mock scan.json file.
 
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  5.  SCAN HISTORY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SCANS
+=====
 
-  What it does:
-    Returns the list of past scans that have been run.
-    Each scan has a start time, end time, and how many findings it found.
+GET /api/scans
 
-  Request
-  ───────
-  GET /api/scans
-  Authorization: Bearer <token>
+Returns a JSON array containing at most the 100 most recent scan records. Common
+fields include scan_id, subscription_id, status, started_at, completed_at,
+total_findings, score, error_message, and cve_enrichment_status.
 
-  Response
-  ────────
+GET /api/scans/<scan_id>
+
+scan_id must be a canonical UUID. Returns the scan record, or 404 when absent.
+
+POST /api/scans/trigger
+
+Requires JWT even in public-demo mode. Accepts an optional JSON object:
+
+  { "subscription_id": "<uuid>" }
+
+If subscription_id is omitted, the API uses AZURE_SUBSCRIPTION_ID. If neither
+is available, it returns 400. A successful request returns 202 immediately:
+
   {
-    "count": 3,
-    "scans": [
-      {
-        "scan_id": "scan-001-20260529",
-        "subscription_id": "sub-123",
-        "started_at": "2026-05-29T14:00:00Z",
-        "completed_at": "2026-05-29T14:05:23Z",
-        "total_findings": 25,
-        "status": "completed"
-      },
-      {
-        "scan_id": "scan-002-20260528",
-        "subscription_id": "sub-123",
-        "started_at": "2026-05-28T10:00:00Z",
-        "completed_at": "2026-05-28T10:08:41Z",
-        "total_findings": 24,
-        "status": "completed"
-      }
-    ]
+    "scan_id": "<uuid>",
+    "status": "pending",
+    "message": "Scan has been queued and will start shortly."
   }
 
-  Status values:  pending | running | completed | failed
+Poll GET /api/scans/<scan_id> for status. The frontend does not automatically
+retry this state-changing request.
 
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  6.  TRIGGER A NEW SCAN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RESOURCES
+=========
 
-  What it does:
-    Tells the backend to start scanning the Azure subscription right now.
-    Returns immediately with a scan ID. The scan runs in the background.
-    Poll GET /api/scans to check when it completes.
+GET /api/resources
 
-  Request
-  ───────
-  POST /api/scans/trigger
-  Authorization: Bearer <token>
-  Content-Type: application/json
+Returns unique Azure resources derived from findings in the latest scan that
+has findings. The highest finding severity becomes each resource's risk value.
 
-  Body (optional — omit to scan the default subscription):
-  {
-    "subscription_id": "sub-123"
-  }
-
-  Response
-  ────────
-  {
-    "scan_id": "scan-new-20260601",
-    "subscription_id": "sub-123",
-    "started_at": "2026-06-01T10:00:00Z",
-    "completed_at": "2026-06-01T10:05:47Z",
-    "total_findings": 25,
-    "status": "completed"
-  }
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  7.  COMPLIANCE — CIS AZURE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  What it does:
-    Returns how many CIS Azure Benchmark controls the environment passes or fails.
-    CIS is a widely-used security checklist published by the Center for Internet
-    Security. Each control maps to one of our rules (e.g. CIS 6.2 = AZ-NET-001).
-
-  Request
-  ───────
-  GET /api/compliance/cis
-  Authorization: Bearer <token>
-
-  Response
-  ────────
-  {
-    "framework": "CIS Microsoft Azure Foundations Benchmark",
-    "version": "2.0.0",
-    "score_percent": 74,
-    "passed": 7,
-    "failed": 6,
-    "total_controls": 13,
-    "controls": [
-      {
-        "control_id": "3.5",
-        "control_name": "Ensure public access is disabled on all storage accounts",
-        "rule_id": "AZ-STOR-001",
-        "status": "FAIL"
-      },
-      {
-        "control_id": "6.2",
-        "control_name": "Ensure SSH access is restricted from the internet",
-        "rule_id": "AZ-NET-001",
-        "status": "FAIL"
-      },
-      {
-        "control_id": "1.1",
-        "control_name": "Ensure Security Defaults are enabled on Azure Active Directory",
-        "rule_id": null,
-        "status": "PASS"
-      }
-    ]
-  }
-
-  Status values:  PASS | FAIL
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  8.  COMPLIANCE — NIST SP 800-53
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  What it does:
-    Same as CIS but mapped to the NIST SP 800-53 framework instead.
-    NIST is the US government security standard used by federal agencies
-    and many enterprises.
-
-  Request
-  ───────
-  GET /api/compliance/nist
-  Authorization: Bearer <token>
-
-  Response
-  ────────
-  {
-    "framework": "NIST SP 800-53 Rev 5",
-    "version": "5.0.0",
-    "score_percent": 68,
-    "passed": 17,
-    "failed": 8,
-    "total_controls": 25,
-    "controls": [
-      {
-        "control_id": "AC-3",
-        "control_name": "Access Enforcement",
-        "rule_id": "AZ-STOR-001",
-        "status": "FAIL"
-      },
-      {
-        "control_id": "SC-8",
-        "control_name": "Transmission Confidentiality and Integrity",
-        "rule_id": "AZ-STOR-002",
-        "status": "FAIL"
-      },
-      {
-        "control_id": "IA-5",
-        "control_name": "Authenticator Management",
-        "rule_id": null,
-        "status": "PASS"
-      }
-    ]
-  }
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  9.  COMPLIANCE — ISO 27001
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  What it does:
-    Same as CIS but mapped to the ISO 27001:2022 international standard.
-    ISO 27001 is the global benchmark for information security management.
-
-  Request
-  ───────
-  GET /api/compliance/iso27001
-  Authorization: Bearer <token>
-
-  Response
-  ────────
-  {
-    "framework": "ISO 27001:2022",
-    "version": "2022",
-    "score_percent": 81,
-    "passed": 18,
-    "failed": 4,
-    "total_controls": 22,
-    "controls": [
-      {
-        "control_id": "A.10.1.1",
-        "control_name": "Policy on the use of cryptographic controls",
-        "rule_id": "AZ-STOR-002",
-        "status": "FAIL"
-      },
-      {
-        "control_id": "A.12.3.1",
-        "control_name": "Information backup",
-        "rule_id": null,
-        "status": "PASS"
-      }
-    ]
-  }
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  10.  AI CHAT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  What it does:
-    Sends a question to the AI and gets back an answer.
-    The AI uses RAG (Retrieval-Augmented Generation) to look up relevant
-    findings from the database and answer in context.
-    Used on the AI Assistant page.
-
-  Request
-  ───────
-  POST /api/ai/chat
-  Authorization: Bearer <token>
-  Content-Type: application/json
-
-  Body:
-  {
-    "question": "How do I fix the SSH vulnerability on nsg-web?",
-    "context": {
-      "rule_id": "AZ-NET-001",
-      "resource_name": "nsg-web"
-    }
-  }
-
-  Note: "context" is optional. When omitted, the AI answers about the
-        full environment. When provided, it focuses on that specific finding.
-
-  Response
-  ────────
-  {
-    "answer": "To fix the SSH vulnerability on nsg-web, delete the inbound rule allowing port 22 from 0.0.0.0/0 and replace it with a rule restricted to your VPN CIDR...",
-    "sources": [
-      { "id": "AZ-NET-001", "resource": "nsg-web" }
-    ]
-  }
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  11.  AI EXECUTIVE SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  What it does:
-    Asks the AI to generate a short executive summary of the current
-    security posture. Returns the top 3 priorities and an estimate of
-    how long it would take to fix everything. Shown in the right panel
-    of the AI Assistant page.
-
-  Request
-  ───────
-  GET /api/ai/summary
-  Authorization: Bearer <token>
-
-  Response
-  ────────
-  {
-    "generated_at": "2026-06-01T06:00:00Z",
-    "risk_score": 68,
-    "trend": "improving",
-    "overview": "Your Azure environment has 25 open findings. The most critical exposures are internet-accessible SSH/RDP ports and an open SQL database firewall.",
-    "top_priorities": [
-      {
-        "rank": 1,
-        "title": "Close SSH/RDP ports open to 0.0.0.0/0",
-        "impact": "CRITICAL",
-        "eta": "2 hours",
-        "rule_id": "AZ-NET-001",
-        "resource": "nsg-web, nsg-app"
-      },
-      {
-        "rank": 2,
-        "title": "Delete AllowAllIPs SQL firewall rule",
-        "impact": "CRITICAL",
-        "eta": "30 mins",
-        "rule_id": "AZ-DB-001",
-        "resource": "sql-dev-exposed"
-      }
-    ],
-    "estimated_remediation_time": "3-5 business days",
-    "compliance_status": {
-      "cis": 74,
-      "nist": 68,
-      "iso27001": 81
-    }
-  }
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  12.  AI CVE ANALYSIS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  What it does:
-    Returns a list of known CVEs (Common Vulnerabilities and Exposures)
-    that affect resources in the environment. For example, if a VM is
-    running an unpatched Windows Server, this lists the specific CVE IDs
-    and their severity scores. Shown in the CVE Analysis panel on the AI page.
-
-  Request
-  ───────
-  GET /api/ai/cve-analysis
-  Authorization: Bearer <token>
-
-  Response
-  ────────
-  {
-    "last_updated": "2026-06-01T06:00:00Z",
-    "total": 5,
-    "cves": [
-      {
-        "id": "CVE-2024-38077",
-        "name": "Windows RDL Remote Code Execution",
-        "description": "Critical RCE in Windows Remote Desktop Licensing Service. No authentication required.",
-        "cvss_score": 9.8,
-        "severity": "CRITICAL",
-        "affected_resources": ["vm-web-01"],
-        "affected_count": 1,
-        "patch_available": true,
-        "remediation": "Apply Microsoft security update KB5040442",
-        "nvd_url": "https://nvd.nist.gov/vuln/detail/CVE-2024-38077",
-        "published_date": "2024-07-09"
-      },
-      {
-        "id": "CVE-2023-23397",
-        "name": "Microsoft Outlook NTLM Hash Leak",
-        "description": "Zero-click vulnerability, no user interaction required.",
-        "cvss_score": 9.8,
-        "severity": "CRITICAL",
-        "affected_resources": ["vm-web-01"],
-        "affected_count": 1,
-        "patch_available": true,
-        "remediation": "Apply Microsoft security update KB5023745",
-        "nvd_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-23397",
-        "published_date": "2023-03-14"
-      }
-    ]
-  }
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  13.  RESOURCE DISCOVERY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Used by:  Discovery page
-
-  What it does:
-    Returns every Azure resource that has been discovered across all
-    subscriptions and resource groups. Each resource has a risk level
-    (HIGH / MEDIUM / LOW / NONE) based on the worst finding attached to it.
-    The page lets users filter by category, risk, location, and resource group.
-
-  Request
-  ───────
-  GET /api/resources
-  Authorization: Bearer <token>
-
-  Optional query parameters:
-    ?subscription_id=sub-123      Filter to one subscription
-    ?resource_group=rg-prod       Filter to one resource group
-    ?category=Storage             Filter by category
-    ?risk=HIGH                    Filter by risk level (HIGH|MEDIUM|LOW|NONE)
-    ?location=eastus              Filter by Azure region
-
-  Response
-  ────────
   {
     "summary": {
-      "total": 17,
-      "by_category": {
-        "Storage": 4,
-        "Compute": 3,
-        "Network": 4,
-        "Identity": 1,
-        "Database": 3,
-        "KeyVault": 1,
-        "Monitoring": 1
-      },
-      "by_risk_level": {
-        "HIGH": 7,
-        "MEDIUM": 4,
-        "LOW": 4,
-        "NONE": 2
-      },
-      "last_scan_at": "2026-05-29T18:00:00Z"
+      "total": 1,
+      "by_category": { "Storage": 1 },
+      "by_risk_level": { "CRITICAL": 0, "HIGH": 1, "MEDIUM": 0, "LOW": 0, "INFO": 0, "NONE": 0 },
+      "last_scan_at": "<ISO-8601 timestamp>"
     },
     "resources": [
       {
-        "id": "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/prod-storage-01",
-        "name": "prod-storage-01",
+        "id": "<Azure resource ID>",
+        "name": "example-storage",
         "type": "Microsoft.Storage/storageAccounts",
         "category": "Storage",
-        "resource_group": "rg-prod",
-        "subscription_id": "sub-123",
-        "location": "eastus",
+        "resource_group": "example-rg",
+        "subscription_id": "<uuid>",
+        "location": "",
         "risk": "HIGH",
-        "discovered_at": "2026-05-28T10:00:00Z"
-      },
-      {
-        "id": "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Network/networkSecurityGroups/nsg-web",
-        "name": "nsg-web",
-        "type": "Microsoft.Network/networkSecurityGroups",
-        "category": "Network",
-        "resource_group": "rg-prod",
-        "subscription_id": "sub-123",
-        "location": "eastus",
-        "risk": "HIGH",
-        "discovered_at": "2026-05-28T10:10:00Z"
+        "discovered_at": "<ISO-8601 timestamp>",
+        "config": {}
       }
     ]
   }
 
-  Risk values:      HIGH | MEDIUM | LOW | NONE
-  Category values:  Storage | Compute | Network | Identity | Database | KeyVault | Monitoring
+With no qualifying scan, summary counts are empty/zero and resources is [].
 
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  14.  FINDING REMEDIATION PLAYBOOK
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRIORITIZATION
+==============
 
-  Used by:  Detailed Scan page, AI Assistant page
+GET /api/prioritization
 
-  What it does:
-    Returns the full step-by-step remediation guide for one specific finding.
-    This includes portal steps (what to click in Azure Portal), CLI commands
-    (az commands to copy-paste), validation steps (how to confirm the fix
-    worked), and compliance references.
+Groups findings from the latest scan by rule and ranks them using severity and
+affected-resource count. Response keys are:
 
-    The Detailed Scan page shows this as a tabbed panel: Portal Steps | CLI | Validation.
+  matrix        Entries with id, rule_id, name, risk, effort, category,
+                severity, affected_resources, and resource.
+  rankings      Up to 25 entries with rank, rule_id, name, score, severity,
+                category, effort, impact, and resource.
+  action_items  Up to 10 entries with id, action, impact, effort, eta, rule_id,
+                and resource.
+  summary       Finding counts, recommended action count, estimated fix time,
+                and top priority.
 
-  Request
-  ───────
-  GET /api/findings/:id/playbook
-  Authorization: Bearer <token>
-
-  Example:
-    GET /api/findings/4/playbook
-
-  Response
-  ────────
-  {
-    "finding_id": 4,
-    "rule_id": "AZ-NET-001",
-    "rule_name": "NSG allows unrestricted SSH",
-    "resource_name": "nsg-web",
-    "resource_group": "rg-prod",
-    "portal_steps": [
-      "Open the Azure Portal and navigate to Network Security Groups",
-      "Select 'nsg-web' and click 'Inbound security rules'",
-      "Find the rule allowing port 22 from source 0.0.0.0/0",
-      "Change the Source from 'Any' to your VPN CIDR (e.g. 10.0.0.0/8)",
-      "Click Save — change takes effect within seconds"
-    ],
-    "cli_commands": [
-      "az network nsg rule delete --resource-group rg-prod --nsg-name nsg-web --name Allow-SSH-Any",
-      "az network nsg rule create --resource-group rg-prod --nsg-name nsg-web --name Allow-SSH-VPN --priority 200 --source-address-prefixes 10.0.0.0/8 --destination-port-ranges 22 --access Allow --protocol Tcp"
-    ],
-    "validation_steps": [
-      "Run: az network nsg rule list --nsg-name nsg-web --resource-group rg-prod",
-      "Confirm no rule shows Source: * and Port: 22",
-      "Test SSH from an IP outside your allowed range — connection should time out"
-    ],
-    "references": [
-      "CIS Azure 6.2",
-      "NIST SP 800-53 AC-17"
-    ]
-  }
-
-  Frontend behaviour:
-    The frontend calls GET /api/findings/:id/playbook every time a user selects
-    a finding on the Scan page. If the endpoint returns an error or doesn't exist
-    yet, it automatically falls back to the internal playbook library (scan.json).
-    Once you implement this endpoint, it takes over with no frontend changes needed.
+With no scan containing findings, the three lists and summary are empty.
 
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  15.  RISK PRIORITIZATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DRIFT
+=====
 
-  Used by:  Prioritization page
+GET /api/drift
 
-  What it does:
-    Returns all findings ranked by a priority score that factors in both
-    risk (how dangerous is it?) and effort (how hard is it to fix?).
-    High risk + low effort = fix first. Also returns a matrix of all findings
-    plotted on risk vs effort axes, and a list of concrete action items.
+Compares the two most recent scans that contain findings. ADDED means a
+(rule_id, resource_id) pair exists only in the latest scan; REMOVED means it
+exists only in the previous scan. The current implementation reports modified
+as zero.
 
-  Request
-  ───────
-  GET /api/prioritization
-  Authorization: Bearer <token>
-
-  Optional query parameters:
-    ?category=Network     Filter to one category
-    ?severity=HIGH        Filter to one severity level
-
-  Response
-  ────────
-  {
-    "matrix": [
-      {
-        "id": 1,
-        "rule_id": "AZ-STOR-001",
-        "name": "Storage allows public blob access",
-        "risk": 9,
-        "effort": 1,
-        "category": "Storage",
-        "severity": "HIGH",
-        "resource": "prod-storage-01"
-      },
-      {
-        "id": 4,
-        "rule_id": "AZ-NET-001",
-        "name": "NSG allows unrestricted SSH",
-        "risk": 9,
-        "effort": 2,
-        "category": "Network",
-        "severity": "HIGH",
-        "resource": "nsg-web"
-      }
-    ],
-    "rankings": [
-      {
-        "rank": 1,
-        "rule_id": "AZ-NET-001",
-        "name": "SSH (port 22) open to 0.0.0.0/0 on nsg-web",
-        "score": 98,
-        "severity": "HIGH",
-        "category": "Network",
-        "effort": 2,
-        "impact": "CRITICAL",
-        "resource": "nsg-web"
-      },
-      {
-        "rank": 2,
-        "rule_id": "AZ-DB-001",
-        "name": "SQL database fully public on sql-dev-exposed",
-        "score": 97,
-        "severity": "HIGH",
-        "category": "Database",
-        "effort": 1,
-        "impact": "CRITICAL",
-        "resource": "sql-dev-exposed"
-      }
-    ],
-    "action_items": [
-      {
-        "id": 1,
-        "action": "Restrict SSH/RDP NSG rules to VPN CIDR on nsg-web and nsg-app",
-        "impact": "HIGH",
-        "effort": "LOW",
-        "eta": "1 hour",
-        "rule_id": "AZ-NET-001",
-        "resource": "nsg-web"
-      },
-      {
-        "id": 2,
-        "action": "Delete AllowAllIPs firewall rule on sql-dev-exposed",
-        "impact": "HIGH",
-        "effort": "LOW",
-        "eta": "30 mins",
-        "rule_id": "AZ-DB-001",
-        "resource": "sql-dev-exposed"
-      }
-    ]
-  }
-
-  risk field:     1–10 (10 = most dangerous)
-  effort field:   1–5  (1 = easiest to fix, 5 = hardest)
-  score field:    0–100 overall priority score
-  impact values:  CRITICAL | HIGH | MEDIUM | LOW
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  16.  CONFIGURATION DRIFT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Used by:  Drift page
-
-  What it does:
-    Returns a timeline of all configuration changes detected in the Azure
-    environment. Each event shows what changed, on which resource, who made
-    the change, and whether it violated a security rule (creating a new finding).
-
-    Typical drift events:
-      - Someone opened a port in an NSG (MODIFIED)
-      - A new VM was spun up without a security policy (ADDED)
-      - A storage account was deleted (REMOVED)
-
-  Request
-  ───────
-  GET /api/drift
-  Authorization: Bearer <token>
-
-  Optional query parameters:
-    ?type=MODIFIED        Filter by change type (ADDED|REMOVED|MODIFIED)
-    ?severity=HIGH        Filter by severity of the change
-    ?resource_group=rg-prod   Filter to one resource group
-    ?from=2026-05-28T00:00:00Z  Changes after this timestamp
-    ?to=2026-05-30T00:00:00Z    Changes before this timestamp
-
-  Response
-  ────────
   {
     "summary": {
-      "total": 10,
-      "added": 3,
-      "removed": 2,
-      "modified": 5,
-      "last_checked": "2026-05-29T18:00:00Z"
+      "total": 1,
+      "added": 1,
+      "removed": 0,
+      "modified": 0,
+      "last_checked": "<ISO-8601 timestamp>"
     },
     "events": [
       {
         "id": 1,
-        "type": "MODIFIED",
+        "type": "ADDED",
         "severity": "HIGH",
-        "resource_name": "prod-storage-01",
-        "resource_type": "Microsoft.Storage/storageAccounts",
-        "resource_group": "rg-prod",
-        "field": "allowBlobPublicAccess",
-        "old_value": "false",
-        "new_value": "true",
-        "changed_by": "john.doe@company.com",
-        "changed_at": "2026-05-29T14:32:00Z",
-        "rule_violated": "AZ-STOR-001"
-      },
-      {
-        "id": 2,
-        "type": "MODIFIED",
-        "severity": "HIGH",
-        "resource_name": "nsg-web",
+        "resource_name": "example-nsg",
         "resource_type": "Microsoft.Network/networkSecurityGroups",
-        "resource_group": "rg-prod",
-        "field": "inboundRules[Allow-SSH].sourceAddressPrefix",
-        "old_value": "10.0.0.0/8",
-        "new_value": "0.0.0.0/0",
-        "changed_by": "jane.smith@company.com",
-        "changed_at": "2026-05-29T11:15:00Z",
+        "resource_group": "example-rg",
+        "field": "security_policy",
+        "old_value": null,
+        "new_value": "HIGH",
+        "changed_by": "azure-policy-scan",
+        "changed_at": "<ISO-8601 timestamp>",
         "rule_violated": "AZ-NET-001"
-      },
-      {
-        "id": 5,
-        "type": "REMOVED",
-        "severity": "LOW",
-        "resource_name": "nsg-legacy-dev",
-        "resource_type": "Microsoft.Network/networkSecurityGroups",
-        "resource_group": "rg-dev",
-        "field": "resource",
-        "old_value": "existed",
-        "new_value": null,
-        "changed_by": "terraform-automation@company.com",
-        "changed_at": "2026-05-28T18:00:00Z",
-        "rule_violated": null
       }
     ]
   }
 
-  type values:          ADDED | REMOVED | MODIFIED
-  severity values:      HIGH | MEDIUM | LOW
-  rule_violated:        rule ID if this change created a finding, null if safe change
+With fewer than two qualifying scans, events is [] and summary counts are zero.
 
 
-================================================================================
-  QUICK REFERENCE  +  IMPLEMENTATION STATUS
-================================================================================
+COMPLIANCE
+==========
 
-  STATUS KEY:
-    ✅  Frontend wired up — calls real endpoint, falls back to mock if it fails
-    🔶  Mock only — no backend endpoint defined yet, uses internal mock data
-    📄  Mock file ready — api.*.json exists and matches expected response format
+GET /api/compliance/<framework>
 
-  METHOD   ENDPOINT                    AUTH   STATUS  WHAT IT RETURNS
-  ──────   ─────────────────────────   ─────  ──────  ────────────────────────────────
-  GET      /health                     No     ✅ 📄   { status: "ok" }
-  GET      /api/score                  Yes    ✅ 📄   Overall security score 0-100
-  GET      /api/resources              Yes    ✅      All Azure resources + summary
-  GET      /api/findings               Yes    ✅ 📄   All findings (paginated + filters)
-  GET      /api/findings/:id           Yes    ✅ 📄   One finding by ID
-  GET      /api/findings/:id/playbook  Yes    ✅      Portal steps, CLI, validation
-  GET      /api/scans                  Yes    ✅ 📄   History of past scans
-  GET      /api/scans/:id              Yes    ✅      Status of one specific scan
-  POST     /api/scans/trigger          Yes    ✅ 📄   Start a new scan + poll for result
-  GET      /api/prioritization         Yes    ✅      Risk-ranked findings + matrix
-  GET      /api/drift                  Yes    ✅      Configuration change timeline
-  GET      /api/compliance/cis         Yes    ✅ 📄   CIS Azure controls pass/fail
-  GET      /api/compliance/nist        Yes    ✅ 📄   NIST SP 800-53 controls pass/fail
-  GET      /api/compliance/iso27001    Yes    ✅ 📄   ISO 27001 controls pass/fail
-  POST     /api/ai/chat                Yes    ✅      AI answer to a question
-  GET      /api/ai/summary             Yes    ✅      AI-generated executive summary
-  GET      /api/ai/cve-analysis        Yes    ✅      CVEs affecting your environment
-  GET      /api/monitoring             —      🔶      Score trend + category breakdown
-                                                       (no endpoint defined — uses mock)
+Supported framework values:
 
-  📄 = mock file in frontend/src/mockData/api.*.json matches exact response format
-  ✅ = wired up in frontend/src/utils/api.js with real fetch + mock fallback
+  cis, nist, iso27001, soc2, ncsc_pqc, enisa_pqc
+
+The current Compliance page requests cis, nist, iso27001, and soc2. A response
+contains framework, version, total_controls, passed, failed, score_percent, and
+a controls array. Each control includes control_id, control_name, rule_id, and
+status (PASS or FAIL), with additional finding metadata where available.
+
+An unsupported framework returns 400 and a supported-values list.
 
 
-================================================================================
-  FIELD NAMING CONVENTION
-================================================================================
+AI REQUESTS
+===========
 
-  Backend returns snake_case.   Frontend converts to camelCase automatically.
+All AI endpoints are POST requests and require JWT, including in public-demo
+mode. They also require bring-your-own provider credentials in the JSON body.
+Common fields are:
 
-  snake_case (backend)           camelCase (frontend)
-  ─────────────────────          ────────────────────────
-  rule_id                   →    ruleId
-  rule_name                 →    ruleName
-  resource_id               →    resourceId
-  resource_name             →    resourceName
-  resource_type             →    resourceType
-  resource_group            →    resourceGroup
-  subscription_id           →    subscription
-  detected_at               →    detectedAt
-  discovered_at             →    discoveredAt
+  provider   Supported provider identifier (required)
+  api_key    Provider API key (required)
+  model      Provider model override (optional)
+  findings   Current finding objects (optional or required by the operation)
+  question   User question (required by /ask; optional for /insights)
 
-  portal_steps              →    portalSteps
-  cli_commands              →    cliCommands
-  validation_steps          →    validationSteps
+POST /api/ai/ask
+  Requires question. Returns answer, sources, provider, and model.
 
-  action_items              →    actionItems
-  affected_resources        →    affectedResources
+POST /api/ai/summary
+  Accepts findings. Returns summary, sources, provider, and model.
 
-  old_value                 →    oldValue
-  new_value                 →    newValue
-  changed_by                →    changedBy
-  changed_at                →    changedAt
-  rule_violated             →    ruleViolated
-  last_checked              →    lastChecked
+POST /api/ai/insights
+  Requires findings. Returns executive_summary and remediation_plan, plus
+  answer when question was supplied.
 
-  score_percent             →    score          (renamed for display)
-  total_controls            →    totalControls
-  by_category               →    byCategory
-  by_risk_level             →    byRiskLevel
-  last_scan_at              →    lastScanAt
+POST /api/ai/prioritise
+  Accepts findings. Returns prioritised_findings, sources, provider, and model.
 
-  cvss_score                →    cvssScore
-  affected_count            →    affectedCount
-  patch_available           →    patchAvailable
-  published_date            →    publishedDate
-  nvd_url                   →    nvdUrl
-
-  generated_at              →    generatedAt
-  risk_score                →    riskScore
-  top_priorities            →    topPriorities
-  estimated_remediation_time →   estimatedRemediationTime
-  compliance_status         →    complianceStatus
-  last_updated              →    lastUpdated
+The implemented question endpoint is /api/ai/ask, not /api/ai/chat. AI summary
+is POST, not GET. CVE dashboard data comes from GET /api/score/cve-summary;
+there is no GET /api/ai/cve-analysis route.
 
 
-================================================================================
-  BACKEND IMPLEMENTATION GUIDE  (feat/flask-api branch)
-================================================================================
+OTHER REGISTERED BACKEND ROUTES
+===============================
 
-  This section maps each endpoint to a backend task, database table, and
-  answers the question: "does this data live in the DB or is it computed?"
+These routes are implemented and registered but are not called by the current
+frontend API utilities:
 
-  Branch: feat/flask-api
-  Stack:  Flask + PostgreSQL (Render free tier)
+Method  Path
+------  ------------------------------------------
+POST    /api/scans/<scan_id>/enrich
+POST    /api/ai/threat-simulation
+GET     /api/assurance/physical-layer
+GET     /api/assurance/data-link-layer
+GET     /api/assurance/network-layer
+GET     /api/cbom
+GET     /api/cbom/summary
+GET     /api/cbom/migration-roadmap
 
-────────────────────────────────────────────────────────────────────────────────
-  SPRINT SCOPE — BUILD THESE NOW
-────────────────────────────────────────────────────────────────────────────────
-
-  These are the endpoints explicitly listed in the backend task.
-  The frontend is already wired to call them (falls back to mock until live).
-
-  ┌──────────────────────────────┬──────────────────────┬──────────────────────┐
-  │ Endpoint                     │ File                 │ Database             │
-  ├──────────────────────────────┼──────────────────────┼──────────────────────┤
-  │ GET  /health                 │ api/app.py           │ None — returns "ok"  │
-  │ GET  /api/score              │ api/routes/score.py  │ READ findings        │
-  │ GET  /api/findings           │ api/routes/         │ READ findings+rules  │
-  │ GET  /api/findings/:id       │   findings.py        │ READ findings+rules  │
-  │ GET  /api/scans              │ api/routes/scans.py  │ READ scans           │
-  │ GET  /api/scans/:id          │ api/routes/scans.py  │ READ scans           │
-  │ POST /api/scans/trigger      │ api/routes/scans.py  │ WRITE scans          │
-  │ GET  /api/compliance/cis     │ api/routes/          │ READ findings+rules  │
-  │ GET  /api/compliance/nist    │   compliance.py      │ READ findings+rules  │
-  │ GET  /api/compliance/iso27001│                      │ READ findings+rules  │
-  └──────────────────────────────┴──────────────────────┴──────────────────────┘
-
-────────────────────────────────────────────────────────────────────────────────
-  DEFERRED — DO NOT BUILD YET
-────────────────────────────────────────────────────────────────────────────────
-
-  These endpoints exist in the API contract and the frontend calls them,
-  but they are NOT part of the current sprint. Frontend falls back to mock.
-
-  Endpoint                        Why deferred
-  ──────────────────────────────  ────────────────────────────────────────────
-  GET  /api/resources             Needs a `resources` table (not in schema yet)
-  GET  /api/findings/:id/playbook Needs a `playbooks` table (not in schema yet)
-  GET  /api/prioritization        Computed endpoint — build after core is done
-  GET  /api/drift                 Needs a `drift_events` table (not in schema)
-  POST /api/ai/chat               AI service — separate task entirely
-  GET  /api/ai/summary            AI service — separate task entirely
-  GET  /api/ai/cve-analysis       AI service — separate task entirely
-
-────────────────────────────────────────────────────────────────────────────────
-  DATABASE SCHEMA  (what to create in PostgreSQL)
-────────────────────────────────────────────────────────────────────────────────
-
-  Table: findings
-  ───────────────
-  id            SERIAL PRIMARY KEY
-  rule_id       VARCHAR(20) NOT NULL         e.g. "AZ-STOR-001"
-  severity      VARCHAR(10) NOT NULL         HIGH | MEDIUM | LOW | INFO
-  resource_id   TEXT NOT NULL                Full Azure resource path
-  resource_name VARCHAR(100) NOT NULL        e.g. "prod-storage-01"
-  resource_type VARCHAR(100)                 e.g. "Microsoft.Storage/storageAccounts"
-  resource_group VARCHAR(50)                 e.g. "rg-prod"
-  category      VARCHAR(30)                  Storage | Compute | Network | etc.
-  description   TEXT
-  remediation   TEXT
-  status        VARCHAR(20) DEFAULT 'open'   open | resolved | suppressed
-  detected_at   TIMESTAMP DEFAULT NOW()
-  scan_id       INTEGER REFERENCES scans(id)
-
-  Table: rules
-  ────────────
-  rule_id       VARCHAR(20) PRIMARY KEY      e.g. "AZ-STOR-001"
-  name          VARCHAR(200) NOT NULL        e.g. "Storage allows public blob access"
-  severity      VARCHAR(10) NOT NULL         HIGH | MEDIUM | LOW
-  category      VARCHAR(30) NOT NULL         Storage | Network | etc.
-  description   TEXT
-  remediation   TEXT
-  frameworks    JSONB                         { "CIS": "3.5", "NIST": "AC-3" }
-
-  Table: scans
-  ────────────
-  id            SERIAL PRIMARY KEY
-  scan_id       VARCHAR(50) UNIQUE           e.g. "scan-001-20260529"
-  subscription_id VARCHAR(50)
-  started_at    TIMESTAMP DEFAULT NOW()
-  completed_at  TIMESTAMP
-  total_findings INTEGER DEFAULT 0
-  status        VARCHAR(20) DEFAULT 'running' running | completed | failed
-
-────────────────────────────────────────────────────────────────────────────────
-  DATA SOURCES — what comes from DB vs what is computed
-────────────────────────────────────────────────────────────────────────────────
-
-  FROM DATABASE (straightforward SELECT queries)
-  ───────────────────────────────────────────────
-  GET /api/findings           → SELECT * FROM findings JOIN rules ON findings.rule_id = rules.rule_id
-  GET /api/findings/:id       → SELECT * FROM findings JOIN rules WHERE findings.id = :id
-  GET /api/scans              → SELECT * FROM scans ORDER BY started_at DESC
-  GET /api/scans/:id          → SELECT * FROM scans WHERE scan_id = :id
-  POST /api/scans/trigger     → INSERT INTO scans ... (then run scanner async)
-
-  COMPUTED — derived from database rows, not stored
-  ──────────────────────────────────────────────────
-  GET /api/score
-    Formula:
-      total   = COUNT(*) FROM findings WHERE status = 'open'
-      high    = COUNT(*) FROM findings WHERE severity = 'HIGH' AND status = 'open'
-      medium  = COUNT(*) FROM findings WHERE severity = 'MEDIUM' AND status = 'open'
-      score   = MAX(0, 100 - (high * 10) - (medium * 3))
-      max_score = 100
-    Returns: { "score": 72, "max_score": 100 }
-
-  GET /api/compliance/cis (and /nist, /iso27001)
-    Step 1: Look up which rule_ids map to this framework's controls
-            (stored in rules.frameworks JSONB column)
-    Step 2: For each control, check if any open finding has that rule_id
-            → if yes: status = FAIL
-            → if no:  status = PASS
-    Step 3: score_percent = (passed / total_controls) * 100
-    Note: The mapping between rule_ids and control IDs is in the rules.frameworks
-          column — the scanner team populates this when inserting rules.
-
-  NOT IN DATABASE (no table, no endpoint yet)
-  ────────────────────────────────────────────
-  /api/resources        → needs its own `resources` table (future sprint)
-  /api/drift            → needs its own `drift_events` table (future sprint)
-  /api/prioritization   → computed from findings; build after findings is stable
-  /api/findings/:id/playbook → stored as static content, not in DB (future)
-  /api/ai/*             → calls external AI service, not DB (separate task)
-
-────────────────────────────────────────────────────────────────────────────────
-  SUGGESTED IMPLEMENTATION ORDER
-────────────────────────────────────────────────────────────────────────────────
-
-  1. api/app.py            Flask factory, CORS, JWT middleware, blueprints
-  2. api/models/finding.py DatabaseManager + Finding/Rule/Scan models
-  3. GET /api/findings      Simplest read — confirms DB connection works
-  4. GET /api/findings/:id  Same table, single row
-  5. GET /api/scans         Scan history
-  6. POST /api/scans/trigger Insert scan + trigger async scanner
-  7. GET /api/score         Computed from findings count
-  8. GET /api/compliance/*  Computed from findings + rules.frameworks
-
-  Tip: Seed the `rules` table first with all 25 rule definitions from the
-       mock data (api.findings.json has all rule_ids, names, descriptions).
-       Without rules in the DB, compliance mapping won't work.
-
-────────────────────────────────────────────────────────────────────────────────
-  SEED DATA FOR RULES TABLE
-────────────────────────────────────────────────────────────────────────────────
-
-  Run this once after creating the schema to populate the rules table.
-  Copy the rule definitions from the frontend mock data in:
-    frontend/src/mockData/api.findings.json  (has rule_id, description, etc.)
-
-  Minimum set of rules the compliance endpoint needs to work:
-
-  rule_id        name                              severity  category   CIS    NIST    ISO
-  ─────────────  ────────────────────────────────  ────────  ─────────  ─────  ──────  ──────
-  AZ-STOR-001    Storage allows public blob access  HIGH     Storage    3.5    AC-3    A.10.1.1
-  AZ-STOR-002    Storage does not enforce HTTPS     HIGH     Storage    3.1    SC-8    A.10.1.1
-  AZ-NET-001     NSG allows unrestricted SSH        HIGH     Network    6.2    AC-17   A.13.1.1
-  AZ-NET-007     NSG allows unrestricted RDP        HIGH     Network    6.3    AC-17   A.13.1.1
-  AZ-DB-001      SQL database publicly accessible   HIGH     Database   4.1    SC-7    —
-  AZ-IDN-001     Service Principal over-privileged  HIGH     Identity   1.20   AC-6    A.9.4.1
-  AZ-CMP-001     VM operating system outdated       HIGH     Compute    7.3    SI-2    A.12.6.1
-  AZ-KV-001      Key Vault purge protection missing MEDIUM   KeyVault   8.5    —       A.18.1.3
-  AZ-KV-002      Key Vault network ACLs disabled    MEDIUM   KeyVault   8.1    —       —
-
-  Full list of 25 rules: see frontend/src/mockData/api.findings.json
-
-================================================================================
-  DEMO MODE vs LIVE MODE
-================================================================================
-
-  Demo Mode (default, amber badge in header)
-    All data comes from mock JSON files in frontend/src/mockData/api.*.json.
-    No network calls are made. Safe to use without a backend.
-
-  Live Mode (green badge in header)
-    Calls the real backend at VITE_API_URL.
-    Requires the backend server to be running on port 5001.
-    If the backend is unreachable, the app shows an error and falls back
-    to Demo Mode automatically.
-
-  To switch:
-    Click the DEMO / LIVE badge in the top-right of the header.
-    The app will test the connection first before switching to Live.
-
-  Environment variable:
-    VITE_API_URL=http://localhost:5001    (in frontend/.env.local)
+They follow the same authentication rule: GET is JWT-protected by default and
+becomes unauthenticated only with OPENSHIELD_PUBLIC_DEMO=true; POST always
+requires JWT. Consult the matching module under api/routes/ for specialized
+request and response details.
 
 
-================================================================================
+IMPLEMENTATION STATUS
+=====================
+
+All frontend-consumed endpoints listed in this file are implemented and
+registered. Resources, prioritization, drift, finding playbooks, and the AI
+routes are not deferred. The frontend uses backend responses only; it does not
+silently substitute mock posture data when a request fails.

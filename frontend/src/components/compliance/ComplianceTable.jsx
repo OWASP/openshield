@@ -28,7 +28,9 @@ export default function ComplianceTable({ controls }) {
             <tr key={c.id} className="group hover:bg-bg-secondary dark:hover:bg-bg-dark-tertiary transition-colors duration-150">
               <td className="px-4 py-3 font-mono text-xs text-text-secondary dark:text-text-dark-tertiary whitespace-nowrap">{c.id}</td>
               <td className="px-4 py-3 text-text-primary dark:text-text-dark-secondary max-w-xs">{c.name}</td>
-              <td className="px-4 py-3"><SeverityBadge severity={c.severity} /></td>
+              <td className="px-4 py-3">
+                {c.severity ? <SeverityBadge severity={c.severity} /> : <span className="text-text-tertiary">—</span>}
+              </td>
               <td className="px-4 py-3 text-text-secondary dark:text-text-dark-tertiary text-xs">{c.category}</td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-1.5">

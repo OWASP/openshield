@@ -3,7 +3,9 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 
-const COLORS = { HIGH: '#ef4444', MEDIUM: '#f97316', LOW: '#10b981' };
+import { SEVERITY_DEFINITIONS } from '../../utils/severity';
+
+const DISPLAY_LEVELS = SEVERITY_DEFINITIONS.filter((level) => level.score_weight > 0);
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -33,9 +35,17 @@ export default function ResourceGroupChart({ data }) {
         <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={false} tickLine={false} />
         <Tooltip content={<CustomTooltip />} />
         <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-        <Bar dataKey="HIGH"   name="High"   stackId="a" fill={COLORS.HIGH}   radius={[0, 0, 0, 0]} animationDuration={800} />
-        <Bar dataKey="MEDIUM" name="Medium" stackId="a" fill={COLORS.MEDIUM} radius={[0, 0, 0, 0]} animationDuration={800} />
-        <Bar dataKey="LOW"    name="Low"    stackId="a" fill={COLORS.LOW}    radius={[4, 4, 0, 0]} animationDuration={800} />
+        {DISPLAY_LEVELS.map((level, index) => (
+          <Bar
+            key={level.id}
+            dataKey={level.id}
+            name={level.label}
+            stackId="a"
+            fill={level.color}
+            radius={index === DISPLAY_LEVELS.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+            animationDuration={800}
+          />
+        ))}
       </BarChart>
     </ResponsiveContainer>
   );

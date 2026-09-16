@@ -1,0 +1,50 @@
+---
+import { repoData } from '../lib/repoData';
+import { url } from '../lib/base';
+const { ruleCount, domainCount } = repoData;
+const GITHUB = 'https://github.com/openshield-org/openshield';
+---
+
+<section class="sec-rule" id="roadmap">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>How it works, and where it goes.</h2>
+      <a class="sec-link" href={url('/architecture/')}>Explore the architecture &#8594;</a>
+    </div>
+    <div class="tl-wrap">
+      <div class="tl">
+        <div class="tl-item"><span class="tl-q">MAY 2026 / V0.1.0</span><b>First light</b><p>20 rules across 6 domains, four framework maps, Sentinel export, SBOM on release.</p></div>
+        <div class="tl-item"><span class="tl-q">JUL 2026 / V0.3.0</span><b>Goes async</b><p>Background scan worker, Docker deploys, identity and post-quantum rules, GHCR images.</p></div>
+        <div class="tl-item now"><span class="tl-q">NOW</span><b>Enterprise pack</b><p>{ruleCount} rules across {domainCount} domains, evidence APIs, CBOM quantum scoring, OpenSSF Passing.</p></div>
+        <div class="tl-item next"><span class="tl-q">Q4 2026</span><b>1.0</b><p>Stable scanner and API contracts, signed releases with public verification.</p></div>
+        <div class="tl-item next"><span class="tl-q">Q1 2027</span><b>Org scale</b><p>Multi-subscription workflows and a provider interface for future clouds.</p></div>
+      </div>
+    </div>
+    <div class="pipe-wrap" aria-label="OpenShield system flow">
+      <div class="pipe">
+        <div class="pnode"><div class="t">Azure metadata</div><div class="s">READER ACCESS</div></div>
+        <span class="parrow">&#8594;</span>
+        <div class="pnode"><div class="t">Scanner</div><div class="s">{ruleCount} RULE MODULES</div></div>
+        <span class="parrow">&#8594;</span>
+        <div class="pnode"><div class="t">PostgreSQL</div><div class="s">FINDINGS + SCANS</div></div>
+        <span class="parrow">&#8594;</span>
+        <div class="pnode"><div class="t">Flask API</div><div class="s">AUTHENTICATED ACCESS</div></div>
+        <span class="parrow">&#8594;</span>
+        <div class="pnode"><div class="t">Dashboard + exports</div><div class="s">OPERATOR VIEWS</div></div>
+      </div>
+    </div>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead><tr><th>Capability</th><th class="us">OpenShield</th><th>Typical enterprise CSPM</th></tr></thead>
+        <tbody>
+          <tr><td>Open source rule library</td><td class="yes">&#10003; every rule readable in the repo</td><td class="no">&#10007; closed checks</td></tr>
+          <tr><td>Self-hosted findings store</td><td class="yes">&#10003; your PostgreSQL, your tenant</td><td class="no">&#10007; vendor cloud</td></tr>
+          <tr><td>Framework mapping</td><td class="yes">&#10003; CIS, NIST, ISO 27001, SOC 2</td><td class="yes">&#10003; comparable</td></tr>
+          <tr><td>Remediation guidance</td><td class="yes">&#10003; repository playbooks</td><td class="part">~ implementation varies</td></tr>
+          <tr><td>SIEM export</td><td class="yes">&#10003; Microsoft Sentinel</td><td class="part">~ varies</td></tr>
+          <tr><td>Cost</td><td class="yes">&#10003; MIT, free forever</td><td class="no">&#10007; enterprise licence</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

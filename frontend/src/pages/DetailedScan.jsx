@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { FiArrowLeft, FiX, FiAlertTriangle } from 'react-icons/fi';
 import { api } from '../utils/api';
@@ -8,12 +8,22 @@ import AskAIButton from '../components/scan/AskAIButton';
 import SeverityBadge from '../components/shared/SeverityBadge';
 import Card from '../components/shared/Card';
 import Loader from '../components/shared/Loader';
+import EmptyState from '../components/shared/EmptyState';
+import ErrorState from '../components/shared/ErrorState';
+import usePageData from '../hooks/usePageData';
 
 const IMPACT_COLORS = {
   CRITICAL: 'text-red-600 dark:text-red-400',
   HIGH:     'text-orange-500 dark:text-orange-400',
   MEDIUM:   'text-yellow-600 dark:text-yellow-400',
   LOW:      'text-green-600 dark:text-green-400',
+};
+
+const EMPTY_PLAYBOOK = {
+  portalSteps: [],
+  cliCommands: [],
+  validationSteps: [],
+  references: [],
 };
 
 function FromPrioritizationBanner({ state, finding, onDismiss }) {
@@ -77,36 +87,51 @@ function FromPrioritizationBanner({ state, finding, onDismiss }) {
 
 export default function DetailedScan() {
   const location = useLocation();
-  const [findings, setFindings]     = useState([]);
-  const [selected, setSelected]     = useState(null);
-  const [playbook, setPlaybook]     = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [playbookState, setPlaybookState] = useState({ findingId: null, data: null });
   const [showBanner, setShowBanner] = useState(!!location.state?.fromPrioritization);
   const preSelectRuleId = location.state?.ruleId;
+  const loadFindings = useCallback(() => api.getFindings(), []);
+  const { status, data: findings, retry } = usePageData(loadFindings);
 
-  // Load findings on mount
+  const preselected = preSelectRuleId
+    ? findings?.find((finding) => finding.ruleId === preSelectRuleId)
+    : null;
+  const selected = findings?.find((finding) => finding.id === selectedId)
+    ?? preselected
+    ?? findings?.[0]
+    ?? null;
+  const playbook = playbookState.findingId === selected?.id ? playbookState.data : null;
+
+  // Fetch the playbook for the derived initial finding or a user selection.
   useEffect(() => {
-    api.getFindings().then((data) => {
-      setFindings(data);
-      const initial = preSelectRuleId
-        ? (data.find((f) => f.ruleId === preSelectRuleId) ?? data[0])
-        : data[0];
-      selectFinding(initial);
+    if (!selected?.id) return undefined;
+    let active = true;
+    api.getPlaybook(selected.id).then((data) => {
+      if (active) setPlaybookState({ findingId: selected.id, data });
+    }).catch(() => {
+      if (active) setPlaybookState({ findingId: selected.id, data: EMPTY_PLAYBOOK });
     });
-  }, [preSelectRuleId]);
-
-  // Fetch playbook whenever selected finding changes
-  async function selectFinding(f) {
-    setSelected(f);
-    setPlaybook(null);
-    if (!f?.id) return;
-    const pb = await api.getPlaybook(f.id);
-    setPlaybook(pb);
-  }
+    return () => { active = false; };
+  }, [selected?.id]);
 
   // Merge playbook data into the selected finding for rendering
   const enriched = selected ? { ...selected, ...(playbook || {}) } : null;
 
-  if (!findings.length) return <Loader rows={6} />;
+  if (status === 'loading') return <Loader rows={6} />;
+  if (status === 'error') return (
+    <ErrorState
+      title="Could not load scan findings"
+      description="Detailed findings are unavailable right now."
+      onRetry={retry}
+    />
+  );
+  if (findings.length === 0) return (
+    <EmptyState
+      title="No findings detected"
+      description="The latest scan completed without reporting security findings."
+    />
+  );
 
   const fromState = location.state?.fromPrioritization ? location.state : null;
 
@@ -134,7 +159,7 @@ export default function DetailedScan() {
               return (
                 <button
                   key={f.id}
-                  onClick={() => selectFinding(f)}
+                  onClick={() => setSelectedId(f.id)}
                   className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 ${
                     isActive
                       ? 'border-brand-primary bg-brand-primary/5 dark:bg-brand-primary/10 shadow-soft'

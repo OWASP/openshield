@@ -9,13 +9,12 @@ from api.models.finding import DatabaseManager
 from api.validation import (
     CATEGORIES,
     RULE_ID_RE,
-    SEVERITIES,
     VALIDATION_ERROR_MESSAGE,
     ValidationError,
     bounded_string,
     canonical_choice,
-    choice,
     positive_integer,
+    severity_value,
     uuid_string,
 )
 
@@ -40,7 +39,7 @@ def list_findings():
     """Return findings, optionally filtered by severity, category, or rule_id.
 
     Query parameters:
-        severity  - HIGH | MEDIUM | LOW | INFO
+        severity  - CRITICAL | HIGH | MEDIUM | LOW | INFO
         category  - Storage | Network | Identity | Database | Compute | KeyVault
         rule_id   - e.g. AZ-STOR-001
         scan_id   - UUID of a specific scan
@@ -56,7 +55,7 @@ def list_findings():
 
         filters = {}
         if "severity" in request.args:
-            filters["severity"] = choice(request.args["severity"], "severity", SEVERITIES, case="upper")
+            filters["severity"] = severity_value(request.args["severity"])
         if "category" in request.args:
             filters["category"] = canonical_choice(request.args["category"], "category", CATEGORIES)
         if "rule_id" in request.args:

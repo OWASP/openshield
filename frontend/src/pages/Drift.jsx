@@ -1,20 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { api } from '../utils/api';
 import DriftSummary from '../components/drift/DriftSummary';
 import DriftTimeline from '../components/drift/DriftTimeline';
 import DriftFilters from '../components/drift/DriftFilters';
 import Loader from '../components/shared/Loader';
+import ErrorState from '../components/shared/ErrorState';
+import usePageData from '../hooks/usePageData';
 import { formatDateTime } from '../utils/helpers';
 
 export default function Drift() {
-  const [data, setData] = useState(null);
   const [filters, setFilters] = useState({ type: 'All', severity: 'All' });
+  const loadDrift = useCallback(() => api.getDrift(), []);
+  const { status, data, retry } = usePageData(loadDrift);
 
-  useEffect(() => {
-    api.getDrift().then(setData);
-  }, []);
-
-  if (!data) return <Loader rows={6} />;
+  if (status === 'loading') return <Loader rows={6} />;
+  if (status === 'error') return (
+    <ErrorState
+      title="Could not load drift data"
+      description="Configuration change history is unavailable right now."
+      onRetry={retry}
+    />
+  );
 
   const filtered = data.events.filter((e) => {
     if (filters.type !== 'All' && e.type !== filters.type) return false;

@@ -6,7 +6,7 @@ RUN apt-get update \
     && apt-get dist-upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade \
         pip==26.1.2 \
         setuptools==83.0.0 \
@@ -15,12 +15,16 @@ RUN pip install --no-cache-dir --upgrade \
 
 COPY . .
 
+RUN python -m ai.embed
+
 RUN groupadd --system openshield && \
     useradd --system --gid openshield --no-create-home openshield && \
     chown -R openshield:openshield /app
 
 USER openshield
 
+ENV PORT=8000
+
 EXPOSE 8000
 
-CMD ["gunicorn", "--workers", "2", "--threads", "2", "--timeout", "120", "--bind", "0.0.0.0:8000", "api.app:app"]
+CMD ["./startup.sh"]

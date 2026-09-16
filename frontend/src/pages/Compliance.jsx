@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { api } from '../utils/api';
 import FrameworkCards from '../components/compliance/FrameworkCards';
 import ComplianceTable from '../components/compliance/ComplianceTable';
@@ -6,30 +6,48 @@ import ComparisonChart from '../components/compliance/ComparisonChart';
 import ExportButton from '../components/compliance/ExportButton';
 import Card from '../components/shared/Card';
 import Loader from '../components/shared/Loader';
+import EmptyState from '../components/shared/EmptyState';
+import ErrorState from '../components/shared/ErrorState';
+import usePageData from '../hooks/usePageData';
 
 export default function Compliance() {
-  const [data, setData] = useState(null);
   const [selectedFw, setSelectedFw] = useState(null);
   const [statusFilter, setStatusFilter] = useState('All');
+  const loadCompliance = useCallback(() => api.getCompliance(), []);
+  const { status, data, retry } = usePageData(loadCompliance);
 
-  useEffect(() => {
-    api.getCompliance().then((d) => {
-      setData(d);
-      setSelectedFw(d.frameworks[0]);
-    });
-  }, []);
+  if (status === 'loading') return <Loader rows={8} />;
+  if (status === 'error') return (
+    <ErrorState
+      title="Could not load compliance data"
+      description="Compliance frameworks and controls are unavailable right now."
+      onRetry={retry}
+    />
+  );
+  if (data.frameworks.length === 0 && data.controls.length === 0) return (
+    <EmptyState
+      title="No compliance results"
+      description="Run a scan to assess resources against compliance frameworks."
+    />
+  );
 
-  if (!data) return <Loader rows={8} />;
+  const activeFramework = data.frameworks.find((framework) => framework.name === selectedFw?.name)
+    ?? data.frameworks[0]
+    ?? null;
 
   const filteredControls = data.controls.filter((c) => {
-    if (selectedFw && c.framework !== selectedFw.name) return false;
+    if (activeFramework && c.framework !== activeFramework.name) return false;
     if (statusFilter !== 'All' && c.status !== statusFilter) return false;
     return true;
   });
 
   return (
     <div className="space-y-6">
-      <FrameworkCards frameworks={data.frameworks} selected={selectedFw} onSelect={setSelectedFw} />
+      <FrameworkCards
+        frameworks={data.frameworks}
+        selected={activeFramework}
+        onSelect={setSelectedFw}
+      />
 
       <Card>
         <h2 className="text-base font-semibold text-text-primary dark:text-text-dark-primary mb-4">Framework Score Trends</h2>

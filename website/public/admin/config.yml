@@ -1,0 +1,71 @@
+# Decap CMS configuration for the OpenShield website.
+#
+# One-time setup (see website/README.md):
+#   1. Register a GitHub OAuth App:
+#        https://github.com/settings/applications/new
+#      Homepage URL:            https://openshield-org.github.io/openshield/admin/
+#      Authorization callback: https://api.netlify.com/auth/done
+#   2. Store the public Client ID in the DECAP_GITHUB_APP_ID repository
+#      variable. The deployment pipeline injects it into the built artifact.
+#
+# Publishing flow (compatible with branch protection on dev and main):
+#   author writes in /admin -> editorial_workflow opens a PR from cms/<slug>
+#   against dev, DCO-signed -> maintainer reviews and merges -> GitHub
+#   Actions builds and deploys to Pages automatically.
+
+site_url: https://openshield-org.github.io/openshield/
+display_url: https://openshield-org.github.io/openshield/
+
+backend:
+  name: github
+  repo: openshield-org/openshield
+  branch: dev
+  auth_type: pkce
+  # The deployment build inserts app_id from the repository variable.
+  # Never put an OAuth client secret in this public configuration.
+
+publish_mode: editorial_workflow
+open_authoring: true
+
+media_folder: website/public/uploads
+public_folder: /openshield/uploads
+
+commit_messages:
+  create: "content(blog): create {{slug}}\n\nSigned-off-by: {{author-name}} <{{author-email}}>"
+  update: "content(blog): update {{slug}}\n\nSigned-off-by: {{author-name}} <{{author-email}}>"
+  delete: "content(blog): delete {{slug}}\n\nSigned-off-by: {{author-name}} <{{author-email}}>"
+  uploadMedia: "content(uploads): add {{filename}}\n\nSigned-off-by: {{author-name}} <{{author-email}}>"
+  deleteMedia: "content(uploads): remove {{filename}}\n\nSigned-off-by: {{author-name}} <{{author-email}}>"
+
+collections:
+  - name: blog
+    label: Blog posts
+    label_singular: Blog post
+    folder: website/src/content/blog
+    create: true
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    summary: "{{title}} ({{year}}-{{month}}-{{day}})"
+    sortable_fields: ["pubDate", "title"]
+    editor:
+      preview: true
+    fields:
+      - { name: title, label: Title }
+      - {
+          name: description,
+          label: Description,
+          hint: "One sentence shown on cards, RSS and search results.",
+        }
+      - {
+          name: pubDate,
+          label: Publish date,
+          widget: datetime,
+          date_format: "YYYY-MM-DD",
+          time_format: false,
+          format: "YYYY-MM-DD",
+        }
+      - { name: author, label: Author, default: "OpenShield Maintainers" }
+      - { name: tags, label: Tags, widget: list, required: false }
+      - { name: draft, label: Draft, widget: boolean, default: false, required: false }
+      - { name: body, label: Body, widget: markdown }

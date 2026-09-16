@@ -25,8 +25,8 @@ def get_score():
     """Return the overall security posture score (0-100).
 
     Score calculation:
-        Starts at 100. Deducts 10 per HIGH finding, 5 per MEDIUM, 2 per LOW.
-        Floors at 0.
+        Starts at 100. Deducts 20 per CRITICAL finding, 10 per HIGH,
+        5 per MEDIUM, 2 per LOW, and 0 per INFO. Floors at 0.
     """
     try:
         db = _get_db()

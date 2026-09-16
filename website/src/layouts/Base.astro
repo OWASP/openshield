@@ -1,0 +1,224 @@
+---
+import { url } from '../lib/base';
+import { repoData } from '../lib/repoData';
+import logoLight from '../assets/logo-light.png';
+import logoDark from '../assets/logo-dark.png';
+
+import '@fontsource-variable/schibsted-grotesk';
+import '@fontsource/dm-mono/300.css';
+import '@fontsource/dm-mono/400.css';
+import '@fontsource/dm-mono/500.css';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** which nav tab is active: start | rules | architecture | docs | blog | community | evidence */
+  active?: string;
+  /** page-level structured data (SoftwareApplication, BlogPosting, ...) */
+  jsonLd?: Record<string, unknown>;
+  ogType?: 'website' | 'article';
+}
+const {
+  title = 'OpenShield · Open source security posture for Azure',
+  description = 'OpenShield scans Azure subscriptions for misconfigurations and connects findings to compliance mappings and remediation guidance. MIT licensed and open source.',
+  active = 'start',
+  jsonLd,
+  ogType = 'website',
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const GITHUB = 'https://github.com/openshield-org/openshield';
+const year = new Date().getFullYear();
+
+/* Structured data: Organization + WebSite on every page. Read by search
+   engines only; renders nothing visible. */
+const siteRoot = new URL(url('/'), Astro.site).href;
+const socialImage = new URL(url('/diagrams/scan-pipeline.svg'), Astro.site).href;
+const pathParts = Astro.url.pathname.split('/').filter((part) => part !== 'openshield');
+const breadcrumbs = pathParts.length ? {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'OpenShield', item: siteRoot },
+    ...pathParts.map((part, index) => ({
+      '@type': 'ListItem',
+      position: index + 2,
+      name: part.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
+      item: new URL(url(`/${pathParts.slice(0, index + 1).join('/')}/`), Astro.site).href,
+    })),
+  ],
+} : null;
+const siteJsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      name: 'OpenShield',
+      url: siteRoot,
+      logo: new URL(url('/favicon.svg'), Astro.site).href,
+      sameAs: [GITHUB],
+    },
+    {
+      '@type': 'WebSite',
+      name: 'OpenShield',
+      url: siteRoot,
+    },
+  ],
+};
+---
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<meta name="description" content={description}>
+<link rel="canonical" href={canonical}>
+<link rel="icon" href={url('/favicon.svg')} type="image/svg+xml">
+<link rel="alternate" type="application/rss+xml" title="OpenShield Blog" href={url('/rss.xml')}>
+
+<!-- Open Graph -->
+<meta property="og:type" content={ogType}>
+<meta property="og:title" content={title}>
+<meta property="og:description" content={description}>
+<meta property="og:url" content={canonical}>
+<meta property="og:site_name" content="OpenShield">
+<meta property="og:image" content={socialImage}>
+<meta property="og:image:alt" content="OpenShield scan pipeline from Azure access to findings and remediation">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content={title}>
+<meta name="twitter:description" content={description}>
+<meta name="twitter:image" content={socialImage}>
+
+<!-- Structured data (search engines only, nothing rendered) -->
+<script type="application/ld+json" set:html={JSON.stringify(siteJsonLd)} is:inline></script>
+{jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} is:inline></script>}
+{breadcrumbs && <script type="application/ld+json" set:html={JSON.stringify(breadcrumbs)} is:inline></script>}
+
+<!--
+  GitHub Pages cannot configure response headers. This meta policy covers the
+  directives browsers support in document metadata. Hosting-level directives
+  must be added if the deployment moves to a configurable edge.
+-->
+<meta http-equiv="Content-Security-Policy" content={`default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self'`}>
+<meta name="referrer" content="strict-origin-when-cross-origin">
+</head>
+<body>
+
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="wordmark" href={url('/')}><img src={logoLight.src} alt="OpenShield" width="132" height="22"></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation">
+      <span>Menu</span><span aria-hidden="true">+</span>
+    </button>
+    <div class="navlinks" id="primary-navigation">
+      <a href={url('/#start')} aria-current={active === 'start' ? 'page' : undefined}>Start here</a>
+      <a href={url('/rules/')} aria-current={active === 'rules' ? 'page' : undefined}>Rules</a>
+      <a href={url('/architecture/')} aria-current={active === 'architecture' ? 'page' : undefined}>Architecture</a>
+      <a href={url('/docs/')} aria-current={active === 'docs' ? 'page' : undefined}>Docs</a>
+      <a href={url('/blog/')} aria-current={active === 'blog' ? 'page' : undefined}>Blog</a>
+      <a href={url('/community/')} aria-current={active === 'community' ? 'page' : undefined}>Community</a>
+    </div>
+    <div class="nav-right">
+      <a class="star-btn" href={GITHUB} target="_blank" rel="noopener">&#9733; Star<span id="starCount"></span></a>
+    </div>
+  </div>
+</nav>
+
+<main id="main-content" tabindex="-1">
+  <slot />
+</main>
+
+<section class="cta" id="get-started">
+  <div class="wrap">
+    <div class="kicker">Get started</div>
+    <h2>Open source security posture for Azure.</h2>
+    <div class="hero-cta">
+      <a class="btn btn-accent" href={url('/docs/')}>Read the quickstart <span class="ar">&#8594;</span></a>
+      <a class="btn btn-ghostline" href={GITHUB} target="_blank" rel="noopener">Star on GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="f-grid">
+      <div>
+        <img class="f-logo" src={logoDark.src} alt="OpenShield" width="156" height="26">
+        <p class="f-tag">Detect Azure misconfigurations, map them to compliance frameworks, and remediate with the exact CLI command. Community-driven, MIT licensed.</p>
+      </div>
+      <div class="f-col">
+        <h4>Product</h4>
+        <a href={url('/rules/')}>Rule book</a>
+        <a href={url('/architecture/')}>Architecture</a>
+        <a href="https://openshield-gules.vercel.app" target="_blank" rel="noopener">Dashboard</a>
+        <a href={`${GITHUB}/tree/dev/playbooks/cli`} target="_blank" rel="noopener">Playbooks</a>
+        <a href={url('/#roadmap')}>Roadmap</a>
+      </div>
+      <div class="f-col">
+        <h4>Resources</h4>
+        <a href={url('/docs/')}>Documentation</a>
+        <a href={url('/evidence/')}>Project evidence</a>
+        <a href={url('/blog/')}>Blog</a>
+        <a href={url('/rss.xml')}>RSS feed</a>
+        <a href={`${GITHUB}/releases`} target="_blank" rel="noopener">Releases</a>
+      </div>
+      <div class="f-col">
+        <h4>Stay in the loop</h4>
+        <div class="sub sub-links">
+          <a href={url('/rss.xml')}>RSS feed</a>
+          <a href={`${GITHUB}/subscription`} target="_blank" rel="noopener">Watch releases</a>
+        </div>
+        <p class="sub-status mono">New posts land in the feed. GitHub notifies you on every release.</p>
+        <div style="margin-top:14px">
+          <a href={GITHUB} target="_blank" rel="noopener">GitHub</a>
+          <a href={`${GITHUB}/issues`} target="_blank" rel="noopener">Issues</a>
+          <a href={`${GITHUB}/blob/dev/CONTRIBUTING.md`} target="_blank" rel="noopener">Contributing</a>
+        </div>
+      </div>
+    </div>
+    <div class="f-bottom">
+      <span>&copy; {year} OPENSHIELD CONTRIBUTORS / MIT LICENCE / {repoData.contributorCount} CONTRIBUTORS</span>
+      <span>PROJECT LEAD: VISHNU / MAINTAINERS: RITIK / TANVIR / PARTH</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* star count + nav elevation, shared by every page */
+  const nav = document.querySelector('.nav');
+  const navToggle = document.querySelector('.nav-toggle');
+  const navLinks = document.getElementById('primary-navigation');
+  const onScroll = () => nav && nav.classList.toggle('scrolled', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  navToggle?.addEventListener('click', () => {
+    const open = navToggle.getAttribute('aria-expanded') !== 'true';
+    navToggle.setAttribute('aria-expanded', String(open));
+    navLinks?.classList.toggle('open', open);
+  });
+  navLinks?.addEventListener('click', (event) => {
+    if ((event.target as HTMLElement).closest('a')) {
+      navToggle?.setAttribute('aria-expanded', 'false');
+      navLinks.classList.remove('open');
+    }
+  });
+
+  fetch('https://api.github.com/repos/openshield-org/openshield')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      const el = document.getElementById('starCount');
+      if (el && d && typeof d.stargazers_count === 'number') {
+        el.textContent = ` ${d.stargazers_count.toLocaleString('en-US')}`;
+      }
+    })
+    .catch(() => {});
+</script>
+
+</body>
+</html>

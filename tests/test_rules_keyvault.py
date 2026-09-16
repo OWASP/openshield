@@ -12,6 +12,7 @@ import scanner.rules.az_kv_003 as az_kv_003
 import scanner.rules.az_kv_004 as az_kv_004
 import scanner.rules.az_kv_005 as az_kv_005
 import scanner.rules.az_kv_006 as az_kv_006
+from scanner.evaluation import EvaluationStatus
 from tests.helpers.mock_azure import make_resource
 
 _REQUIRED_FIELDS = {
@@ -205,3 +206,58 @@ def test_kv_006_missing_property_defaults_to_noncompliant(mock_azure, subscripti
     findings = az_kv_006.scan(mock_azure, subscription_id)
     assert len(findings) == 1
     assert findings[0]["rule_id"] == "AZ-KV-006"
+
+
+# ── AZ-KV-006 evaluate(): coverage contract (#263) ──────────────────────────
+
+
+def test_kv_006_evaluate_compliant_vault_is_pass(mock_azure, subscription_id):
+    mock_azure.set_key_vaults([_vault_with_props("kv-rbac-on", enable_rbac_authorization=True)])
+    evaluations = az_kv_006.evaluate(mock_azure, subscription_id)
+    assert len(evaluations) == 1
+    assert evaluations[0].status == EvaluationStatus.PASS
+    assert evaluations[0].resource_id == _kv_id("kv-rbac-on")
+    assert evaluations[0].finding is None
+
+
+def test_kv_006_evaluate_noncompliant_vault_is_fail_with_embedded_finding(mock_azure, subscription_id):
+    mock_azure.set_key_vaults([_vault_with_props("kv-rbac-off", enable_rbac_authorization=False)])
+    evaluations = az_kv_006.evaluate(mock_azure, subscription_id)
+    assert len(evaluations) == 1
+    assert evaluations[0].status == EvaluationStatus.FAIL
+    assert evaluations[0].finding["rule_id"] == "AZ-KV-006"
+    assert evaluations[0].finding["resource_id"] == _kv_id("kv-rbac-off")
+
+
+def test_kv_006_evaluate_missing_properties_is_unknown_not_pass(mock_azure, subscription_id):
+    """A vault returned without a properties payload must not be silently
+    skipped (as scan() does) — evaluate() must state it couldn't be checked."""
+    vault = make_resource(id=_kv_id("kv-no-props"), name="kv-no-props", location="eastus", properties=None)
+    mock_azure.set_key_vaults([vault])
+    evaluations = az_kv_006.evaluate(mock_azure, subscription_id)
+    assert len(evaluations) == 1
+    assert evaluations[0].status == EvaluationStatus.UNKNOWN
+    assert evaluations[0].reason_code == "MISSING_PROPERTIES"
+
+
+def test_kv_006_evaluate_no_vaults_is_not_applicable(mock_azure, subscription_id):
+    """An empty vault list can't be told apart from a failed list call, so it
+    must not be reported as a PASS."""
+    mock_azure.set_key_vaults([])
+    evaluations = az_kv_006.evaluate(mock_azure, subscription_id)
+    assert len(evaluations) == 1
+    assert evaluations[0].status == EvaluationStatus.NOT_APPLICABLE
+    assert evaluations[0].resource_id == f"/subscriptions/{subscription_id}"
+
+
+def test_kv_006_evaluate_reports_one_status_per_vault(mock_azure, subscription_id):
+    mock_azure.set_key_vaults(
+        [
+            _vault_with_props("kv-a", enable_rbac_authorization=True),
+            _vault_with_props("kv-b", enable_rbac_authorization=False),
+        ]
+    )
+    evaluations = az_kv_006.evaluate(mock_azure, subscription_id)
+    statuses = {e.resource_id: e.status for e in evaluations}
+    assert statuses[_kv_id("kv-a")] == EvaluationStatus.PASS
+    assert statuses[_kv_id("kv-b")] == EvaluationStatus.FAIL

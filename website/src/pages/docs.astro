@@ -1,0 +1,112 @@
+---
+import Base from '../layouts/Base.astro';
+import { url } from '../lib/base';
+import { repoData } from '../lib/repoData';
+
+const { docs } = repoData;
+const GITHUB = 'https://github.com/openshield-org/openshield';
+
+const sections = ['Guides and references', 'Deployment', 'Validation reports'];
+const grouped = sections
+  .map((section) => ({ section, items: docs.filter((d) => d.section === section) }))
+  .filter((g) => g.items.length > 0);
+---
+
+<Base title="Docs · OpenShield" description="Guides, references and validation reports for OpenShield, from Azure setup to adding your own rule." active="docs">
+  <div class="wrap">
+    <div class="page-head">
+      <span class="page-step">From access to evidence</span>
+      <h1>Run your first scan.</h1>
+      <p class="sub">
+        Start with read-only Azure access, inspect an illustrative result, then use the full repository reference when you need more detail.
+      </p>
+    </div>
+
+    <section class="quickstart" aria-labelledby="quickstart-title">
+      <div class="quickstart-intro">
+        <div>
+          <span class="page-step">About 10 minutes</span>
+          <h2 id="quickstart-title">A short path to useful evidence.</h2>
+        </div>
+        <p>OpenShield reads Azure configuration through the Reader role. The commands below are a guided starting point. Review the complete setup guide before using a production subscription.</p>
+      </div>
+      <ol class="quickstart-steps">
+        <li>
+          <span class="qs-number">01</span>
+          <div><h3>Clone and create an environment</h3><pre><code>git clone https://github.com/openshield-org/openshield.git
+cd openshield
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt</code></pre></div>
+        </li>
+        <li>
+          <span class="qs-number">02</span>
+          <div><h3>Authenticate with read-only access</h3><pre><code>az login
+export AZURE_SUBSCRIPTION_ID="your-subscription-id"</code></pre><p>Follow the Azure setup guide for service-principal variables and least-privilege scope.</p></div>
+        </li>
+        <li>
+          <span class="qs-number">03</span>
+          <div><h3>Run and inspect</h3><pre><code>python -m scanner.run \
+  --subscription "$AZURE_SUBSCRIPTION_ID"</code></pre><p>Use the rule book to trace each rule back to its source, framework mapping and playbook.</p></div>
+        </li>
+      </ol>
+      <div class="quickstart-actions">
+        <a class="btn btn-dark" href={`${GITHUB}/blob/dev/docs/azure-setup.md`} target="_blank" rel="noopener">Review Azure setup <span class="ar">&#8594;</span></a>
+        <a class="btn btn-line" href={url('/rules/')}>Explore the rule book</a>
+      </div>
+      <aside class="evidence-note">
+        <strong>Know what is real.</strong>
+        <span>Rule, domain, playbook, contributor and release counts are extracted from this checkout during every build. Terminal scores shown on the site are illustrative and are labelled as such.</span>
+      </aside>
+    </section>
+
+    <section class="docs-library" aria-labelledby="docs-library-title">
+      <div class="sec-head">
+        <div><span class="page-step">Repository reference</span><h2 id="docs-library-title">Go deeper when you need to.</h2></div>
+        <a class="sec-link" href={`${GITHUB}/tree/dev/docs`} target="_blank" rel="noopener">Browse all {docs.length} documents &#8594;</a>
+      </div>
+      <div class="docs-filter">
+        <label for="docsSearch">Find a guide</label>
+        <input id="docsSearch" type="search" placeholder="Search setup, deployment, validation..." autocomplete="off">
+        <span id="docsCount" aria-live="polite">{docs.length} documents</span>
+      </div>
+      {grouped.map((group) => (
+        <div class="doc-group" data-doc-group>
+          <h3>{group.section}</h3>
+          <div class="doc-list">
+            {group.items.map((doc) => (
+              <a href={`${GITHUB}/blob/dev/docs/${doc.file}`} target="_blank" rel="noopener" data-doc-title={doc.title.toLowerCase()}>
+                <span>{doc.title}</span>
+                <span class="ar">&#8594;</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div class="docs-empty" id="docsEmpty" hidden>No documents match that search. Try a broader term.</div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  const docsSearch = document.getElementById('docsSearch') as HTMLInputElement;
+  const docsCount = document.getElementById('docsCount');
+  const docsEmpty = document.getElementById('docsEmpty');
+  const docsLinks = Array.from(document.querySelectorAll('[data-doc-title]')) as HTMLAnchorElement[];
+  const docGroups = Array.from(document.querySelectorAll('[data-doc-group]')) as HTMLElement[];
+
+  docsSearch?.addEventListener('input', () => {
+    const query = docsSearch.value.trim().toLowerCase();
+    let visible = 0;
+    docsLinks.forEach((link) => {
+      const matches = !query || (link.dataset.docTitle ?? '').includes(query);
+      link.hidden = !matches;
+      if (matches) visible++;
+    });
+    docGroups.forEach((group) => {
+      group.hidden = !group.querySelector('[data-doc-title]:not([hidden])');
+    });
+    if (docsCount) docsCount.textContent = `${visible} document${visible === 1 ? '' : 's'}`;
+    if (docsEmpty) docsEmpty.hidden = visible !== 0;
+  });
+</script>

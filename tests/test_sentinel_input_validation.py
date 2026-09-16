@@ -30,6 +30,12 @@ def test_normalise_rejects_non_object_and_invalid_severity():
         normalise({"severity": "urgent"}, "scan-1")
 
 
+@pytest.mark.parametrize("finding", ({}, {"severity": None}, {"severity": ""}))
+def test_normalise_rejects_missing_or_empty_severity(finding):
+    with pytest.raises(ValidationError, match="severity is required"):
+        normalise(finding, "scan-1")
+
+
 def test_normalise_accepts_bounded_finding():
     record = normalise(
         {"id": 1, "severity": "HIGH", "rule_id": "AZ-NET-001", "compliance": {"cis": "1.1"}},
@@ -37,6 +43,12 @@ def test_normalise_accepts_bounded_finding():
     )
     assert record["Severity"] == "High"
     assert record["RuleId"] == "AZ-NET-001"
+
+
+def test_normalise_canonicalizes_informational_alias():
+    record = normalise({"severity": "INFORMATIONAL"}, "scan-1")
+    assert record["Severity"] == "Info"
+    assert record["SeverityScore"] == 0
 
 
 def test_main_handles_invalid_config_without_traceback(monkeypatch, capsys):

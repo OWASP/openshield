@@ -1,0 +1,49 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { url } from '../../lib/base';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+
+function fmtDate(d: Date): string {
+  return d
+    .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    .toUpperCase();
+}
+
+function readingTime(body: string): number {
+  const words = body.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
+}
+---
+
+<Base title="Blog · OpenShield" description="Release notes, engineering deep-dives and integration guides from the OpenShield maintainers." active="blog">
+  <div class="wrap">
+    <div class="page-head">
+      <h1>From the blog.</h1>
+      <p class="sub">Release notes, engineering deep-dives and integration guides. Written by the maintainers, published as it ships.</p>
+    </div>
+    <section style="padding-top:22px">
+      <div class="blog-grid">
+        {posts.map((post, i) => {
+          const tag = post.data.tags[0] ?? 'Post';
+          return (
+            <div class="post">
+              <div class={`swatch r${(i % 6) + 1}`}>
+                <span class="ghost">POST/{String(i + 1).padStart(2, '0')}</span>
+                <span class="tag">{tag}</span>
+              </div>
+              <div class="body">
+                <h3><a href={url(`/blog/${post.id}/`)}>{post.data.title}</a></h3>
+                <p>{post.data.description}</p>
+                <span class="date">{fmtDate(post.data.pubDate)} / {readingTime(post.body)} MIN READ</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  </div>
+</Base>

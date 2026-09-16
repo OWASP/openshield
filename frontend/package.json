@@ -12,6 +12,8 @@
     "lint": "eslint . --max-warnings=0",
     "test:i18n": "node src/i18n/messages.test.mjs",
     "test:a11y": "node scripts/accessibility-check.mjs",
+    "sync:severity": "node scripts/sync-severity-contract.mjs",
+    "test:severity": "node scripts/sync-severity-contract.mjs --check && node --test src/utils/severity.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

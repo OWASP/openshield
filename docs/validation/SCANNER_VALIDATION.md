@@ -68,7 +68,7 @@ The expected finding fields are:
 |---|---|
 | `rule_id` | Stable OpenShield rule ID, for example `AZ-STOR-001` |
 | `rule_name` | Human-readable rule title |
-| `severity` | Severity label such as `HIGH`, `MEDIUM`, `LOW`, or `INFO` |
+| `severity` | Canonical severity: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `INFO` |
 | `category` | Rule category such as `Storage`, `Network`, or `Key Vault` |
 | `resource_id` | Full Azure resource ID when available |
 | `resource_name` | Azure resource name |
@@ -86,18 +86,20 @@ not already include them.
 
 The following matrix was verified from actual files in `scanner/rules`.
 
-Total verified rule files: **44**
+Total verified rule files: **64**
 
 | Category | Count | Rule IDs |
 |---|---:|---|
 | Compute | 4 | `AZ-CMP-001`, `AZ-CMP-002`, `AZ-CMP-003`, `AZ-CMP-004` |
-| Database | 4 | `AZ-DB-001`, `AZ-DB-002`, `AZ-DB-003`, `AZ-DB-004` |
-| Identity | 9 | `AZ-IDN-001`, `AZ-IDN-002`, `AZ-IDN-003`, `AZ-IDN-004`, `AZ-IDN-005`, `AZ-IDN-006`, `AZ-IDN-007`, `AZ-IDN-008`, `AZ-IDN-009` |
+| Database | 7 | `AZ-DB-001`, `AZ-DB-002`, `AZ-DB-003`, `AZ-DB-004`, `AZ-DB-005`, `AZ-DB-006`, `AZ-DB-007` |
+| Cosmos DB | 2 | `AZ-COSMOS-001`, `AZ-COSMOS-002` |
+| Identity | 19 | `AZ-IDN-001`, `AZ-IDN-002`, `AZ-IDN-003`, `AZ-IDN-004`, `AZ-IDN-005`, `AZ-IDN-006`, `AZ-IDN-007`, `AZ-IDN-008`, `AZ-IDN-009`, `AZ-IDN-016`, `AZ-IDN-017`, `AZ-IDN-018`, `AZ-IDN-019`, `AZ-IDN-020`, `AZ-IDN-021`, `AZ-IDN-022`, `AZ-IDN-023`, `AZ-IDN-024`, `AZ-IDN-025` |
 | Key Vault | 4 | `AZ-KV-002`, `AZ-KV-003`, `AZ-KV-004`, `AZ-KV-005` |
 | KeyVault | 1 | `AZ-KV-001` |
 | Network | 14 | `AZ-NET-001`, `AZ-NET-002`, `AZ-NET-003`, `AZ-NET-004`, `AZ-NET-005`, `AZ-NET-006`, `AZ-NET-007`, `AZ-NET-008`, `AZ-NET-009`, `AZ-NET-010`, `AZ-NET-011`, `AZ-NET-012`, `AZ-NET-013`, `AZ-NET-014` |
 | PostQuantum | 3 | `AZ-PQC-001`, `AZ-PQC-002`, `AZ-PQC-003` |
-| Storage | 5 | `AZ-STOR-001`, `AZ-STOR-002`, `AZ-STOR-003`, `AZ-STOR-004`, `AZ-STOR-005` |
+| Storage | 9 | `AZ-STOR-001`, `AZ-STOR-002`, `AZ-STOR-003`, `AZ-STOR-004`, `AZ-STOR-005`, `AZ-STOR-006`, `AZ-STOR-007`, `AZ-STOR-008`, `AZ-STOR-009` |
+| Managed Cache | 1 | `AZ-CACHE-001` |
 
 ## Initial Live Validation Candidates
 

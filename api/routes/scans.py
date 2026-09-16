@@ -19,6 +19,29 @@ from scanner.cve_correlator import enrich_findings
 scans_bp = Blueprint("scans", __name__)
 logger = logging.getLogger(__name__)
 
+_AUTHORIZED_SUBSCRIPTIONS_ENV = "OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS"
+
+
+def _subscription_is_authorized(subscription_id: str) -> bool:
+    """Return True unless an allowlist is configured and this ID isn't on it.
+
+    OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS is a comma-separated allowlist an
+    operator can set to bound which subscription_id values this deployment
+    will accept for scanning - the single-tenant containment boundary issue
+    #294 asks for until a real multi-tenant/OIDC boundary exists. Any
+    authenticated operator/admin token can otherwise trigger a scan against
+    an arbitrary subscription_id, since role alone doesn't say which
+    subscription a caller is entitled to.
+
+    Left unset (the default), every subscription_id is accepted - identical
+    to today's behavior, so existing single-operator deployments aren't
+    broken by this change. api.app's startup check warns loudly when it's
+    left unset.
+    """
+    raw = os.environ.get(_AUTHORIZED_SUBSCRIPTIONS_ENV, "")
+    allowlist = {value.strip().lower() for value in raw.split(",") if value.strip()}
+    return not allowlist or subscription_id.lower() in allowlist
+
 
 def _get_db() -> DatabaseManager:
     if "db" not in g:
@@ -77,6 +100,10 @@ def trigger_scan():
         if not subscription_id:
             return jsonify({"error": "subscription_id is required"}), 400
         subscription_id = uuid_string(subscription_id, "subscription_id")
+
+        if not _subscription_is_authorized(subscription_id):
+            logger.warning("Scan trigger rejected: subscription %s is not on the authorized allowlist", subscription_id)
+            return jsonify({"error": "Subscription is not authorized for this deployment"}), 403
 
         scan_id = str(uuid.uuid4())
         logger.info("Async scan triggered for subscription %s (id: %s)", subscription_id, scan_id)

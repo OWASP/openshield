@@ -74,8 +74,8 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: python scripts/render_deploy_preflight.py
 
-      # Creation and polling are separate so both exact deployment IDs are
-      # retained and independently monitored. POST creation is never retried.
+      # The API must become live before a new worker is created. API startup
+      # owns schema migration, and the worker for this SHA may require it.
       - name: Create API deployment
         id: create_api
         env:
@@ -85,6 +85,16 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
         run: python scripts/render_deploy.py create
 
+      - name: Wait for API deployment
+        id: wait_api
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ env.RENDER_API_SERVICE_ID }}
+          RENDER_SERVICE_NAME: API
+          RENDER_DEPLOY_ID: ${{ steps.create_api.outputs.deploy_id }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: python scripts/render_deploy.py wait
+
       - name: Create worker deployment
         id: create_worker
         env:
@@ -93,17 +103,6 @@ jobs:
           RENDER_SERVICE_NAME: worker
           GITHUB_SHA: ${{ github.sha }}
         run: python scripts/render_deploy.py create
-
-      - name: Wait for API deployment
-        id: wait_api
-        continue-on-error: true
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ env.RENDER_API_SERVICE_ID }}
-          RENDER_SERVICE_NAME: API
-          RENDER_DEPLOY_ID: ${{ steps.create_api.outputs.deploy_id }}
-          GITHUB_SHA: ${{ github.sha }}
-        run: python scripts/render_deploy.py wait
 
       - name: Wait for worker deployment
         id: wait_worker

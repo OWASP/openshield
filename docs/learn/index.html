@@ -752,7 +752,7 @@
           <div class="terminal-top" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
           <div class="terminal-body">
             <p><span class="prompt">openshield</span> scan --subscription Azure</p>
-            <p><span class="dim">loading rules:</span> <span class="cyan">39 dynamic checks</span></p>
+            <p><span class="dim">loading rules:</span> <span class="cyan">95 dynamic checks</span></p>
             <p><span class="dim">enrichment:</span> NVD / CVE intelligence</p>
             <p><span class="dim">storage:</span> PostgreSQL scan history</p>
             <p><span class="dim">api:</span> Flask + JWT + CORS</p>
@@ -764,11 +764,11 @@
     </div>
 
     <div class="metrics" aria-label="OpenShield project metrics">
-      <div class="metric"><strong>39</strong><span>Azure scan rules</span></div>
-      <div class="metric"><strong>39</strong><span>CLI remediation playbooks</span></div>
+      <div class="metric"><strong>95</strong><span>Azure scan rules</span></div>
+      <div class="metric"><strong>95</strong><span>CLI remediation playbooks</span></div>
       <div class="metric"><strong>4</strong><span>Compliance frameworks</span></div>
       <div class="metric"><strong>8</strong><span>AI security skills</span></div>
-      <div class="metric"><strong>22</strong><span>High-severity checks</span></div>
+      <div class="metric"><strong>58</strong><span>High-severity checks</span></div>
     </div>
   </header>
 
@@ -821,7 +821,7 @@
       <div class="pipeline" aria-label="OpenShield platform pipeline">
         <div class="pipeline-step"><strong>Azure Subscription</strong><span>Resources and configuration</span></div>
         <div class="pipeline-step"><strong>Scanner Engine</strong><span>Python rule execution</span></div>
-        <div class="pipeline-step"><strong>Rule Evaluation</strong><span>39 dynamic checks</span></div>
+        <div class="pipeline-step"><strong>Rule Evaluation</strong><span>95 dynamic checks</span></div>
         <div class="pipeline-step"><strong>CVE Enrichment</strong><span>NVD risk context</span></div>
         <div class="pipeline-step"><strong>PostgreSQL</strong><span>Findings and scan history</span></div>
         <div class="pipeline-step"><strong>Flask API</strong><span>JWT-protected REST routes</span></div>
@@ -843,7 +843,7 @@
       <p class="section-kicker">Rule coverage</p>
       <h2 class="section-title">95 Azure security rules</h2>
       <p class="section-intro">
-        OpenShield currently has 80 dynamic rules. The strongest contributor work improves rule accuracy, reduces false positives,
+        OpenShield currently has 95 dynamic rules. The strongest contributor work improves rule accuracy, reduces false positives,
         strengthens validation, or improves remediation quality.
       </p>
 
@@ -851,13 +851,19 @@
         <article class="card">
           <h3>Coverage by category</h3>
           <div class="rule-chart" aria-label="Rule count by category">
-            <div class="bar-row"><span>Network</span><div class="bar"><span style="width: 100%;"></span></div><span>14</span></div>
-            <div class="bar-row"><span>Storage</span><div class="bar"><span style="width: 36%;"></span></div><span>5</span></div>
-            <div class="bar-row"><span>Key Vault</span><div class="bar"><span style="width: 36%;"></span></div><span>5</span></div>
-            <div class="bar-row"><span>Compute</span><div class="bar"><span style="width: 29%;"></span></div><span>4</span></div>
-            <div class="bar-row"><span>Database</span><div class="bar"><span style="width: 29%;"></span></div><span>4</span></div>
-            <div class="bar-row"><span>Identity</span><div class="bar"><span style="width: 29%;"></span></div><span>4</span></div>
-            <div class="bar-row"><span>PostQuantum</span><div class="bar"><span style="width: 21%;"></span></div><span>3</span></div>
+            <div class="bar-row"><span>Network</span><div class="bar"><span style="width: 100%;"></span></div><span>23</span></div>
+            <div class="bar-row"><span>Identity</span><div class="bar"><span style="width: 65%;"></span></div><span>15</span></div>
+            <div class="bar-row"><span>Security Operations</span><div class="bar"><span style="width: 43%;"></span></div><span>10</span></div>
+            <div class="bar-row"><span>Supply Chain</span><div class="bar"><span style="width: 35%;"></span></div><span>8</span></div>
+            <div class="bar-row"><span>KeyVault</span><div class="bar"><span style="width: 26%;"></span></div><span>6</span></div>
+            <div class="bar-row"><span>Kubernetes</span><div class="bar"><span style="width: 26%;"></span></div><span>6</span></div>
+            <div class="bar-row"><span>Serverless</span><div class="bar"><span style="width: 22%;"></span></div><span>5</span></div>
+            <div class="bar-row"><span>Storage</span><div class="bar"><span style="width: 22%;"></span></div><span>5</span></div>
+            <div class="bar-row"><span>Backup</span><div class="bar"><span style="width: 17%;"></span></div><span>4</span></div>
+            <div class="bar-row"><span>Compute</span><div class="bar"><span style="width: 17%;"></span></div><span>4</span></div>
+            <div class="bar-row"><span>Database</span><div class="bar"><span style="width: 17%;"></span></div><span>4</span></div>
+            <div class="bar-row"><span>PostQuantum</span><div class="bar"><span style="width: 13%;"></span></div><span>3</span></div>
+            <div class="bar-row"><span>Data Link</span><div class="bar"><span style="width: 9%;"></span></div><span>2</span></div>
           </div>
         </article>
 
@@ -865,11 +871,10 @@
           <h3>Severity distribution</h3>
           <p>Most checks are high severity. That makes validation important: high-severity false positives damage trust quickly.</p>
           <div class="severity" aria-label="Severity count summary">
-            <div class="severity-box high"><strong>22</strong><span>HIGH</span></div>
-            <div class="severity-box medium"><strong>13</strong><span>MEDIUM</span></div>
+            <div class="severity-box high"><strong>58</strong><span>HIGH</span></div>
+            <div class="severity-box medium"><strong>31</strong><span>MEDIUM</span></div>
             <div class="severity-box low"><strong>4</strong><span>LOW</span></div>
           </div>
-          <p style="margin-top: 14px;">Known cleanup item: keep category names consistent, especially <code>KeyVault</code> vs <code>Key Vault</code>.</p>
         </article>
       </div>
     </section>
@@ -931,7 +936,7 @@
         <article class="card">
           <h3>Documentation drift</h3>
           <ul>
-            <li>Rule coverage and documentation counts are checked and updated with each release.</li>
+            <li>Rule, playbook, and severity statistics on this page and in <code>README.md</code> are generated from <code>scanner/rules/</code> and <code>playbooks/cli/</code> by <code>.github/scripts/update_learn_page.py</code> on every push to <code>dev</code>.</li>
             <li>Some startup commands assume <code>python</code>, but local environments may only expose <code>python3</code>.</li>
             <li>API docs and implementation should stay aligned, especially score response shape.</li>
           </ul>

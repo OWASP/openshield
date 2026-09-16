@@ -11,6 +11,7 @@ from pathlib import Path
 import requests
 
 from api.validation import ValidationError, bounded_string, uuid_string
+from openshield.severity import SeverityContractError, normalize_severity, severity_rank
 
 WORKSPACE_ID = os.environ.get("SENTINEL_WORKSPACE_ID", "")
 SHARED_KEY = os.environ.get("SENTINEL_SHARED_KEY", "")
@@ -71,10 +72,13 @@ def normalise(raw, scan_id):
     if not isinstance(raw, dict):
         raise ValidationError("each Sentinel finding must be an object")
     scan_id = bounded_string(scan_id, "scan_id", maximum=128, pattern=re.compile(r"^[A-Za-z0-9._:-]+$"))
-    sev_map = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1, "INFO": 0}
-    sev = _safe_text(raw.get("severity", "MEDIUM"), "severity", maximum=16).upper()
-    if sev not in sev_map:
-        raise ValidationError("severity must be CRITICAL, HIGH, MEDIUM, LOW, or INFO")
+    if raw.get("severity") in (None, ""):
+        raise ValidationError("severity is required for every Sentinel finding")
+    raw_severity = _safe_text(raw["severity"], "severity", maximum=16)
+    try:
+        sev = normalize_severity(raw_severity)
+    except SeverityContractError as exc:
+        raise ValidationError("severity is outside the OpenShield severity contract") from exc
     compliance = raw.get("compliance", {})
     if not isinstance(compliance, dict):
         raise ValidationError("compliance must be an object")
@@ -93,7 +97,7 @@ def normalise(raw, scan_id):
         "RuleId": _safe_text(raw.get("rule_id", ""), "rule_id", maximum=64),
         "RuleName": _safe_text(raw.get("rule_name", ""), "rule_name", maximum=512),
         "Severity": sev.capitalize(),
-        "SeverityScore": sev_map.get(sev, 0),
+        "SeverityScore": severity_rank(sev),
         "Description": _safe_text(raw.get("description", ""), "description"),
         "Remediation": _safe_text(raw.get("remediation", ""), "remediation"),
         "CisControl": _safe_text(compliance.get("cis", ""), "compliance.cis", maximum=128),

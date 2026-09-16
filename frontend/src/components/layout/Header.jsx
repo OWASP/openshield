@@ -5,6 +5,7 @@ import {
   FiLoader, FiZap, FiCheckCircle, FiAlertCircle, FiClock,
 } from 'react-icons/fi';
 import { api } from '../../utils/api';
+import { pollScan } from '../../utils/scanPolling';
 import { useI18n } from '../../i18n/I18nState';
 
 const PAGE_KEYS = {
@@ -223,14 +224,12 @@ export default function Header({ onMenuToggle }) {
         return;
       }
 
-      // Poll until done (max 5 min, every 4s)
+      // Poll until done (max 5 min, every 4s). Individual transport failures
+      // are transient; only a backend terminal status ends the scan.
       const scanId = trigger.scan_id;
-      for (let i = 0; i < 75; i++) {
-        await new Promise((r) => setTimeout(r, 4000));
-        const scan = await api.getScan(scanId);
-        if (scan?.status === 'completed') { setScanToast({ result: scan }); return; }
-        if (scan?.status === 'failed')    { setScanToast({ error: `Scan ${scanId} failed.` }); return; }
-      }
+      const scan = await pollScan({ scanId, getScan: api.getScan });
+      if (scan?.status === 'completed') { setScanToast({ result: scan }); return; }
+      if (scan?.status === 'failed')    { setScanToast({ error: `Scan ${scanId} failed.` }); return; }
       setScanToast({ error: 'Scan timed out after 5 minutes. Check backend logs.' });
     } catch (err) {
       setScanToast({ error: err?.message || 'Scan failed. Is the backend running?' });

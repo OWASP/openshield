@@ -20,7 +20,7 @@ CATALOG_PATH = Path(__file__).resolve().parents[2] / "compliance" / "assurance" 
 EXPECTED_DOMAIN_IDS = {f"NL-{number:02d}" for number in range(1, 21)}
 EXPECTED_SUBDOMAIN_IDS = {"ADDRESSING", "ROUTING", "TRANSIT", "PROTECTION", "OBSERVABILITY"}
 EXPECTED_CONTROL_IDS = {f"NL-C{number:02d}" for number in range(1, 21)}
-EXPECTED_RULE_IDS = {f"AZ-NET-{number:03d}" for number in range(1, 18)} | {"AZ-DL-001", "AZ-DL-002"}
+EXPECTED_RULE_IDS = {f"AZ-NET-{number:03d}" for number in range(1, 28)} | {"AZ-DL-001", "AZ-DL-002"}
 ALLOWED_RESPONSIBILITIES = {"Microsoft", "Customer", "Shared"}
 ALLOWED_APPLICABILITY = {"APPLICABLE", "NOT_APPLICABLE", "UNSUPPORTED"}
 ALLOWED_VERIFICATION = {
@@ -66,7 +66,7 @@ def validate_catalog(catalog: dict[str, Any]) -> None:
         raise CatalogValidationError("controls must contain the complete NL-C01 through NL-C20 set")
     if set(rules) != EXPECTED_RULE_IDS:
         raise CatalogValidationError(
-            "rule_classifications must contain AZ-NET-001 through AZ-NET-017 and both MACsec rules"
+            "rule_classifications must contain AZ-NET-001 through AZ-NET-027 and both MACsec rules"
         )
 
     for evidence_id, source in evidence.items():

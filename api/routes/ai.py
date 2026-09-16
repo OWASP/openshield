@@ -22,26 +22,17 @@ from api.validation import (
     require_json_object,
 )
 from ai.retriever import retrieve, VectorStoreNotBuilt
+from openshield.severity import severity_rank as contract_severity_rank
 
 ai_bp = Blueprint("ai", __name__)
 logger = logging.getLogger(__name__)
 
 _AI_RATE_LIMIT = 20  # requests per minute per client IP, per endpoint
 
-_SEVERITY_RANK = {
-    "CRITICAL": 5,
-    "HIGH": 4,
-    "MEDIUM": 3,
-    "LOW": 2,
-    "INFORMATIONAL": 1,
-    "INFO": 1,
-}
-
-SEVERITY_ORDER = {"CRITICAL": -1, "HIGH": 0, "MEDIUM": 1, "LOW": 2, "INFO": 3, "INFORMATIONAL": 3}
-
 
 def severity_rank(finding: dict) -> int:
-    return _SEVERITY_RANK.get(str(finding.get("severity", "")).upper(), 0)
+    value = finding.get("severity")
+    return contract_severity_rank(value) if value not in (None, "") else -1
 
 
 def _build_summary_prompt(findings: list) -> str:
@@ -139,7 +130,8 @@ def _build_threat_simulation_prompt(findings_text: str, context: str) -> str:
 def _findings_to_text(findings):
     ordered = sorted(
         findings,
-        key=lambda f: SEVERITY_ORDER.get(str(f.get("severity", "")).upper(), 4),
+        key=severity_rank,
+        reverse=True,
     )
     lines = []
     for i, f in enumerate(ordered, 1):

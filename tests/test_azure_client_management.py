@@ -67,6 +67,16 @@ def test_single_resource_and_policy_wrappers(client):
         assert client.get_sql_server_auditing_policy("rg", "sql") is None
 
 
+def test_sql_server_entra_only_authentication_uses_child_resource(client):
+    with patch("scanner.azure_client.SqlManagementClient") as constructor:
+        get_authentication = constructor.return_value.server_azure_ad_only_authentications.get
+        get_authentication.return_value = SimpleNamespace(azure_ad_only_authentication=True)
+        assert client.get_sql_server_azure_ad_only_authentication("rg", "sql") is True
+        get_authentication.assert_called_once_with("rg", "sql", "Default")
+        get_authentication.side_effect = RuntimeError("denied")
+        assert client.get_sql_server_azure_ad_only_authentication("rg", "sql") is None
+
+
 def test_firewall_and_peering_wrappers(client):
     with patch("scanner.azure_client.NetworkManagementClient") as constructor:
         sdk = constructor.return_value
@@ -84,6 +94,65 @@ def test_firewall_and_peering_wrappers(client):
         assert client.get_azure_firewalls("rg") == []
         assert client.get_all_azure_firewalls() is None
         assert client.get_vnet_peerings("rg", "vnet") == []
+
+
+def _watcher(name, location, resource_group="NetworkWatcherRG"):
+    return SimpleNamespace(
+        id=f"/subscriptions/sub-1/resourceGroups/{resource_group}/providers/Microsoft.Network/networkWatchers/{name}",
+        name=name,
+        location=location,
+    )
+
+
+def test_get_flow_logs_merges_results_across_regions(client):
+    with patch("scanner.azure_client.NetworkManagementClient") as constructor:
+        sdk = constructor.return_value
+        sdk.network_watchers.list_all.return_value = [
+            _watcher("watcher-east", "East US"),
+            _watcher("watcher-west", "West US"),
+        ]
+        sdk.flow_logs.list.side_effect = lambda rg, name: (
+            [SimpleNamespace(target_resource_id="vnet-east", enabled=True)]
+            if name == "watcher-east"
+            else [SimpleNamespace(target_resource_id="vnet-west", enabled=False)]
+        )
+
+        result = client.get_flow_logs()
+
+        assert set(result) == {"eastus", "westus"}
+        assert result["eastus"][0].target_resource_id == "vnet-east"
+        assert result["westus"][0].enabled is False
+
+
+def test_get_flow_logs_top_level_failure_returns_empty_dict(client):
+    """Failing to enumerate Network Watchers at all yields {} - every region
+    is then indeterminate via .get(region) returning None, never a false pass."""
+    with patch("scanner.azure_client.NetworkManagementClient") as constructor:
+        constructor.return_value.network_watchers.list_all.side_effect = RuntimeError("denied")
+        assert client.get_flow_logs() == {}
+
+
+def test_get_flow_logs_partial_failure_preserves_other_regions(client):
+    """One watcher's flow-log listing failing (403/429/etc) must not discard
+    results already collected from a different, healthy region."""
+    with patch("scanner.azure_client.NetworkManagementClient") as constructor:
+        sdk = constructor.return_value
+        sdk.network_watchers.list_all.return_value = [
+            _watcher("watcher-ok", "East US"),
+            _watcher("watcher-denied", "West US"),
+        ]
+
+        def flow_logs_list(rg, name):
+            if name == "watcher-denied":
+                raise RuntimeError("permission denied")
+            return [SimpleNamespace(target_resource_id="vnet-east", enabled=True)]
+
+        sdk.flow_logs.list.side_effect = flow_logs_list
+
+        result = client.get_flow_logs()
+
+        assert result["eastus"][0].target_resource_id == "vnet-east"
+        assert result["westus"] is None
 
 
 def test_vm_extensions_normalize_sdk_page_and_failure(client):

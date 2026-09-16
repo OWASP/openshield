@@ -1,6 +1,8 @@
 
+import { SEVERITY_IDS } from '../../utils/severity';
+
 const CATEGORIES = ['All', 'Storage', 'Compute', 'Network', 'Identity', 'Database', 'KeyVault'];
-const SEVERITIES = ['All', 'HIGH', 'MEDIUM', 'LOW'];
+const SEVERITIES = ['All', ...SEVERITY_IDS];
 
 export default function PriorityFilters({ filters, onChange }) {
   const set = (key, val) => onChange({ ...filters, [key]: val });

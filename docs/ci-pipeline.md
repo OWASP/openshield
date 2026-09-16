@@ -19,7 +19,7 @@ This document explains each job, how to reproduce every check locally before ope
 | **SAST (Semgrep)** | `semgrep scan --config p/security-audit --config p/owasp-top-ten --config p/python --config p/javascript --error` | A finding from the security-audit / OWASP Top 10 / Python / JS rulesets |
 | **SCA (pip-audit)** | `pip-audit -r requirements.txt` | A dependency with a known CVE (minus documented ignores) |
 | **SBOM (Syft)** | CycloneDX SBOM generated + uploaded as an artifact | SBOM generation error |
-| **Container Scan (Trivy)** | Dormant scaffold — skips until a `Dockerfile` exists (INFRA 1 / #154) | (nothing today) |
+| **Container Runtime + Scan (Trivy)** | Builds one image, starts that tag against PostgreSQL, requires `/ready`, verifies its runtime UID is non-root, then scans the same tag | Boot failure, database-readiness failure, root runtime, or an unfixed policy-blocking vulnerability |
 | **Backend Tests (pytest + coverage)** | Full `tests/` suite against an ephemeral Postgres, `--cov-fail-under=80` | A failing test or coverage below the Silver-level floor |
 | **Frontend (lint + build)** | `npm ci` → `eslint` → `vite build` | An eslint error or a broken dashboard build |
 | **Enforce dev to main source** | `main` PRs must come from `dev` | A non-`dev` branch opening a PR into `main` |
@@ -29,7 +29,7 @@ This document explains each job, how to reproduce every check locally before ope
 
 `.github/workflows/release.yml` (triggered by `v*` tags): requires a verified signed annotated tag, builds a deterministic source archive and CycloneDX SBOM, publishes SHA-256 checksums and identity-bound provenance attestations, then creates the GitHub Release.
 
-The **Container Scan** job is intentionally **not** a required check yet: no `Dockerfile` exists, so it has nothing to scan. It activates automatically once INFRA 1 (#154) adds one.
+The **Container Runtime + Scan** job is a required gate. Deleting the Dockerfile, breaking the WSGI target, losing database connectivity, running as root, or failing the Trivy policy makes the final CI summary fail.
 
 ---
 
@@ -136,6 +136,20 @@ Runs the **entire** `tests/` suite once (not just rule tests). Tests requiring a
 cd frontend && npm ci && npm run lint && npm run build
 ```
 
+### Container runtime + vulnerability scan
+
+The CI job builds a single commit-tagged image, starts that exact tag as a non-root user against PostgreSQL 16, and polls the database-aware `/ready` endpoint before passing the same tag to Trivy. It always removes the smoke container, prints its logs when runtime verification fails, and still runs Trivy when a successfully built image fails to boot.
+
+For a local end-to-end runtime check:
+
+```bash
+docker compose --profile local up --build
+curl --fail http://127.0.0.1:8000/ready
+docker compose --profile local down
+```
+
+Compose's `local` profile is not production configuration. Its credentials are development-only, all exposed ports bind to loopback, API startup applies Alembic migrations, and the worker waits for API readiness before polling the shared database.
+
 ---
 
 ## Branch protection and the promotion flow
@@ -188,7 +202,7 @@ It catches the deletion case: a rule file removed but its compliance-JSON entry 
 
 ## The CI summary
 
-The `ci-summary` job uses `needs: [...]` + `if: always()` so it runs after every other job regardless of outcome, reads each job's `result`, and writes a markdown pass/fail table to `$GITHUB_STEP_SUMMARY` (rendered on the Actions run page). A final step fails the job if any **required** job failed — Container Scan is excluded from that gate until it has an image to scan.
+The `ci-summary` job uses `needs: [...]` + `if: always()` so it runs after every other job regardless of outcome, reads each job's `result`, and writes a markdown pass/fail table to `$GITHUB_STEP_SUMMARY` (rendered on the Actions run page). A final step fails the job if any required job failed, including the container runtime and Trivy result.
 
 ---
 
@@ -202,6 +216,8 @@ The `ci-summary` job uses `needs: [...]` + `if: always()` so it runs after every
 | `pip-audit` reports a CVE | Bump the pin to a fixed version; only add `--ignore-vuln` with a documented reason |
 | `pytest` coverage below 80% | Add tests, or investigate the regression that removed coverage |
 | Frontend eslint error | Fix the reported rule (e.g. remove an unused import); warnings do not fail CI |
+| Container runtime or `/ready` fails | Check the Docker entrypoint, PostgreSQL connection, migration/startup logs, and non-root user; CI prints the container logs on failure |
+| Trivy reports a blocking image CVE | Update the base image or affected package and rebuild; do not bypass the required container job |
 | `Enforce dev to main source` fails | Open the PR from `dev`; merge feature work into `dev` first |
 | `missing field 'RULE_ID'` | Add `RULE_ID = "AZ-XXX-000"` at module level in the rule file |
 | `DUPLICATE RULE_ID '...'` | Assign a unique ID to the newer rule file |

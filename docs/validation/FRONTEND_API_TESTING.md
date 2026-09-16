@@ -35,7 +35,7 @@ This guide validates the **frontend/API/database integration** of OpenShield. It
 | Frontend Page | API Helper Function | Backend Endpoint | Method | Auth Required | Expected Data Source | Current Status | Validation Notes |
 |---|---|---|---|---|---|---|---|
 | All (health check) | `api.health()` | `GET /health` | GET | No | None (static response) | Registered in `app.py` | Always returns `{"status":"ok"}` |
-| Monitoring | `api.getScore()` | `GET /api/score` | GET | No (public GET) | Computed from findings | Registered (`score_bp`) | Score = 100 - (HIGH*10) - (MEDIUM*5) - (LOW*2) |
+| Monitoring | `api.getScore()` | `GET /api/score` | GET | No (public GET) | Computed from findings | Registered (`score_bp`) | Contract v1 score = 100 - (CRITICAL*20) - (HIGH*10) - (MEDIUM*5) - (LOW*2) |
 | Monitoring | `api.getCVESummary()` | `GET /api/score/cve-summary` | GET | No (public GET) | DB + CVE correlation | Registered (`score_bp`) | Returns null on failure (try/catch) |
 | Monitoring, Discovery, Scan, AI | `api.getFindings()` | `GET /api/findings` | GET | No (public GET) | Database (findings+rules) | Registered (`findings_bp`) | Supports ?severity, ?category, ?rule_id filters |
 | DetailedScan | `api.getFinding(id)` | `GET /api/findings/:id` | GET | No (public GET) | Database | Registered (`findings_bp`) | Returns 404 if not found |

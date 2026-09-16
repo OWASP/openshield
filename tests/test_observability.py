@@ -5,11 +5,13 @@ request-ID propagation, request_id in auth-failure responses, and the
 conditional Sentry initialisation.
 """
 
+import os
 import uuid
 from unittest.mock import MagicMock
 
 import pytest
 
+import api.models.finding as finding_module
 from api.app import create_app
 from api.observability import SCANS_TOTAL, init_sentry
 
@@ -48,6 +50,7 @@ def test_ready_returns_200_when_db_reachable(monkeypatch):
     assert resp.status_code == 200
     assert resp.get_json()["status"] == "ready"
     healthy_db.ping.assert_called_once()
+    healthy_db.close.assert_called_once()
 
 
 def test_ready_returns_503_when_db_unavailable(monkeypatch):
@@ -59,6 +62,50 @@ def test_ready_returns_503_when_db_unavailable(monkeypatch):
 
     assert resp.status_code == 503
     assert resp.get_json() == {"status": "not_ready", "error": "database_unreachable"}
+    failing_db.close.assert_called_once()
+
+
+@pytest.mark.skipif(not os.environ.get("DATABASE_URL"), reason="requires the CI PostgreSQL service")
+@pytest.mark.parametrize("ping_fails", [False, True], ids=["success", "failure-after-checkout"])
+def test_ready_returns_every_real_connection_to_the_pool(monkeypatch, ping_fails):
+    """Repeated readiness probes must not consume the shared connection pool."""
+    base_dsn = os.environ["DATABASE_URL"]
+    separator = "&" if "?" in base_dsn else "?"
+    dsn = f"{base_dsn}{separator}application_name=openshield_ready_{uuid.uuid4().hex}"
+
+    monkeypatch.setenv("DATABASE_URL", dsn)
+    monkeypatch.setattr(finding_module, "_POOL_MAX_CONN", 2)
+    pool = finding_module._get_pool(dsn)
+
+    original_getconn = pool.getconn
+    original_putconn = pool.putconn
+    getconn = MagicMock(wraps=original_getconn)
+    putconn = MagicMock(wraps=original_putconn)
+    monkeypatch.setattr(pool, "getconn", getconn)
+    monkeypatch.setattr(pool, "putconn", putconn)
+
+    if ping_fails:
+
+        def fail_after_checkout(self):
+            self._get_conn()
+            raise RuntimeError("forced readiness failure after checkout")
+
+        monkeypatch.setattr(finding_module.DatabaseManager, "ping", fail_after_checkout)
+
+    app = create_app()
+    app.config["TESTING"] = True
+
+    try:
+        expected_status = 503 if ping_fails else 200
+        for _ in range(3):
+            assert app.test_client().get("/ready").status_code == expected_status
+
+        assert getconn.call_count == 3
+        assert putconn.call_count == 3
+    finally:
+        with finding_module._POOLS_LOCK:
+            finding_module._POOLS.pop(dsn, None)
+        pool.closeall()
 
 
 # --------------------------------------------------------------------------- #

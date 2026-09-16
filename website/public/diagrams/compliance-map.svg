@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 400" role="img" aria-label="Compliance mapping: the AZ-STOR-001 finding maps to CIS Azure 3.5, NIST PR.AC-3, ISO 27001 A.9.4.1 and SOC 2 CC6.1.">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#f3441d"/>
+    </marker>
+  </defs>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+    <rect x="30" y="90" width="300" height="200" rx="14" fill="#1f1f2c"/>
+    <text x="54" y="130" font-size="16" font-weight="700" fill="#ff5a33" font-family="ui-monospace, Menlo, Consolas, monospace">AZ-STOR-001</text>
+    <text x="54" y="162" font-size="15" font-weight="700" fill="#f2f0ec">Public Blob Access Enabled</text>
+    <text x="54" y="184" font-size="15" font-weight="700" fill="#f2f0ec">on Storage Account</text>
+    <rect x="54" y="212" width="64" height="26" rx="99" fill="#f3441d"/>
+    <text x="86" y="229" text-anchor="middle" font-size="11" letter-spacing="1" fill="#ffffff" font-family="ui-monospace, Menlo, Consolas, monospace">HIGH</text>
+    <text x="54" y="266" font-size="11" fill="#a7a7b0" font-family="ui-monospace, Menlo, Consolas, monospace">one finding, declared once</text>
+
+    <rect x="430" y="90" width="160" height="200" rx="14" fill="#fde4dd"/>
+    <text x="510" y="126" text-anchor="middle" font-size="12" letter-spacing="1" fill="#050505" font-family="ui-monospace, Menlo, Consolas, monospace">CIS AZURE</text>
+    <text x="510" y="196" text-anchor="middle" font-size="30" font-weight="800" fill="#050505">3.5</text>
+    <text x="510" y="256" text-anchor="middle" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">storage access</text>
+
+    <rect x="610" y="90" width="160" height="200" rx="14" fill="#e6d7bf"/>
+    <text x="690" y="126" text-anchor="middle" font-size="12" letter-spacing="1" fill="#050505" font-family="ui-monospace, Menlo, Consolas, monospace">NIST CSF</text>
+    <text x="690" y="196" text-anchor="middle" font-size="26" font-weight="800" fill="#050505">PR.AC-3</text>
+    <text x="690" y="256" text-anchor="middle" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">protect access</text>
+
+    <rect x="790" y="90" width="160" height="200" rx="14" fill="#d7e0e7"/>
+    <text x="870" y="126" text-anchor="middle" font-size="12" letter-spacing="1" fill="#050505" font-family="ui-monospace, Menlo, Consolas, monospace">ISO 27001</text>
+    <text x="870" y="196" text-anchor="middle" font-size="24" font-weight="800" fill="#050505">A.9.4.1</text>
+    <text x="870" y="256" text-anchor="middle" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">access control</text>
+
+    <rect x="970" y="90" width="160" height="200" rx="14" fill="#d9e0d6"/>
+    <text x="1050" y="126" text-anchor="middle" font-size="12" letter-spacing="1" fill="#050505" font-family="ui-monospace, Menlo, Consolas, monospace">SOC 2</text>
+    <text x="1050" y="196" text-anchor="middle" font-size="26" font-weight="800" fill="#050505">CC6.1</text>
+    <text x="1050" y="256" text-anchor="middle" font-size="11" fill="#636366" font-family="ui-monospace, Menlo, Consolas, monospace">logical access</text>
+
+    <line x1="332" y1="130" x2="418" y2="130" stroke="#f3441d" stroke-width="2" marker-end="url(#ar)"/>
+    <line x1="332" y1="170" x2="598" y2="170" stroke="#f3441d" stroke-width="1.5" opacity="0.55" marker-end="url(#ar)"/>
+    <line x1="332" y1="210" x2="778" y2="210" stroke="#f3441d" stroke-width="1.5" opacity="0.55" marker-end="url(#ar)"/>
+    <line x1="332" y1="250" x2="958" y2="250" stroke="#f3441d" stroke-width="1.5" opacity="0.55" marker-end="url(#ar)"/>
+  </g>
+</svg>

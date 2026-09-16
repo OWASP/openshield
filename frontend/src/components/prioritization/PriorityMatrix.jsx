@@ -3,7 +3,7 @@ import {
   Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea,
 } from 'recharts';
 
-const SEVERITY_COLORS = { HIGH: '#ef4444', MEDIUM: '#f97316', LOW: '#10b981', INFO: '#6b7280' };
+import { SEVERITY_DEFINITIONS, severityColor } from '../../utils/severity';
 
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
@@ -68,7 +68,7 @@ export default function PriorityMatrix({ items, selectedId, onSelect }) {
               const { cx, cy, payload } = props;
               const isSelected = payload.ruleId === selectedId;
               const isDimmed = hasSelection && !isSelected;
-              const color = SEVERITY_COLORS[payload.severity] || '#6b7280';
+              const color = severityColor(payload.severity);
               return (
                 <g>
                   {isSelected && (
@@ -92,9 +92,9 @@ export default function PriorityMatrix({ items, selectedId, onSelect }) {
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-text-secondary dark:text-text-dark-tertiary mt-2">
-        {[['HIGH', '#ef4444'], ['MEDIUM', '#f97316'], ['LOW', '#10b981']].map(([s, c]) => (
-          <span key={s} className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />{s}
+        {SEVERITY_DEFINITIONS.map((level) => (
+          <span key={level.id} className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: level.color }} />{level.id}
           </span>
         ))}
         <span className="ml-auto text-[10px] text-text-tertiary dark:text-text-dark-tertiary">

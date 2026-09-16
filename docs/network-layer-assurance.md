@@ -6,7 +6,7 @@ OpenShield's authenticated `GET /api/assurance/network-layer` endpoint returns a
 
 Customers control exposed address spaces, subnets, routes, peerings, gateways, public IP associations, and supported diagnostics. Microsoft owns the Azure fabric, underlying forwarding implementation, tenant isolation, physical packet handling, and system internals that subscriptions cannot inspect. Provider-owned domains are documented but never create findings or change the tenant score.
 
-The catalog classifies every `AZ-NET-001` through `AZ-NET-015` rule by actual behavior. Port-specific NSG rules remain Layer 4, the public DNS rule remains Layer 7, and ExpressRoute Direct MACsec rules remain Layer 2. Cross-layer rules only reference Layer 3 domains when part of their behavior genuinely covers IP addressing, routing, or segmentation.
+The catalog classifies every `AZ-NET-001` through `AZ-NET-027` rule by actual behavior. Port-specific NSG rules remain Layer 4, DNS and WAF rules remain Layer 7, and ExpressRoute Direct MACsec rules remain Layer 2. Cross-layer rules only reference Layer 3 domains when part of their behavior genuinely covers IP addressing, routing, or segmentation.
 
 ## Automation limits
 

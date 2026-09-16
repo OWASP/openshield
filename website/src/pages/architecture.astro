@@ -1,0 +1,162 @@
+---
+import Base from '../layouts/Base.astro';
+import { repoData } from '../lib/repoData';
+import { url } from '../lib/base';
+
+const GITHUB = 'https://github.com/openshield-org/openshield';
+const stages = [
+  {
+    id: 'azure',
+    label: 'Azure metadata',
+    eyebrow: 'Trust boundary 01',
+    title: 'Collect configuration, not workload contents.',
+    description: 'The scanner uses Azure management APIs and Microsoft Graph accessors to read resource configuration. Reader is the documented baseline, with extra directory permissions required for specific identity checks.',
+    evidence: 'scanner/azure_client.py',
+    href: `${GITHUB}/blob/dev/scanner/azure_client.py`,
+  },
+  {
+    id: 'engine',
+    label: 'Scan engine',
+    eyebrow: 'Execution 02',
+    title: `Load ${repoData.ruleCount} repository rules through one engine.`,
+    description: 'Each Python module declares identity, severity, framework mappings and a scan function. The engine isolates rule execution and produces normalized findings.',
+    evidence: 'scanner/engine.py',
+    href: `${GITHUB}/blob/dev/scanner/engine.py`,
+  },
+  {
+    id: 'enrichment',
+    label: 'CVE enrichment',
+    eyebrow: 'External boundary 03',
+    title: 'Attach NVD context when requested.',
+    description: 'CVE enrichment can query NVD after rule execution. This external boundary is not required to run the rules. Configured AI providers are separate API integrations and do not participate in core detection.',
+    evidence: 'docs/cve_correlation_feature.md',
+    href: `${GITHUB}/blob/dev/docs/cve_correlation_feature.md`,
+  },
+  {
+    id: 'database',
+    label: 'PostgreSQL',
+    eyebrow: 'Persistence 04',
+    title: 'Persist scans and findings in the operator deployment.',
+    description: 'The database stores scan identity, status, score and normalized finding records. Async jobs survive API process restarts because queue state is persisted rather than held in memory.',
+    evidence: 'docs/async-scan-architecture.md',
+    href: `${GITHUB}/blob/dev/docs/async-scan-architecture.md`,
+  },
+  {
+    id: 'api',
+    label: 'Flask API',
+    eyebrow: 'Application boundary 05',
+    title: 'Expose the latest stored evidence through authenticated routes.',
+    description: 'The API serves findings, scores, resources, prioritization, drift and playbook data. State-changing routes require authentication and role checks.',
+    evidence: 'docs/api-reference.md',
+    href: `${GITHUB}/blob/dev/docs/api-reference.md`,
+  },
+  {
+    id: 'consumers',
+    label: 'Operator surfaces',
+    eyebrow: 'Consumption 06',
+    title: 'Review findings in the dashboard or export them to Sentinel.',
+    description: 'The React dashboard consumes API contracts. Sentinel ingestion is an optional export path. Neither surface changes Azure resources without a separate operator action.',
+    evidence: 'docs/architecture.md',
+    href: `${GITHUB}/blob/dev/docs/architecture.md`,
+  },
+];
+---
+
+<Base title="Architecture · OpenShield" description="Explore how OpenShield moves from read-only Azure configuration access to rules, stored findings, APIs and operator surfaces." active="architecture">
+  <header class="architecture-hero">
+    <div class="wrap">
+      <span class="page-step">Interactive system map</span>
+      <h1>Follow one finding through OpenShield.</h1>
+      <p>Select each stage to inspect its responsibility, boundary and repository evidence. Optional services are identified rather than folded into the core scanner.</p>
+    </div>
+  </header>
+
+  <section class="architecture-stage">
+    <div class="wrap">
+      <div class="architecture-map" role="tablist" aria-label="OpenShield architecture stages">
+        {stages.map((stage, index) => (
+          <>
+            <button
+              id={`architecture-tab-${stage.id}`}
+              class:list={['architecture-node', { active: index === 0 }]}
+              type="button"
+              role="tab"
+              aria-selected={index === 0 ? 'true' : 'false'}
+              aria-controls={`architecture-panel-${stage.id}`}
+              tabindex={index === 0 ? 0 : -1}
+              data-architecture-tab={stage.id}
+            >
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <strong>{stage.label}</strong>
+            </button>
+            {index < stages.length - 1 && <span class="architecture-edge" aria-hidden="true">&#8594;</span>}
+          </>
+        ))}
+      </div>
+
+      <div class="architecture-panels">
+        {stages.map((stage, index) => (
+          <article
+            id={`architecture-panel-${stage.id}`}
+            class="architecture-panel"
+            role="tabpanel"
+            aria-labelledby={`architecture-tab-${stage.id}`}
+            data-architecture-panel={stage.id}
+            hidden={index !== 0}
+          >
+            <div>
+              <span class="page-step">{stage.eyebrow}</span>
+              <h2>{stage.title}</h2>
+              <p>{stage.description}</p>
+            </div>
+            <a href={stage.href} target="_blank" rel="noopener">Inspect {stage.evidence} &#8594;</a>
+          </article>
+        ))}
+      </div>
+
+      <div class="boundary-grid">
+        <article><span>Core path</span><h3>Azure to stored findings</h3><p>Azure metadata, rule execution, PostgreSQL persistence and the authenticated API form the primary system path.</p></article>
+        <article><span>Optional path</span><h3>NVD, AI and Sentinel</h3><p>External enrichment and export systems are configuration-dependent integrations with their own trust boundaries.</p></article>
+        <article><span>Operator action</span><h3>Remediation stays explicit</h3><p>Playbooks provide commands and validation steps. They do not run automatically against Azure resources.</p></article>
+      </div>
+
+      <div class="architecture-actions">
+        <a class="btn btn-dark" href={url('/docs/')}>Run the quickstart</a>
+        <a class="btn btn-line" href={url('/evidence/')}>Review project evidence</a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  const architectureTabs = Array.from(document.querySelectorAll('[data-architecture-tab]')) as HTMLButtonElement[];
+  const architecturePanels = Array.from(document.querySelectorAll('[data-architecture-panel]')) as HTMLElement[];
+
+  function selectArchitectureTab(tab: HTMLButtonElement): void {
+    const id = tab.dataset.architectureTab;
+    architectureTabs.forEach((item) => {
+      const selected = item === tab;
+      item.classList.toggle('active', selected);
+      item.setAttribute('aria-selected', String(selected));
+      item.tabIndex = selected ? 0 : -1;
+    });
+    architecturePanels.forEach((panel) => {
+      panel.hidden = panel.dataset.architecturePanel !== id;
+    });
+  }
+
+  architectureTabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => selectArchitectureTab(tab));
+    tab.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      let next = index;
+      if (event.key === 'ArrowRight') next = (index + 1) % architectureTabs.length;
+      if (event.key === 'ArrowLeft') next = (index - 1 + architectureTabs.length) % architectureTabs.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = architectureTabs.length - 1;
+      selectArchitectureTab(architectureTabs[next]);
+      architectureTabs[next].focus();
+    });
+  });
+</script>

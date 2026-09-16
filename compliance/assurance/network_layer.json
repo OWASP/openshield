@@ -245,7 +245,10 @@
         "AZ-NET-006",
         "AZ-NET-010",
         "AZ-NET-013",
-        "AZ-NET-017"
+        "AZ-NET-017",
+        "AZ-NET-018",
+        "AZ-NET-019",
+        "AZ-NET-022"
       ]
     },
     {
@@ -429,7 +432,11 @@
         "AZ-NET-013",
         "AZ-NET-014",
         "AZ-NET-016",
-        "AZ-NET-017"
+        "AZ-NET-017",
+        "AZ-NET-018",
+        "AZ-NET-019",
+        "AZ-NET-022",
+        "AZ-NET-023"
       ]
     },
     {
@@ -936,6 +943,89 @@
         "NL-10",
         "NL-19"
       ]
+    },
+    {
+      "id": "AZ-NET-018",
+      "name": "Private Endpoint target retaining public access",
+      "osi_classification": "Layer 3",
+      "classification_basis": "The control evaluates whether a PaaS resource retains a public IP network path alongside its private endpoint path.",
+      "layer_3_domain_ids": [
+        "NL-09",
+        "NL-10",
+        "NL-19"
+      ]
+    },
+    {
+      "id": "AZ-NET-019",
+      "name": "Private Endpoint connection not approved",
+      "osi_classification": "Layer 3",
+      "classification_basis": "Private Endpoint connection state determines whether the target has an operational private IP network path.",
+      "layer_3_domain_ids": [
+        "NL-01",
+        "NL-09",
+        "NL-19"
+      ]
+    },
+    {
+      "id": "AZ-NET-020",
+      "name": "Private Endpoint missing Private DNS zone association",
+      "osi_classification": "Layer 7",
+      "classification_basis": "The finding evaluates DNS naming configuration even though the resulting record identifies a private IP address.",
+      "layer_3_domain_ids": []
+    },
+    {
+      "id": "AZ-NET-021",
+      "name": "Private Endpoint DNS configuration reports only public addresses",
+      "osi_classification": "Layer 7",
+      "classification_basis": "DNS is an application-layer naming protocol; this rule evaluates ARM custom DNS configuration and does not claim effective resolver-path evidence.",
+      "layer_3_domain_ids": []
+    },
+    {
+      "id": "AZ-NET-022",
+      "name": "Critical PaaS resource publicly accessible without exception",
+      "osi_classification": "Layer 3",
+      "classification_basis": "The control evaluates whether a critical service retains an unapproved public IP network path.",
+      "layer_3_domain_ids": [
+        "NL-10",
+        "NL-19"
+      ]
+    },
+    {
+      "id": "AZ-NET-023",
+      "name": "Azure Firewall threat intelligence not enforcing deny",
+      "osi_classification": "Cross-layer",
+      "classification_basis": "Azure Firewall threat intelligence enforces the perimeter across IP addresses, domains, and URLs.",
+      "layer_3_domain_ids": [
+        "NL-19"
+      ]
+    },
+    {
+      "id": "AZ-NET-024",
+      "name": "Application Gateway WAF not in Prevention mode",
+      "osi_classification": "Layer 7",
+      "classification_basis": "Application Gateway WAF Prevention mode evaluates and blocks HTTP application requests.",
+      "layer_3_domain_ids": []
+    },
+    {
+      "id": "AZ-NET-025",
+      "name": "Application Gateway WAF diagnostic logging incomplete",
+      "osi_classification": "Layer 7",
+      "classification_basis": "The control evaluates the diagnostic log categories supported by the Application Gateway SKU; v2 performance telemetry is metric-based.",
+      "layer_3_domain_ids": []
+    },
+    {
+      "id": "AZ-NET-026",
+      "name": "WAF missing current managed rules or bot protection",
+      "osi_classification": "Layer 7",
+      "classification_basis": "Managed WAF rules inspect HTTP application requests and bot behavior.",
+      "layer_3_domain_ids": []
+    },
+    {
+      "id": "AZ-NET-027",
+      "name": "Public Application Gateway missing rate limiting",
+      "osi_classification": "Layer 7",
+      "classification_basis": "WAF RateLimitRule evaluates HTTP request volume and application-layer match conditions.",
+      "layer_3_domain_ids": []
     }
   ],
   "evidence_sources": [

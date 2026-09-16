@@ -1,0 +1,52 @@
+---
+import { url } from '../lib/base';
+import { repoData } from '../lib/repoData';
+import type { Rule } from '../lib/repoData';
+
+const { rules, ruleCount } = repoData;
+
+const SEV_TEXT: Record<string, string> = { HIGH: '#a03a1e', MEDIUM: '#7a5310', LOW: '#3d5a75' };
+const SEV_DOT: Record<string, string> = { HIGH: '#c73a17', MEDIUM: '#a06f10', LOW: '#5d6c80' };
+
+/* representative picks, one per pastel swatch; fall back to the first rule
+   of the domain so the section never renders an empty card */
+const picks = ['AZ-STOR-001', 'AZ-NET-001', 'AZ-IDN-002', 'AZ-KV-001', 'AZ-CMP-004', 'AZ-NET-005'];
+function byId(id: string): Rule {
+  const found = rules.find((r) => r.id === id);
+  if (found) return found;
+  const domain = id.split('-')[1]?.toLowerCase() ?? '';
+  return rules.find((r) => r.domain === domain) ?? rules[0];
+}
+const featured: { rule: Rule; swatch: string }[] = picks.map((id, i) => ({
+  rule: byId(id),
+  swatch: `r${i + 1}`,
+}));
+---
+
+<section class="sec-rule" id="rules">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Start with the rule book.</h2>
+      <a class="sec-link" href={url('/rules/')}>Browse all {ruleCount} rules &#8594;</a>
+    </div>
+    <div class="rule-grid">
+      {featured.map(({ rule, swatch }) => (
+        <div class="rcard">
+          <div class={`swatch ${swatch}`}>
+            <span class="sev" style={`color:${SEV_TEXT[rule.severity]}`}>
+              <i style={`background:${SEV_DOT[rule.severity]}`}></i>{rule.severity === 'HIGH' ? 'High' : rule.severity === 'MEDIUM' ? 'Medium' : 'Low'}
+            </span>
+            <span class="rid">{rule.id}</span>
+          </div>
+          <div class="body">
+            <h3>{rule.name}</h3>
+            <div class="meta">
+              <span>{rule.category.toLowerCase()}</span>
+              {rule.frameworks.CIS && <span>CIS {rule.frameworks.CIS}</span>}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

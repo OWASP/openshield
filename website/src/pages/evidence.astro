@@ -1,0 +1,79 @@
+---
+import Base from '../layouts/Base.astro';
+import { repoData } from '../lib/repoData';
+
+const GITHUB = 'https://github.com/openshield-org/openshield';
+const maxDomainCount = Math.max(...repoData.domains.map((domain) => domain.count));
+const assurance = [
+  ['Continuous integration', '.github/workflows/ci.yml'],
+  ['CodeQL analysis', '.github/workflows/codeql.yml'],
+  ['Dependency review', '.github/workflows/dependency-review.yml'],
+  ['DCO verification', '.github/workflows/dco.yml'],
+  ['Signed release workflow', '.github/workflows/release.yml'],
+  ['Security assurance case', 'docs/security-assurance-case.md'],
+];
+---
+
+<Base title="Evidence · OpenShield" description="Repository-derived OpenShield rule coverage, releases, assurance controls, roadmap direction and documented limitations." active="evidence">
+  <div class="wrap">
+    <div class="page-head evidence-head">
+      <span class="page-step">No invented adoption metrics</span>
+      <h1>Project evidence.</h1>
+      <p class="sub">This page is populated from repository rules, Git history, the changelog and the roadmap. Configured checks are not presented as passing unless current execution evidence proves it.</p>
+    </div>
+
+    <section class="evidence-section" aria-labelledby="coverage-title">
+      <div class="sec-head"><div><span class="page-step">Current checkout</span><h2 id="coverage-title">Rule coverage by Azure domain.</h2></div><a class="sec-link" href={`${GITHUB}/tree/dev/scanner/rules`} target="_blank" rel="noopener">Inspect rule source &#8594;</a></div>
+      <div class="coverage-chart">
+        {repoData.domains.map((domain) => (
+          <div class="coverage-row">
+            <span>{domain.label}</span>
+            <div class="coverage-track"><i style={`width:${(domain.count / maxDomainCount) * 100}%`}></i></div>
+            <strong>{domain.count}</strong>
+          </div>
+        ))}
+      </div>
+      <p class="chart-note">Bars encode rule-file count, not security completeness or certification coverage.</p>
+    </section>
+
+    <section class="evidence-section" aria-labelledby="release-title">
+      <div class="sec-head"><div><span class="page-step">CHANGELOG.md</span><h2 id="release-title">Published version history.</h2></div><a class="sec-link" href={`${GITHUB}/releases`} target="_blank" rel="noopener">Open releases &#8594;</a></div>
+      <div class="release-strip">
+        {repoData.releases.map((release) => (
+          <a href={release.href} target="_blank" rel="noopener"><strong>{release.tag}</strong><span>{release.date}</span></a>
+        ))}
+      </div>
+    </section>
+
+    <section class="evidence-section" aria-labelledby="assurance-title">
+      <div class="sec-head"><div><span class="page-step">Configured controls</span><h2 id="assurance-title">Public assurance surfaces.</h2></div></div>
+      <div class="assurance-grid">
+        {assurance.map(([label, file]) => (
+          <a href={`${GITHUB}/blob/dev/${file}`} target="_blank" rel="noopener"><span>Configured</span><strong>{label}</strong><small>{file}</small></a>
+        ))}
+      </div>
+    </section>
+
+    <section class="evidence-section evidence-split" aria-labelledby="status-title">
+      <div>
+        <span class="page-step">Maintainer status / 06 Sep 2026</span>
+        <h2 id="status-title">Hosted demo availability.</h2>
+        <div class="service-status unavailable"><i></i><div><strong>Hosted API unavailable</strong><p>The free hosting tier has expired. Use the self-hosted quickstart for a working deployment path. The dashboard depends on that API and is not presented as a live demo.</p></div></div>
+      </div>
+      <div>
+        <span class="page-step">ROADMAP.md</span>
+        <h2>Documented boundaries.</h2>
+        <ul class="limitation-list">{repoData.limitations.map((limitation) => <li>{limitation}</li>)}</ul>
+      </div>
+    </section>
+
+    <section class="evidence-section" aria-labelledby="roadmap-title">
+      <div class="sec-head"><div><span class="page-step">Direction, not a delivery guarantee</span><h2 id="roadmap-title">Implementation roadmap.</h2></div><a class="sec-link" href={`${GITHUB}/blob/dev/ROADMAP.md`} target="_blank" rel="noopener">Read the source &#8594;</a></div>
+      <div class="roadmap-board">
+        {repoData.roadmap.map((period) => (
+          <article><h3>{period.period}</h3><ul>{period.items.map((item) => <li>{item}</li>)}</ul></article>
+        ))}
+      </div>
+    </section>
+  </div>
+</Base>

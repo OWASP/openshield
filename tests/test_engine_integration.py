@@ -8,7 +8,10 @@ instantiating the engine, then exercise run_scan() end-to-end with no network.
 
 from pathlib import Path
 
+import pytest
+
 import scanner.engine as engine_mod
+from openshield.severity import SeverityContractError, score_findings
 from scanner.engine import ScanEngine
 from tests.helpers.mock_azure import MockAzureClient, make_resource
 
@@ -59,7 +62,7 @@ def test_engine_loads_all_57_rules(monkeypatch):
 def test_engine_discovery_matches_ci_and_ignores_misnamed_modules(monkeypatch, tmp_path):
     """Only CI-validated az_*.py modules may execute at scan time."""
     (tmp_path / "az_valid_001.py").write_text(
-        'RULE_ID = "AZ-VALID-001"\n\ndef scan(azure_client, subscription_id):\n    return []\n',
+        'RULE_ID = "AZ-VALID-001"\nSEVERITY = "LOW"\n\ndef scan(azure_client, subscription_id):\n    return []\n',
         encoding="utf-8",
     )
     (tmp_path / "scratch_test.py").write_text(
@@ -76,6 +79,20 @@ def test_engine_discovery_matches_ci_and_ignores_misnamed_modules(monkeypatch, t
     eng = ScanEngine(_SUB)
 
     assert [rule.RULE_ID for rule in eng.rules] == ["AZ-VALID-001"]
+
+
+@pytest.mark.parametrize("severity", ["INFORMATIONAL", "URGENT"])
+def test_engine_rejects_noncanonical_rule_declarations(monkeypatch, tmp_path, severity):
+    (tmp_path / "az_invalid_001.py").write_text(
+        f'RULE_ID = "AZ-INVALID-001"\nSEVERITY = "{severity}"\n\n'
+        "def scan(azure_client, subscription_id):\n    return []\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(engine_mod, "RULES_DIR", Path(tmp_path))
+    _patch_engine_client(monkeypatch, _offline_mock())
+
+    with pytest.raises(SeverityContractError):
+        ScanEngine(_SUB)
 
 
 def test_engine_run_scan_result_is_self_consistent(monkeypatch):
@@ -105,9 +122,7 @@ def test_engine_run_scan_result_is_self_consistent(monkeypatch):
     assert result["total_findings"] > 0  # the public storage account triggers findings
 
     # Score is 100 minus severity-weighted deductions, floored at 0.
-    weights = {"HIGH": 10, "MEDIUM": 5, "LOW": 2}
-    expected_deduction = sum(weights.get((f.get("severity") or "").upper(), 0) for f in result["findings"])
-    assert result["score"] == max(0, 100 - expected_deduction)
+    assert result["score"] == score_findings(result["findings"])
     assert 0 <= result["score"] <= 100
 
     # Every finding is tagged with the scan_id and a detected_at timestamp.

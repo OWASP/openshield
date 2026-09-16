@@ -43,7 +43,7 @@ def _split_text(text, chunk_size, chunk_overlap):
             chunks.append(text[start:].strip())
             break
         split_pos = text.rfind("\n", start, end)
-        if split_pos == -1 or split_pos <= start:
+        if split_pos == -1 or split_pos <= start + chunk_overlap:
             split_pos = end
         chunk = text[start:split_pos].strip()
         if chunk:

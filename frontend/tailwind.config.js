@@ -1,3 +1,9 @@
+import severityContract from './src/generated/severity.v1.json' with { type: 'json' };
+
+const severityColors = Object.fromEntries(
+  severityContract.levels.map((level) => [`severity-${level.id.toLowerCase()}`, level.color]),
+);
+
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
@@ -5,10 +11,7 @@ export default {
       colors: {
         'brand-primary': '#10b981',
         'brand-secondary': '#059669',
-        'severity-high': '#ef4444',
-        'severity-medium': '#f97316',
-        'severity-low': '#10b981',
-        'severity-info': '#6b7280',
+        ...severityColors,
         'bg-primary': '#ffffff',
         'bg-secondary': '#f8f9fa',
         'bg-tertiary': '#f1f3f5',

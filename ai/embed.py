@@ -1,86 +1,115 @@
-"""Build the OpenShield knowledge base vector store for RAG AI insights"""
+"""Build the OpenShield knowledge base BM25 index for RAG AI insights."""
 
+import json
 import logging
-import os
+import math
+import re
 import sys
 from pathlib import Path
 
-# Disable ChromaDB telemetry to prevent errors and improve performance on low-RAM machines
-os.environ["ANONYMIZED_TELEMETRY"] = "False"
-
-try:
-    import chromadb
-except ImportError:
-    chromadb = None
-
-# Add project root to path for imports
-sys.path.append(os.getcwd())
-
-from ai.loader import load_all_documents
 from ai.chunker import chunk_documents
+from ai.loader import load_all_documents
 
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 VECTORSTORE_DIR = REPO_ROOT / "ai" / "vectorstore"
-COLLECTION_NAME = "openshield"
+INDEX_PATH = VECTORSTORE_DIR / "bm25_index.json"
+
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "but",
+        "by",
+        "for",
+        "from",
+        "had",
+        "has",
+        "have",
+        "if",
+        "in",
+        "is",
+        "it",
+        "no",
+        "not",
+        "of",
+        "on",
+        "or",
+        "so",
+        "that",
+        "the",
+        "this",
+        "to",
+        "was",
+        "were",
+        "with",
+    }
+)
 
 
-def build_vectorstore():
-    if chromadb is None:
-        raise RuntimeError("chromadb is not installed. Install it with 'pip install chromadb'.")
+def _tokenize(text: str) -> list:
+    """Lowercase, split on non-alphanumeric, drop stopwords and short tokens."""
+    return [t for t in re.split(r"[^a-z0-9]+", text.lower()) if len(t) > 2 and t not in _STOPWORDS]
 
-    # 1. Load and chunk documents FIRST (if this fails, existing DB is untouched)
+
+def build_vectorstore() -> int:
+    """Build BM25 index from all documents and persist to JSON.
+
+    Returns the number of chunks indexed.
+    """
     documents = load_all_documents()
     if not documents:
-        raise RuntimeError("No documents found to embed. Check repo paths.")
+        raise RuntimeError("No documents found to index. Check repo paths.")
 
     chunks = chunk_documents(documents)
-    logger.info("Created %d chunks from %d source documents", len(chunks), len(documents))
+    logger.info("Indexing %d chunks from %d source documents", len(chunks), len(documents))
 
-    # 2. Initialize client
-    VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
-    from chromadb.config import Settings
+    n = len(chunks)
+    df: dict = {}
+    processed = []
 
-    client = chromadb.PersistentClient(path=str(VECTORSTORE_DIR), settings=Settings(anonymized_telemetry=False))
-
-    # 3. Create a temporary collection for safe building
-    temp_name = f"{COLLECTION_NAME}_temp"
-    try:
-        client.delete_collection(temp_name)
-    except Exception:
-        pass
-    collection = client.create_collection(temp_name)
-
-    # 4. Add to vector store in batches to prevent memory spikes
-    batch_size = 50  # Small batch size for 8GB RAM machines
-    for i in range(0, len(chunks), batch_size):
-        batch = chunks[i : i + batch_size]
-
-        collection.add(
-            ids=[c["id"] for c in batch],
-            documents=[c["content"] for c in batch],
-            metadatas=[c["metadata"] for c in batch],
+    for chunk in chunks:
+        terms: dict = {}
+        for token in _tokenize(chunk["content"]):
+            terms[token] = terms.get(token, 0) + 1
+        for token in terms:
+            df[token] = df.get(token, 0) + 1
+        processed.append(
+            {
+                "id": chunk["id"],
+                "content": chunk["content"],
+                "metadata": chunk["metadata"],
+                "terms": terms,
+                "dl": sum(terms.values()),
+            }
         )
-        print(f"  Progress: {min(i + batch_size, len(chunks))}/{len(chunks)} chunks embedded...")
 
-    # 5. Atomic Swap: Delete main and rename temp to main
-    try:
-        client.delete_collection(COLLECTION_NAME)
-    except Exception:
-        pass
+    avg_dl = sum(c["dl"] for c in processed) / n if n else 1.0
 
-    collection.modify(name=COLLECTION_NAME)
+    idf = {term: math.log((n - freq + 0.5) / (freq + 0.5) + 1.0) for term, freq in df.items()}
 
-    logger.info("Successfully rebuilt vector store '%s' with %d chunks.", COLLECTION_NAME, len(chunks))
-    return len(chunks)
+    index = {"version": "1", "avg_dl": avg_dl, "idf": idf, "chunks": processed}
+
+    VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = INDEX_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(index, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(INDEX_PATH)
+
+    logger.info("BM25 index written to %s (%d chunks)", INDEX_PATH, n)
+    return n
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     try:
         count = build_vectorstore()
-        print(f"Done. Vector store built with {count} chunks at {VECTORSTORE_DIR}")
+        print(f"Done. BM25 index built with {count} chunks at {INDEX_PATH}")
     except Exception as exc:
-        print(f"Error building vector store: {exc}")
+        print(f"Error building index: {exc}")
         sys.exit(1)

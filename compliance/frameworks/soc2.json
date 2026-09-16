@@ -13,6 +13,32 @@
       "control_name": "Protects Data in Transit",
       "description": "Allowing unencrypted HTTP traffic to a storage account exposes data in transit to interception and tampering. CC6.7 requires that data transmitted over networks is protected using encryption. Enforcing HTTPS-only ensures all storage traffic is encrypted in transit."
     },
+    "AZ-STOR-006": {
+      "control_id": "N/A-STOR-006",
+      "control_name": "Storage Account Shared-Key Authorization Enabled",
+      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation."
+    },
+    "AZ-STOR-007": {
+      "control_id": "N/A-STOR-007",
+      "control_name": "Storage Account Allows TLS Below 1.2",
+      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation."
+    },
+    "AZ-STOR-008": {
+      "control_id": "N/A-STOR-008",
+      "control_name": "Required Storage Customer-Managed Key Protection Missing",
+      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation."
+    },
+    "AZ-STOR-009": {
+      "control_id": "N/A-STOR-009",
+      "control_name": "Required Blob Container Immutability Missing",
+      "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation."
+    },
+    "AZ-DB-005": {"control_id": "CC6.3", "control_name": "Logical access security", "description": "SQL authentication is restricted to approved Entra identities."},
+    "AZ-DB-006": {"control_id": "CC7.1", "control_name": "Detection of security events", "description": "Required SQL vulnerability assessment is configured."},
+    "AZ-DB-007": {"control_id": "CC7.2", "control_name": "System monitoring", "description": "SQL audit logs are retained according to policy."},
+    "AZ-COSMOS-001": {"control_id": "CC6.3", "control_name": "Logical access security", "description": "Cosmos authentication is restricted to approved Entra identities."},
+    "AZ-COSMOS-002": {"control_id": "CC6.6", "control_name": "Logical access security measures", "description": "Cosmos public network access is restricted according to policy."},
+    "AZ-CACHE-001": {"control_id": "CC6.6", "control_name": "Logical access security measures", "description": "Managed cache access is private and uses approved TLS."},
     "AZ-STOR-003": {
       "control_id": "CC8.1",
       "control_name": "Change Management",
@@ -148,6 +174,11 @@
       "control_name": "System Vulnerabilities are Identified and Managed",
       "description": "The virtual machine does not have automatic OS patching enabled. CC7.1 requires that vulnerabilities in system components are identified and managed through a defined process. Without automatic patching, known OS vulnerabilities are left unmitigated and exploitable."
     },
+    "AZ-CMP-007": {
+      "control_id": "CC6.6",
+      "control_name": "Restricts Access from Outside the Network Boundary",
+      "description": "A VM has management ports (SSH/RDP) open to the internet with no Just-In-Time VM access policy covering them. CC6.6 requires that access from outside the network boundary is restricted. JIT opens management ports only for approved, time-boxed requests instead of continuously."
+    },
     "AZ-KV-001": {
       "control_id": "A1.2",
       "control_name": "Environmental Threats and Recovery",
@@ -171,7 +202,7 @@
     "AZ-NET-012": {
       "control_id": "CC7.2",
       "control_name": "System monitoring",
-      "description": "Network Security Group flow logs support continuous monitoring of network traffic and investigation of anomalous connections. Without flow logs, network-level security events may not be detected or reconstructed."
+      "description": "A VNet flow log (or an existing legacy NSG flow log) supports continuous monitoring of network traffic and investigation of anomalous connections. New NSG flow log creation is blocked as of 2025-06-30, so VNet flow logs are the current mechanism. Without either, network-level security events may not be detected or reconstructed."
     },
     "AZ-DB-003": {
       "control_id": "CC6.1",
@@ -443,6 +474,17 @@
       "control_name": "Restricts Access from Outside the Network Boundary",
       "description": "A private endpoint connection is pending, rejected, or disconnected and does not provide an active private path, leaving traffic to traverse the public network boundary instead."
     },
+    "AZ-IDN-016": {"control_id": "CC6.1", "control_name": "Logical and Physical Access Controls", "description": "Privileged users must register phishing-resistant authentication methods."},
+    "AZ-IDN-017": {"control_id": "CC6.3", "control_name": "Role-Based Access", "description": "Global Administrator access must be time-bound and governed through PIM."},
+    "AZ-IDN-018": {"control_id": "CC6.3", "control_name": "Role-Based Access", "description": "All privileged role assignments must be managed through PIM with time and approval controls."},
+    "AZ-IDN-019": {"control_id": "CC6.2", "control_name": "User Registration and Authorization", "description": "Dormant privileged accounts must be reviewed and access revoked."},
+    "AZ-IDN-020": {"control_id": "CC6.3", "control_name": "Role-Based Access", "description": "Emergency access accounts ensure continuity of administrative access."},
+    "AZ-IDN-021": {"control_id": "CC6.1", "control_name": "Logical and Physical Access Controls", "description": "Legacy authentication protocols that bypass MFA must be blocked."},
+    "AZ-IDN-022": {"control_id": "CC6.6", "control_name": "Logical Access Security Measures", "description": "Azure management portal and API access must be protected by MFA."},
+    "AZ-IDN-023": {"control_id": "CC7.2", "control_name": "System Monitoring", "description": "Identity Protection risk policies must detect and respond to anomalous authentication events."},
+    "AZ-IDN-024": {"control_id": "CC6.3", "control_name": "Role-Based Access", "description": "Workload identities must not be broadly excluded from Conditional Access MFA requirements."},
+    "AZ-IDN-025": {"control_id": "CC6.3", "control_name": "Role-Based Access", "description": "Role-assignable groups must have owners to control privileged access grants."},
+
     "AZ-SC-001": {
       "control_id": "CC6.1",
       "control_name": "Logical Access Security Measures",
@@ -503,6 +545,56 @@
       "control_name": "Logical Access Security Measures",
       "description": "User-defined default routes preserve approved inspected egress paths."
     },
+    "AZ-NET-018": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Private Link targets restrict unnecessary public network access."
+    },
+    "AZ-NET-019": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Private Endpoint connections are approved and operational before they are relied upon as an access boundary."
+    },
+    "AZ-NET-020": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Private DNS association preserves the approved private access path."
+    },
+    "AZ-NET-021": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Private Endpoint ARM DNS configuration associates service names with private addresses; effective resolver-path validation remains separate evidence."
+    },
+    "AZ-NET-022": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Critical PaaS resources restrict public access unless an approved exception exists."
+    },
+    "AZ-NET-023": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Azure Firewall denies traffic involving infrastructure identified by threat intelligence."
+    },
+    "AZ-NET-024": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Application Gateway WAF Prevention mode blocks matching malicious requests."
+    },
+    "AZ-NET-025": {
+      "control_id": "CC7.2",
+      "control_name": "System monitoring",
+      "description": "Application Gateway SKU-supported diagnostic logs support anomaly monitoring; v2 performance telemetry is supplied through metrics."
+    },
+    "AZ-NET-026": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Current application and bot managed rules protect the logical access boundary."
+    },
+    "AZ-NET-027": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Rate-limit rules protect public application access from abusive request volume."
+    },
     "AZ-SECOPS-001": {
       "control_id": "CC7.2",
       "control_name": "System Monitoring",
@@ -552,6 +644,56 @@
       "control_id": "CC7.4",
       "control_name": "Incident Response",
       "description": "No monitored destination exists for security alerts or Sentinel incidents. CC7.4 requires the entity to respond to identified security incidents; an alert nobody is notified of cannot trigger the incident-response process CC7.4 requires."
+    },
+    "AZ-NET-018": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Private Link targets restrict unnecessary public network access."
+    },
+    "AZ-NET-019": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Private Endpoint connections are approved and operational before they are relied upon as an access boundary."
+    },
+    "AZ-NET-020": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Private DNS association preserves the approved private access path."
+    },
+    "AZ-NET-021": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Private Endpoint service names resolve to private addresses within the approved access boundary."
+    },
+    "AZ-NET-022": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Critical PaaS resources restrict public access unless an approved exception exists."
+    },
+    "AZ-NET-023": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Azure Firewall denies traffic involving infrastructure identified by threat intelligence."
+    },
+    "AZ-NET-024": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Application Gateway WAF Prevention mode blocks matching malicious requests."
+    },
+    "AZ-NET-025": {
+      "control_id": "CC7.2",
+      "control_name": "System monitoring",
+      "description": "Application Gateway access, performance, and firewall logs support anomaly monitoring."
+    },
+    "AZ-NET-026": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Current application and bot managed rules protect the logical access boundary."
+    },
+    "AZ-NET-027": {
+      "control_id": "CC6.6",
+      "control_name": "Logical Access Security Measures",
+      "description": "Rate-limit rules protect public application access from abusive request volume."
     }
   }
 }

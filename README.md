@@ -9,7 +9,7 @@
 
 **Open source Cloud Security Posture Management (CSPM) for Azure** detect misconfigurations, map them to CIS / NIST / ISO 27001 / SOC 2, remediate with one command, and identify cryptographic assets requiring quantum-safe migration.
 
-[**Website**](https://openshield-website.vercel.app) · [**Documentation**](docs/) · [**Roadmap**](ROADMAP.md) · [**Changelog**](CHANGELOG.md) · [**Security Policy**](.github/SECURITY.md) · [**Discord**](https://discord.gg/openshield)
+[**Website**](https://openshield-org.github.io/openshield/) · [**Documentation**](docs/) · [**Roadmap**](ROADMAP.md) · [**Changelog**](CHANGELOG.md) · [**Security Policy**](.github/SECURITY.md) · [**Discord**](https://discord.gg/openshield)
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13618/badge)](https://www.bestpractices.dev/projects/13618)
 [![OpenShield CI](https://github.com/openshield-org/openshield/actions/workflows/ci.yml/badge.svg)](https://github.com/openshield-org/openshield/actions/workflows/ci.yml)
@@ -64,7 +64,7 @@ Findings map to NIST FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), and FIPS 205 (SLH-DSA
 | **Scan History API** | Stores scans and findings in PostgreSQL and exposes findings, score, scan history, compliance posture, drift, and resource inventory over REST |
 | **Remediation Playbooks** | Every documented rule ships with a matching review-gated remediation script (95 playbooks) |
 | **Security Dashboard** | Full React dashboard deployed on Vercel - live monitoring, findings, compliance, drift, prioritization, and AI-layer views |
-| **Project Website** | Documentation and reference site at [openshield-website.vercel.app](https://openshield-website.vercel.app) - blog, rules gallery, docs, roadmap, releases, and interactive playground |
+| **Project Website** | Documentation and reference site at [openshield-org.github.io/openshield](https://openshield-org.github.io/openshield/) - blog, rules gallery, architecture, evidence guides, roadmap, and releases |
 | **Sentinel Integration** | Normalises findings and pushes them into Microsoft Sentinel via a Log Analytics custom table and KQL analytics rules |
 
 ---
@@ -130,7 +130,7 @@ flowchart TD
 |---|---|
 | **Security Dashboard** (Vercel) | `https://openshield-gules.vercel.app` |
 | **REST API** (Render) | `https://openshield-api.onrender.com` |
-| **Project Website** | `https://openshield-website.vercel.app` |
+| **Project Website** | `https://openshield-org.github.io/openshield/` |
 
 > **Note:** The API is hosted on Render. The dashboard connects automatically on load and shows live data from the PostgreSQL database.
 
@@ -226,6 +226,18 @@ FLASK_APP=api/app.py flask run
 See [Database Migrations](docs/database-migrations.md) for schema changes and the
 one-time onboarding step required for existing production databases.
 
+**Local containers (Compose)**
+
+```bash
+# Starts PostgreSQL 16, applies migrations, then starts the API, worker, and dashboard
+docker compose --profile local up --build
+
+# Database-aware API readiness
+curl --fail http://127.0.0.1:8000/ready
+```
+
+The profile is intentionally named `local`: its database credentials and JWT secret are development-only values, ports bind to loopback, and the dashboard talks to `http://localhost:8000`. Set the four `AZURE_*` variables in your shell before starting Compose if you want the worker to execute real scans. Stop the stack with `docker compose --profile local down`; add `--volumes` only when you intentionally want to remove local database and frontend dependency data.
+
 **Frontend (React dashboard)**
 
 ```bash
@@ -304,9 +316,9 @@ Learn OpenShield covers:
 - Documentation navigation
 
 Live Learning Portal: https://openshieldlearn.netlify.app/learn/
-Full documentation, the security rules gallery, blog, and interactive playground are available at the project website:
+Full documentation, the security rules gallery, architecture guide, evidence guide, and blog are available at the project website:
 
-**[openshield-website.vercel.app](https://openshield-website.vercel.app)**
+**[openshield-org.github.io/openshield](https://openshield-org.github.io/openshield/)**
 
 ## API Reference
 

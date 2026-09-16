@@ -17,12 +17,20 @@ def _db() -> DatabaseManager:
     return db
 
 
-def _mock_cursor(rows):
-    """Return a context-manager cursor mock that yields *rows* on fetchall()."""
+def _mock_cursor(rows, evaluation_rows=None):
+    """Return a context-manager cursor mock that yields *rows* on fetchall().
+
+    get_compliance_score() issues two SELECT/fetchall pairs (findings, then
+    rule_evaluations); pass *evaluation_rows* to give the second call its own
+    result instead of reusing *rows*.
+    """
     cur = MagicMock()
     cur.__enter__ = lambda s: s
     cur.__exit__ = MagicMock(return_value=False)
-    cur.fetchall.return_value = rows
+    if evaluation_rows is not None:
+        cur.fetchall.side_effect = [rows, evaluation_rows]
+    else:
+        cur.fetchall.return_value = rows
     cur.fetchone.return_value = rows[0] if rows else None
     return cur
 
@@ -137,10 +145,14 @@ def test_get_compliance_score_scopes_to_latest_scan():
 
 
 def test_get_compliance_score_all_pass_after_clean_scan():
-    """All controls must show PASS when the latest completed scan has no findings."""
+    """All controls show PASS when the latest scan recorded a PASS evaluation
+    for every rule and produced no findings."""
     db = _db()
     conn = MagicMock()
-    cur = _mock_cursor([])
+    cur = _mock_cursor(
+        [],
+        evaluation_rows=[("AZ-STOR-001", "PASS"), ("AZ-NET-001", "PASS")],
+    )
     conn.cursor.return_value = cur
 
     import json
@@ -171,11 +183,46 @@ def test_get_compliance_score_all_pass_after_clean_scan():
     assert statuses["AZ-NET-001"] == "PASS"
 
 
-def test_get_compliance_score_remediated_rule_shows_pass():
-    """A rule that fired in scan-1 but not scan-2 (clean) must show PASS."""
+def test_get_compliance_score_no_evaluation_rows_is_unknown_not_pass():
+    """A clean (zero-finding) scan with no rule_evaluations rows at all — e.g.
+    a scan that predates #263, or a rule that was never evaluated — must
+    report UNKNOWN, never silently default to PASS (the bug #263 fixes)."""
     db = _db()
     conn = MagicMock()
-    cur = _mock_cursor([])
+    cur = _mock_cursor([], evaluation_rows=[])
+    conn.cursor.return_value = cur
+
+    import json
+    import io
+    from pathlib import Path
+
+    fake_framework = json.dumps(
+        {
+            "framework": "CIS Azure",
+            "version": "2.0",
+            "controls": {
+                "AZ-STOR-001": {"control_id": "3.1", "control_name": "No public blobs"},
+            },
+        }
+    )
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        with patch("builtins.open", return_value=io.StringIO(fake_framework)):
+            with patch.object(Path, "exists", return_value=True):
+                result = db.get_compliance_score("cis")
+
+    assert result["controls"][0]["status"] == "UNKNOWN"
+    assert result["passed"] == 0
+    assert result["unknown"] == 1
+    assert result["score_percent"] == 0
+
+
+def test_get_compliance_score_remediated_rule_shows_pass():
+    """A rule that failed in scan-1 but recorded a PASS evaluation in scan-2
+    (clean, remediated) must show PASS."""
+    db = _db()
+    conn = MagicMock()
+    cur = _mock_cursor([], evaluation_rows=[("AZ-STOR-001", "PASS")])
     conn.cursor.return_value = cur
 
     import json
@@ -198,3 +245,49 @@ def test_get_compliance_score_remediated_rule_shows_pass():
                 result = db.get_compliance_score("cis")
 
     assert result["controls"][0]["status"] == "PASS"
+
+
+def test_get_compliance_score_reports_worst_critical_failure_without_inventing_pass_severity():
+    db = _db()
+    conn = MagicMock()
+    cur = _mock_cursor(
+        [
+            ("AZ-STOR-001", "HIGH", "Storage", 1),
+            ("AZ-STOR-001", "CRITICAL", "Storage", 2),
+        ],
+        evaluation_rows=[("AZ-STOR-001", "FAIL"), ("AZ-NET-001", "PASS")],
+    )
+    conn.cursor.return_value = cur
+
+    import io
+    import json
+    from pathlib import Path
+
+    fake_framework = json.dumps(
+        {
+            "framework": "CIS Azure",
+            "version": "2.0",
+            "controls": {
+                "AZ-STOR-001": {"control_id": "3.1", "control_name": "No public blobs"},
+                "AZ-NET-001": {"control_id": "6.1", "control_name": "No unrestricted SSH"},
+            },
+        }
+    )
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        with patch("builtins.open", return_value=io.StringIO(fake_framework)):
+            with patch.object(Path, "exists", return_value=True):
+                result = db.get_compliance_score("cis")
+
+    controls = {control["rule_id"]: control for control in result["controls"]}
+    assert controls["AZ-STOR-001"] == {
+        "rule_id": "AZ-STOR-001",
+        "control_id": "3.1",
+        "control_name": "No public blobs",
+        "status": "FAIL",
+        "severity": "CRITICAL",
+        "category": "Storage",
+        "resources": 3,
+    }
+    assert controls["AZ-NET-001"]["status"] == "PASS"
+    assert controls["AZ-NET-001"]["severity"] is None

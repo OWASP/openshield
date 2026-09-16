@@ -118,6 +118,7 @@ def test_compliance_framework_rejects_untrusted_value_without_reflection(client,
         {"provider": "groq", "api_key": "x" * (MAX_API_KEY_LENGTH + 1), "findings": [{}]},
         {"provider": "groq", "api_key": "secret", "model": "../model", "findings": [{}]},
         {"provider": "groq", "api_key": "secret", "findings": ["not-an-object"]},
+        {"provider": "groq", "api_key": "secret", "findings": [{"severity": "urgent"}]},
         {"provider": "groq", "api_key": "secret", "findings": [{}] * (MAX_FINDINGS + 1)},
         {
             "provider": "groq",
@@ -148,3 +149,17 @@ def test_safe_request_id_is_preserved(client):
 def test_oversized_authorization_header_is_rejected(client):
     response = client.get("/api/findings", headers={"Authorization": "Bearer " + ("x" * 9000)})
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
+    ("supplied", "expected"),
+    [("critical", "CRITICAL"), ("INFORMATIONAL", "INFO")],
+)
+def test_finding_severity_filters_are_canonicalized(client, auth_headers, supplied, expected):
+    db = MagicMock()
+    db.get_findings.return_value = []
+    with patch.object(findings_route, "_get_db", return_value=db):
+        response = client.get(f"/api/findings?severity={supplied}", headers=auth_headers)
+
+    assert response.status_code == 200
+    db.get_findings.assert_called_once_with({"severity": expected})

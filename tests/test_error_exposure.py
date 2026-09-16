@@ -92,7 +92,7 @@ def test_resources_error_does_not_leak_exception(client, auth_headers):
 
 
 def test_prioritization_error_does_not_leak_exception(client, auth_headers):
-    with patch.object(prioritization_route, "_get_db", return_value=_raising_db("get_findings")):
+    with patch.object(prioritization_route, "_get_db", return_value=_raising_db("_get_conn")):
         resp = client.get("/api/prioritization", headers=auth_headers)
     _assert_no_leak(resp, 500)
 

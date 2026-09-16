@@ -543,31 +543,102 @@ def test_net_011_noncompliant_returns_finding_per_unmonitored_region(mock_azure,
     assert findings[0]["resource_name"] == "westus"
 
 
-# ── AZ-NET-012: NSG flow logs not enabled ───────────────────────────────────
-# NOTE: this rule depends on azure_client.get_nsg_flow_logs(resource_group),
-# which the REAL AzureClient does not implement — so in production the rule's
-# bare except swallows the AttributeError and flags every NSG (false positive).
-# The mock provides the expected method, so these tests validate the rule's
-# *intended* detection logic and isolate the missing-method bug as root cause.
+# ── AZ-NET-012: VNet flow logs not enabled ──────────────────────────────────
+# The real AzureClient.get_flow_logs() lists Network Watcher flow logs
+# per-region (a subscription has no flat "all flow logs" endpoint), returning
+# a dict keyed by normalized region: a list of FlowLog resources for a region
+# with a reachable watcher, or None for a region whose watcher/flow-log
+# listing failed (403/429/etc). A region never set at all behaves the same as
+# None — both must be treated as indeterminate, never as "no flow log exists".
 
 
-def test_net_012_compliant_returns_no_findings(mock_azure, subscription_id):
-    nsg_id = _nsg_id("nsg-flowlogs")
-    nsg = make_resource(id=nsg_id, name="nsg-flowlogs")
-    mock_azure.set_network_security_groups([nsg])
-    mock_azure.set_nsg_flow_logs(_RG, [make_resource(target_resource_id=nsg_id, enabled=True)])
+def _net_012_vnet(name="vnet-1", location="eastus", nsg_id=None):
+    subnet = make_resource(
+        name="default",
+        network_security_group=make_resource(id=nsg_id) if nsg_id else None,
+    )
+    return make_resource(id=_vnet_id(name), name=name, location=location, subnets=[subnet])
+
+
+def test_net_012_no_vnets_returns_no_findings(mock_azure, subscription_id):
+    assert az_net_012.scan(mock_azure, subscription_id) == []
+
+
+def test_net_012_compliant_vnet_flow_log_returns_no_findings(mock_azure, subscription_id):
+    vnet = _net_012_vnet()
+    mock_azure.set_virtual_networks([vnet])
+    mock_azure.set_flow_logs_by_region("eastus", [make_resource(target_resource_id=vnet.id, enabled=True)])
     assert az_net_012.scan(mock_azure, subscription_id) == []
 
 
 def test_net_012_noncompliant_returns_one_finding(mock_azure, subscription_id):
-    nsg_id = _nsg_id("nsg-noflow")
-    nsg = make_resource(id=nsg_id, name="nsg-noflow")
-    mock_azure.set_network_security_groups([nsg])
-    mock_azure.set_nsg_flow_logs(_RG, [])  # no flow logs configured
+    vnet = _net_012_vnet()
+    mock_azure.set_virtual_networks([vnet])
+    mock_azure.set_flow_logs_by_region("eastus", [])  # watcher reachable, no flow log configured
     findings = az_net_012.scan(mock_azure, subscription_id)
     assert len(findings) == 1
-    assert findings[0]["rule_id"] == "AZ-NET-012"
-    assert findings[0]["severity"] == "MEDIUM"
+    finding = findings[0]
+    assert _REQUIRED_FIELDS.issubset(finding.keys())
+    assert finding["rule_id"] == "AZ-NET-012"
+    assert finding["severity"] == "MEDIUM"
+    assert finding["resource_type"] == "Microsoft.Network/virtualNetworks"
+    assert finding["resource_name"] == "vnet-1"
+    assert finding["remediation"].startswith("Enable a VNet flow log")  # never instructs creating a new NSG flow log
+
+
+def test_net_012_disabled_vnet_flow_log_still_flags(mock_azure, subscription_id):
+    """A present-but-disabled flow log is not coverage — must still flag."""
+    vnet = _net_012_vnet()
+    mock_azure.set_virtual_networks([vnet])
+    mock_azure.set_flow_logs_by_region("eastus", [make_resource(target_resource_id=vnet.id, enabled=False)])
+    assert len(az_net_012.scan(mock_azure, subscription_id)) == 1
+
+
+def test_net_012_existing_legacy_nsg_flow_log_is_accepted_not_flagged(mock_azure, subscription_id):
+    """An existing (not newly created) NSG flow log on the VNet's own subnet
+    NSG must be accepted as coverage — new NSG flow log creation is blocked
+    by Microsoft, so this rule must never recommend creating one."""
+    nsg_id = _nsg_id("nsg-legacy")
+    vnet = _net_012_vnet(nsg_id=nsg_id)
+    mock_azure.set_virtual_networks([vnet])
+    mock_azure.set_flow_logs_by_region("eastus", [make_resource(target_resource_id=nsg_id, enabled=True)])
+    assert az_net_012.scan(mock_azure, subscription_id) == []
+
+
+def test_net_012_disabled_legacy_nsg_flow_log_still_flags(mock_azure, subscription_id):
+    nsg_id = _nsg_id("nsg-legacy-disabled")
+    vnet = _net_012_vnet(nsg_id=nsg_id)
+    mock_azure.set_virtual_networks([vnet])
+    mock_azure.set_flow_logs_by_region("eastus", [make_resource(target_resource_id=nsg_id, enabled=False)])
+    assert len(az_net_012.scan(mock_azure, subscription_id)) == 1
+
+
+def test_net_012_region_never_set_is_indeterminate_not_flagged(mock_azure, subscription_id):
+    """No Network Watcher found for this region at all — must not flag."""
+    mock_azure.set_virtual_networks([_net_012_vnet(location="westus")])
+    # No set_flow_logs_by_region("westus", ...) call at all.
+    assert az_net_012.scan(mock_azure, subscription_id) == []
+
+
+def test_net_012_region_collection_failure_is_indeterminate_not_flagged(mock_azure, subscription_id):
+    """403/429/other API failure listing a region's flow logs (modeled as
+    None) must never be scored as a confirmed missing flow log."""
+    mock_azure.set_virtual_networks([_net_012_vnet(location="eastus")])
+    mock_azure.set_flow_logs_by_region("eastus", None)
+    assert az_net_012.scan(mock_azure, subscription_id) == []
+
+
+def test_net_012_partial_collection_only_skips_the_failed_region(mock_azure, subscription_id):
+    """One region's flow-log evidence failing must not suppress a genuine
+    finding in a region that was collected successfully."""
+    ok_vnet = _net_012_vnet(name="vnet-ok-region", location="eastus")
+    failed_vnet = _net_012_vnet(name="vnet-failed-region", location="westus")
+    mock_azure.set_virtual_networks([ok_vnet, failed_vnet])
+    mock_azure.set_flow_logs_by_region("eastus", [])  # reachable, genuinely no flow log
+    mock_azure.set_flow_logs_by_region("westus", None)  # collection failed
+    findings = az_net_012.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["resource_name"] == "vnet-ok-region"
 
 
 # ── AZ-NET-013: Azure Firewall not enabled on VNet ──────────────────────────

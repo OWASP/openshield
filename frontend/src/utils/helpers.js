@@ -1,3 +1,13 @@
+import { normalizeRisk, severityColor, severityDefinition } from './severity.js';
+
+const SEVERITY_TONE_CLASSES = {
+  critical: 'bg-red-200 text-red-900 dark:bg-red-950/50 dark:text-red-300',
+  danger: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  warning: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  success: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  neutral: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+};
+
 export function formatDate(isoString) {
   return new Date(isoString).toLocaleDateString('en-US', {
     month: 'short',
@@ -16,25 +26,12 @@ export function formatDateTime(isoString) {
 }
 
 export function getRiskColor(risk) {
-  const map = {
-    HIGH: '#ef4444',
-    MEDIUM: '#f97316',
-    LOW: '#10b981',
-    NONE: '#6b7280',
-    INFO: '#6b7280',
-  };
-  return map[risk] || '#6b7280';
+  const normalized = normalizeRisk(risk);
+  return normalized === 'NONE' ? '#6b7280' : severityColor(normalized);
 }
 
 export function getSeverityClass(severity) {
-  const map = {
-    HIGH: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-    MEDIUM: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-    LOW: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    INFO: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    NONE: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  };
-  return map[severity] || map.INFO;
+  return SEVERITY_TONE_CLASSES[severityDefinition(severity).tone];
 }
 
 export function calculatePercentage(value, total) {

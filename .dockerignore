@@ -1,4 +1,5 @@
 .git
+.gitdata
 .github
 .pytest_cache
 .ruff_cache

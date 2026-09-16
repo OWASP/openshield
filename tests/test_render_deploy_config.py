@@ -82,15 +82,15 @@ def test_each_smoke_secret_is_required_when_enabled(secret):
         render_deploy_preflight.validate(env)
 
 
-def test_workflow_orders_preflight_dual_deploy_waits_and_gates():
+def test_workflow_orders_api_migration_before_worker_deploy_and_gates():
     workflow = yaml.safe_load((ROOT / ".github/workflows/deploy.yml").read_text(encoding="utf-8"))
     job = workflow["jobs"]["deploy"]
     steps = job["steps"]
     names = [step["name"] for step in steps]
     assert job["environment"] == "${{ inputs.environment }}"
     assert names.index("Validate deployment preflight") < names.index("Create API deployment")
-    assert names.index("Create API deployment") < names.index("Create worker deployment")
-    assert names.index("Create worker deployment") < names.index("Wait for API deployment")
+    assert names.index("Create API deployment") < names.index("Wait for API deployment")
+    assert names.index("Wait for API deployment") < names.index("Create worker deployment")
     assert names.index("Create worker deployment") < names.index("Wait for worker deployment")
     assert names.index("Require both deployments to be live") < names.index("Health gate check")
     assert names.index("Health gate check") < names.index("Run smoke tests against live deployment")
@@ -99,6 +99,7 @@ def test_workflow_orders_preflight_dual_deploy_waits_and_gates():
     api_create = by_name["Create API deployment"]
     worker_create = by_name["Create worker deployment"]
     assert api_create["env"]["GITHUB_SHA"] == worker_create["env"]["GITHUB_SHA"] == "${{ github.sha }}"
+    assert "continue-on-error" not in by_name["Wait for API deployment"]
     assert by_name["Wait for API deployment"]["env"]["RENDER_DEPLOY_ID"] == "${{ steps.create_api.outputs.deploy_id }}"
     assert by_name["Wait for worker deployment"]["env"]["RENDER_DEPLOY_ID"] == (
         "${{ steps.create_worker.outputs.deploy_id }}"

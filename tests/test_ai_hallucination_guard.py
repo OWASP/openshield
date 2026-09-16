@@ -30,7 +30,10 @@ TRICK_QUESTIONS = [
 ]
 
 
-@pytest.mark.skipif(not Path("ai/vectorstore").exists(), reason="Vector store not found. Run embedding first.")
+_BM25_MISSING = not Path("ai/vectorstore/bm25_index.json").exists()
+
+
+@pytest.mark.skipif(_BM25_MISSING, reason="BM25 index not found. Run 'python ai/embed.py' first.")
 class TestHallucinationGuard:
     """
     Regression test suite to ensure the AI stays 'Azure Pure'

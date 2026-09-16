@@ -69,6 +69,33 @@ the Flask application. Leaving this value unset enables wildcard CORS and is not
 acceptable for a real staging or production environment. Do not add this setting to
 worker services.
 
+## Restricting probe/scrape endpoints at the edge
+
+`/health`, `/ready`, and `/metrics` are intentionally exempt from JWT auth (see
+`api.app._ALWAYS_PUBLIC`) so uptime checkers and Prometheus scrapers can reach them
+without a token. `/health` is a pure liveness check with no backend dependency and is
+meant to stay reachable from anywhere - it is what `render.yaml`'s
+`healthCheckPath` uses. `/ready` and `/metrics` are different: `/ready` checks out a
+pooled database connection on every call, and `/metrics` returns operational counters
+(including database pool utilization from `openshield_db_pool_connections_*` -
+counts only, never the DSN, host, or credentials - see `get_pool_stats()` in
+`api/models/finding.py`). Neither should be reachable by arbitrary internet clients.
+
+Render's Blueprint format has no path-based access control, so this repository
+cannot restrict `/ready`/`/metrics` from `render.yaml` itself. The application
+carries its own in-process, in-memory rate limit on both paths
+(`api.observability.probe_rate_limit`, wired in `api/app.py`) as a defense-in-depth
+backstop - deliberately not the shared Postgres-backed `api.rate_limit.rate_limit`
+used elsewhere, since that would add database load to the exact endpoint meant to
+protect the database from overload. That backstop bounds a single source hammering
+one process; it is not a substitute for restricting network reachability.
+
+Whoever operates the reverse proxy, CDN, or WAF in front of a Render deployment
+(Cloudflare or similar, if one is configured) should restrict `/ready` and `/metrics`
+to known monitoring/scraping source IPs or an internal network path, the same way
+they would for any other backend-only operational endpoint. This is an operational
+configuration step outside this repository, not something `render.yaml` can express.
+
 ## Coordinated deterministic deployment
 
 For the selected environment, the workflow:

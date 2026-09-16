@@ -1,148 +1,94 @@
-# OpenShield Website
+# OpenShield website
 
-A data-driven static site for the OpenShield project. No build step required. Pure HTML, Tailwind CSS (CDN), and vanilla JavaScript.
-
-## Live Site
-
-`https://openshield-website.vercel.app`
-
----
-
-## Deployment on Vercel
-
-1. Vercel dashboard -> Add New Project -> Import the OpenShield repo
-2. Set **Root Directory** to `website/`
-3. Framework preset: **Other**
-4. Build command: *(leave empty)*
-5. Output directory: *(leave empty)*
-6. Deploy
-
-Vercel picks up `vercel.json` automatically. Every push to `main` triggers a redeploy.
-
----
-
-## Adding Content
-
-All content lives in `website/content.js`. Edit it directly on a branch and open a PR to `dev`. Alternatively, use the built-in editor at the Blog Editor section (requires a GitHub personal access token with `repo` scope).
-
-### Blog post
-
-```javascript
-{
-    id: "unique-slug",
-    title: "Post Title",
-    date: "June 3, 2025",
-    excerpt: "One or two sentences shown on the blog listing.",
-    author: "Your Name or Team Name",
-    image: "assets/blog/your-image.jpg",  // optional — commit the file to website/assets/blog/
-    video: "https://www.youtube.com/embed/VIDEO_ID",  // optional — YouTube or Vimeo embed URL
-    content: `
-        <p class="mb-6">First paragraph.</p>
-        <h3 class="text-2xl font-bold mb-4 text-slate-900 dark:text-white">A Subheading</h3>
-        <p class="mb-6">More content. Markdown is also supported here via marked.js.</p>
-    `
-}
-```
-
-**Images in blog posts:**
-- Cover image: commit to `website/assets/blog/` and set `image: "assets/blog/filename.jpg"`
-- Inline images: use standard Markdown `![alt](assets/blog/filename.jpg)` inside the `content` field
-- Max file size for GitHub API upload via the editor: **700 KB**. Larger files must be committed manually.
-
-**Video embeds:**
-- Paste a YouTube watch URL (`https://www.youtube.com/watch?v=...`) or Vimeo URL (`https://vimeo.com/...`) into the `video` field
-- The site converts it to an embed URL automatically
-- Video is rendered above the post content, below the cover image
-- Direct video file uploads are not supported — use YouTube or Vimeo as the host
-
-### Community event
-
-```javascript
-{
-    title: "Community Meetup #1",
-    date: "July 10, 2025",
-    location: "Online",
-    link: "https://link-to-registration.com",
-    status: "Upcoming"
-}
-```
-
-### Contributor
-
-```javascript
-{
-    name: "Jane Doe",
-    role: "Security Researcher",
-    handle: "janedoe"   // GitHub username — avatar is fetched automatically
-}
-```
-
-### Release
-
-```javascript
-{
-    version: "v0.2.0",
-    date: "July 2025",
-    type: "minor",      // major | minor | patch
-    title: "Short description of the release",
-    notes: [
-        "What was added or changed",
-        "Another notable change"
-    ],
-    github: "https://github.com/openshield-org/openshield/releases/tag/v0.2.0"
-}
-```
-
----
-
-## Updating the Rules Gallery
-
-The rules gallery is driven by the `siteContent.rules` array in `content.js`. When a new scanner rule is added to `scanner/rules/`, regenerate the array by running this from the repo root:
-
-```bash
-python3 -c "
-import importlib.util, json, os
-rules = []
-for f in sorted(os.listdir('scanner/rules')):
-    if not f.startswith('az_') or not f.endswith('.py'): continue
-    spec = importlib.util.spec_from_file_location('r', 'scanner/rules/' + f)
-    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-    rules.append({'id': m.RULE_ID, 'name': m.RULE_NAME, 'severity': m.SEVERITY,
-                  'category': m.CATEGORY, 'description': m.DESCRIPTION, 'frameworks': m.FRAMEWORKS})
-print(json.dumps(rules, indent=2))
-"
-```
-
-Paste the output as the `rules` array in `content.js`.
-
----
-
-## What the editor covers
-
-| Section | Editor support |
-|---|---|
-| Blog posts | Yes — Blog Post type (image upload, video embed, Markdown content) |
-| Events | Yes — Community Event type |
-| Contributors | Yes — New Contributor type |
-| Releases | Yes — Release type |
-| Roadmap | Manual edit of `content.js` only |
-| Rules gallery | Manual edit of `content.js` only (use the script above) |
-| Documentation pages | Manual edit of `content.js` only |
-
----
+The project website, built with [Astro](https://astro.build) and deployed to GitHub
+Pages. Every number on the site (rule count, domains, playbooks, contributors,
+latest release, docs index) is extracted from the repository itself at build
+time, so content stays correct without any manual editing.
 
 ## Local development
 
-Open `website/index.html` directly in a browser. No server or build step required. All dependencies load from CDN.
-
-For a local server (avoids some CSP restrictions):
-
 ```bash
 cd website
-python3 -m http.server 8080
-# open http://localhost:8080
+npm install
+npm run dev        # http://localhost:4321/openshield/
 ```
 
----
+Other scripts:
 
-Core philosophy: keep it technical, keep it open.
+```bash
+npm run build      # production build into dist/
+npm run preview    # serve the production build locally
+npm run check      # build plus content, semantics and bundle verification
+```
+
+Requires Node 20+ (CI uses Node 22). The build reads `scanner/rules/`,
+`playbooks/cli/`, `docs/`, `CHANGELOG.md` and the git history, so it must run
+from a clone (not a tarball without history) for the contributor count.
+
+## Publishing a blog post
+
+Posts live in `src/content/blog/` as Markdown with frontmatter. Do not commit
+to `dev` or `main` directly; both are protected.
+
+Via the CMS (recommended):
+
+1. Open `/admin/` on the deployed site and sign in with GitHub.
+2. Create or edit a post under "Blog posts". Drafts are kept in the
+   editorial workflow and are not published until merged.
+3. Saving opens a pull request from `cms/<slug>` against `dev`, signed off
+   for DCO. A maintainer reviews and merges it.
+4. When the pull request merges into `dev`, GitHub Actions builds and
+   deploys the site automatically (about 1-2 minutes). The site follows
+   `dev`; `main` only receives release merges.
+
+## Deployment pipeline
+
+`.github/workflows/website.yml` builds the site on every pull request targeting
+`dev` or `main`. Every push to `dev` rebuilds and deploys the verified artifact
+to GitHub Pages, so changes to rules, features, documentation, or site code are
+published without maintaining a fragile path list. Manual runs can deploy only
+from `dev`.
+
+GitHub Pages does not support custom response headers. The document-level
+content security policy covers supported directives, but hosting-level headers
+such as `frame-ancestors` require a configurable hosting edge.
+
+## One-time maintainer setup
+
+1. In the repository settings, set Pages source to **GitHub Actions**.
+2. Register a GitHub OAuth App for Decap CMS:
+   - New OAuth App: https://github.com/settings/applications/new
+   - Homepage URL: `https://openshield-org.github.io/openshield/admin/`
+   - Authorization callback URL: `https://api.netlify.com/auth/done`
+3. Add its public Client ID as an Actions repository variable named
+   `DECAP_GITHUB_APP_ID`. Do not store a client secret. A missing variable
+   cleanly omits the optional `/admin/` route; a malformed configured value
+   fails the build.
+4. Require the `Build site` status check in the protection rules for `dev` and
+   `main`. This prevents a site-breaking repository change from being merged.
+
+Decap uses `auth_type: pkce`, so no client secret or server-side token
+exchange is needed.
+
+## Content guidelines
+
+- Plain, direct technical writing.
+- No em dashes anywhere in site copy. Use commas, colons, or separate
+  sentences instead.
+- Frontmatter fields: `title`, `description`, `pubDate` (YYYY-MM-DD),
+  optional `author`, `tags`, `draft`.
+
+## Structure
+
+```
+website/
+  astro.config.mjs        # site URL, base path, sitemap + RSS integrations
+  src/content.config.ts   # blog collection schema
+  src/content/blog/       # posts (managed by Decap CMS)
+  src/layouts/Base.astro  # shared head, nav, footer
+  src/components/         # one file per section of the landing page
+  src/lib/repoData.ts     # build-time extraction of rules, docs, contributors
+  src/lib/orbScene.ts     # hero visualization (three.js)
+  src/pages/              # routes: home, architecture, evidence, rules, docs, blog, community, RSS and 404
+  public/admin/           # Decap CMS (config + editor shell)
+```

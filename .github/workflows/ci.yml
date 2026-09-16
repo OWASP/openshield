@@ -93,10 +93,10 @@ jobs:
           import importlib.util
           import sys
           from collections import defaultdict
+          from openshield.severity import CANONICAL_SEVERITIES
 
           rules_dir = "scanner/rules"
           required_fields = ["RULE_ID", "SEVERITY", "FRAMEWORKS"]
-          valid_severities = {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
           failures = []
           seen_ids = defaultdict(list)
 
@@ -127,9 +127,10 @@ jobs:
                       failures.append(f"{filename}: missing field '{field}'")
 
               if hasattr(mod, "SEVERITY"):
-                  if mod.SEVERITY not in valid_severities:
+                  if mod.SEVERITY not in CANONICAL_SEVERITIES:
                       failures.append(
-                          f"{filename}: SEVERITY '{mod.SEVERITY}' not in {valid_severities}"
+                          f"{filename}: SEVERITY '{mod.SEVERITY}' not in "
+                          f"{sorted(CANONICAL_SEVERITIES)}"
                       )
 
               if hasattr(mod, "FRAMEWORKS"):
@@ -508,37 +509,103 @@ jobs:
           path: sbom.cyclonedx.json
           retention-days: 90
 
-  # ── Container image scan (Trivy) — scaffolded ahead of INFRA 1 (#154) ─────
+  # ── Container runtime contract + image scan (Trivy) ───────────────────────
   container-scan:
     name: Container Scan (Trivy)
     runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: openshield-ci-scan:${{ github.sha }}
+      CONTAINER_NAME: openshield-ci-runtime
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci_db
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      - name: Check for Dockerfile
-        id: dockerfile_check
-        run: |
-          if [ -f "Dockerfile" ]; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "path=Dockerfile" >> "$GITHUB_OUTPUT"
-          elif [ -f "api/Dockerfile" ]; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "path=api/Dockerfile" >> "$GITHUB_OUTPUT"
-          else
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "No Dockerfile yet (INFRA 1 / #154 not merged) — nothing to scan, skipping."
-          fi
-
       - name: Build image
-        if: steps.dockerfile_check.outputs.found == 'true'
-        run: docker build -t openshield-ci-scan:${{ github.sha }} -f "${{ steps.dockerfile_check.outputs.path }}" .
+        id: build
+        run: docker build --tag "$IMAGE_TAG" --file Dockerfile .
+
+      - name: Verify BM25 retrieval in fresh image
+        run: |
+          docker run --rm --entrypoint python "$IMAGE_TAG" -c \
+            "from ai.retriever import retrieve; results = retrieve('Azure storage account security', n_results=5); assert results; print(results[0]['source'])"
+
+      - name: Start image
+        env:
+          POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
+        run: |
+          set -euo pipefail
+          JWT_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          docker run --detach \
+            --name "$CONTAINER_NAME" \
+            --network host \
+            --env "DATABASE_URL=postgresql://ci:ci@127.0.0.1:${POSTGRES_PORT}/ci_db" \
+            --env OPENSHIELD_ENV=production \
+            --env OPENSHIELD_PUBLIC_DEMO=false \
+            --env ALLOWED_ORIGINS=http://127.0.0.1:8000 \
+            --env PORT=8000 \
+            --env "JWT_SECRET=$JWT_SECRET" \
+            "$IMAGE_TAG"
+
+      - name: Verify readiness and non-root runtime
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+
+          url = "http://127.0.0.1:8000/ready"
+          last_error = "container did not answer"
+          for attempt in range(1, 31):
+              try:
+                  with urllib.request.urlopen(url, timeout=3) as response:
+                      status = response.status
+                      payload = json.load(response)
+                  if status == 200 and payload == {"status": "ready"}:
+                      print(f"Runtime readiness passed on attempt {attempt}: {payload}")
+                      break
+                  last_error = f"HTTP {status}: {payload!r}"
+              except (OSError, ValueError, urllib.error.URLError) as exc:
+                  last_error = repr(exc)
+              time.sleep(2)
+          else:
+              raise SystemExit(f"Runtime readiness failed after 30 attempts: {last_error}")
+          PYEOF
+
+          RUNTIME_UID="$(docker exec "$CONTAINER_NAME" id -u)"
+          if [ "$RUNTIME_UID" = "0" ]; then
+            echo "ERROR: container is running as root."
+            exit 1
+          fi
+          echo "Container runtime UID is $RUNTIME_UID (non-root)."
+
+      - name: Show runtime logs on failure
+        if: failure()
+        run: docker logs "$CONTAINER_NAME" || true
+
+      - name: Remove runtime smoke container
+        if: always()
+        run: docker rm --force "$CONTAINER_NAME" || true
 
       - name: Run Trivy
-        if: steps.dockerfile_check.outputs.found == 'true'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: openshield-ci-scan:${{ github.sha }}
+          image-ref: ${{ env.IMAGE_TAG }}
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
@@ -613,8 +680,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run aiSettings tests
-        run: node src/utils/aiApi.test.mjs
+      - name: Run API utility tests
+        run: node src/utils/api.test.mjs && node src/utils/scanPolling.test.mjs && node src/utils/aiApi.test.mjs
+
+      - name: Run dashboard load-state tests
+        run: node src/hooks/usePageData.test.mjs
+
+      - name: Run severity contract tests
+        run: npm run test:severity
 
       - name: Run accessibility and internationalization checks
         run: npm run test:a11y && npm run test:i18n
@@ -622,20 +695,33 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Website validation joins CI Summary; website.yml handles Pages deployment.
   website:
-    name: Website (script tests)
+    name: Website (Astro build + verification)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: website
     steps:
-      - name: Checkout repository
+      - name: Checkout repository with full history
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "22"
+          node-version: "22.22.0"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
 
-      - name: Run website script tests
-        run: node website/test_toEmbedUrl.mjs
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and verify CMS-disabled and CMS-enabled output
+        run: npm run check
 
   # ── Enforce branch flow: main may only receive PRs from dev ───────────────
   # No-op on dev PRs (step skipped -> job succeeds). To allow hotfixes straight
@@ -690,10 +776,10 @@ jobs:
               ("SAST (Semgrep)",                     os.environ["SAST_SEMGREP"]),
               ("SCA (pip-audit)",                    os.environ["SCA_PIP_AUDIT"]),
               ("SBOM (Syft)",                        os.environ["SBOM"]),
-              ("Container Scan (Trivy, INFRA 1 pending)", os.environ["CONTAINER_SCAN"]),
+              ("Container Runtime + Scan (Trivy)",        os.environ["CONTAINER_SCAN"]),
               ("Backend Tests (pytest + coverage)",  os.environ["BACKEND_TESTS"]),
               ("Frontend (lint + build)",            os.environ["FRONTEND"]),
-              ("Website (script tests)",             os.environ["WEBSITE"]),
+              ("Website (Astro build + verification)", os.environ["WEBSITE"]),
               ("Enforce dev to main source",        os.environ["ENFORCE_SOURCE"]),
           ]
 
@@ -733,7 +819,6 @@ jobs:
                   f.write(summary + "\n")
           PYEOF
 
-      # container-scan excluded until INFRA 1 (#154) gives it a real image to gate on
       - name: Fail if any required job failed
         if: |
           needs.lint.result != 'success' ||
@@ -743,6 +828,7 @@ jobs:
           needs.sast-semgrep.result != 'success' ||
           needs.sca-pip-audit.result != 'success' ||
           needs.sbom.result != 'success' ||
+          needs.container-scan.result != 'success' ||
           needs.backend-tests.result != 'success' ||
           needs.frontend.result != 'success' ||
           needs.website.result != 'success' ||

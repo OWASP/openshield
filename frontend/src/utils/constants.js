@@ -1,16 +1,8 @@
-export const RISK_LEVELS = {
-  HIGH: 'HIGH',
-  MEDIUM: 'MEDIUM',
-  LOW: 'LOW',
-  NONE: 'NONE',
-};
+import { SEVERITY_DEFINITIONS, SEVERITY_IDS } from './severity.js';
 
-export const SEVERITY_LEVELS = {
-  HIGH: 'HIGH',
-  MEDIUM: 'MEDIUM',
-  LOW: 'LOW',
-  INFO: 'INFO',
-};
+export const SEVERITY_LEVELS = Object.freeze(Object.fromEntries(SEVERITY_IDS.map((id) => [id, id])));
+
+export const RISK_LEVELS = Object.freeze({ ...SEVERITY_LEVELS, NONE: 'NONE' });
 
 export const CATEGORIES = [
   'Storage',
@@ -30,13 +22,20 @@ export const DRIFT_TYPES = {
   MODIFIED: 'MODIFIED',
 };
 
-export const RISK_COLORS = {
-  HIGH: 'text-severity-high bg-red-50 dark:bg-red-900/20',
-  MEDIUM: 'text-severity-medium bg-orange-50 dark:bg-orange-900/20',
-  LOW: 'text-severity-low bg-green-50 dark:bg-green-900/20',
-  NONE: 'text-text-secondary bg-bg-secondary dark:bg-bg-dark-tertiary',
-  INFO: 'text-severity-info bg-gray-50 dark:bg-gray-900/20',
+const RISK_TONE_CLASSES = {
+  critical: 'text-severity-critical bg-red-100 dark:bg-red-950/40',
+  danger: 'text-severity-high bg-red-50 dark:bg-red-900/20',
+  warning: 'text-severity-medium bg-orange-50 dark:bg-orange-900/20',
+  success: 'text-severity-low bg-green-50 dark:bg-green-900/20',
+  neutral: 'text-severity-info bg-gray-50 dark:bg-gray-900/20',
 };
+
+export const RISK_COLORS = Object.freeze({
+  ...Object.fromEntries(
+    SEVERITY_DEFINITIONS.map((level) => [level.id, RISK_TONE_CLASSES[level.tone]]),
+  ),
+  NONE: 'text-text-secondary bg-bg-secondary dark:bg-bg-dark-tertiary',
+});
 
 export const NAV_ITEMS = [
   { path: '/monitoring', label: 'Monitor', icon: 'FiActivity' },

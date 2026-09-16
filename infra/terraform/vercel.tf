@@ -10,7 +10,7 @@ resource "vercel_project" "dashboard" {
 
   environment = [
     {
-      key       = "VITE_API_BASE_URL"
+      key       = "VITE_API_URL"
       value     = "https://openshield-api.onrender.com"
       target    = ["production", "preview"]
       sensitive = false
