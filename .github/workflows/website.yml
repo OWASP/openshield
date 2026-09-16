@@ -1,8 +1,8 @@
-# Website pipeline: build check on every PR, deploy to Pages on dev.
+# Website pipeline: build check on every PR, deploy to Pages from main.
 #
-# The site follows dev (the default branch), which moves continuously, while
-# main only receives release merges, so publishing from dev keeps the site
-# from going stale between releases.
+# main is the release-controlled source for the official OWASP site. Changes
+# can be validated and integrated through dev without becoming public before
+# their promotion to main.
 #
 # The site derives its numbers (rules, domains, playbooks, contributors,
 # releases, docs index) from the repository at build time, so a full clone
@@ -12,7 +12,7 @@ name: website
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
   pull_request:
     branches: [dev, main]
   workflow_dispatch:
@@ -62,14 +62,14 @@ jobs:
         run: npm run verify
 
       - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/dev' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
         with:
           path: website/dist
 
   deploy:
     name: Deploy to GitHub Pages
-    if: github.ref == 'refs/heads/dev' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
