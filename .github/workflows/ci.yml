@@ -5,11 +5,18 @@ on:
     branches:
       - dev
       - main
+  # Post-merge assurance: re-run the full gate on the merged result, so a green
+  # PR run against an older base is not the only evidence for dev and main.
+  push:
+    branches:
+      - dev
+      - main
 
-# Cancel superseded runs on the same PR to save runner minutes
+# Cancel superseded runs on the same PR to save runner minutes. Post-merge runs
+# are never cancelled, so every commit on dev and main keeps its own result.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least privilege: jobs only read repo contents
 permissions:

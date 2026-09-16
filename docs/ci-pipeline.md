@@ -157,15 +157,63 @@ Compose's `local` profile is not production configuration. Its credentials are d
 The branch flow is `feature/* → dev → main`. Protection is applied to the two **destinations**; feature branches stay unprotected for fast iteration.
 
 ```
-feat/* fix/* docs/*   ──PR──▶  dev   ──PR──▶  main  ──▶ production environment
-   (unprotected)          (gate)        (stricter gate)
+feat/* fix/* docs/* infra/*  ──PR──▶  dev   ──PR──▶  main  ──▶ production environment
+      (unprotected)              (gate)        (stricter gate)
 ```
 
-- **`dev`** — requires all CI checks above + CodeQL, 1 approving review, and "branches up to date before merging".
-- **`main`** — everything `dev` requires, plus stricter review (2 approvals / code owners), `enforce_admins`, and the **Enforce dev to main source** check, which blocks any PR into `main` whose source branch is not `dev`. (To permit emergency hotfixes straight to `main`, widen that job's condition to also accept `hotfix/*`.)
-- **`production` environment** — required reviewers with "prevent self-review", so a `dev → main` deployment cannot be approved by its own author.
+### Declared state (source of truth)
 
-CI runs at **both** merge points (`on: pull_request` targets `dev` and `main`), so the same gates apply on the way into `dev` and again, stricter, on the way into `main`.
+Protection is declared as code in GitHub's repository-ruleset format:
+
+| Branch | File | Reviews | Required checks |
+|---|---|---|---|
+| `dev` | [`.github/branch-protection/dev.json`](../.github/branch-protection/dev.json) | 1 approval, code owner review, approval of the latest push, stale approvals dismissed, conversations resolved | `CI Summary`, `DCO sign-off`, `dependency-review`, `Analyze (python)`, `Analyze (javascript)` — strict (head must be up to date) |
+| `main` | [`.github/branch-protection/main.json`](../.github/branch-protection/main.json) | Same as `dev`, but **2 approvals** | Same as `dev`, strict |
+
+Both rulesets block branch deletion and force pushes and declare **no standing bypass actors**. `CI Summary` already fails when any CI job fails, including **Enforce dev to main source**, which blocks any PR into `main` whose source branch is not `dev`. `require_last_push_approval` means the person who pushed the last commit cannot provide the approval that satisfies the rule, so a promotion cannot be self-approved.
+
+`tests/test_check_branch_protection.py` fails if a declared ruleset is weakened (fewer approvals, non-strict checks, a bypass actor) or names a required check that no workflow job produces — a misspelled required check would otherwise block every merge.
+
+### Applying the rulesets (repository administrators)
+
+Only an administrator can change protection. Import each file once, either through **Settings → Rules → Rulesets → New ruleset → Import a ruleset**, or with the API:
+
+```bash
+gh api -X POST repos/OWASP/openshield/rulesets --input .github/branch-protection/dev.json
+gh api -X POST repos/OWASP/openshield/rulesets --input .github/branch-protection/main.json
+```
+
+To change an existing ruleset, edit the JSON file in a reviewed PR first, then apply it with `gh api -X PUT repos/OWASP/openshield/rulesets/<id> --input <file>`. Once the rulesets are active, remove the legacy classic protection so there is one source of truth. The **production** environment should keep required reviewers with **Prevent self-review** enabled.
+
+### Effective state (evidence)
+
+The **Branch Protection Audit** workflow (`.github/workflows/branch-protection-audit.yml`) runs weekly and on demand. It compares the rules GitHub actually enforces (`GET /repos/{repo}/rules/branches/{branch}`) with the declared files, fails on any drift, and uploads a JSON evidence record as the `branch-protection-evidence` artifact (kept 90 days). Run it locally with:
+
+```bash
+python scripts/check_branch_protection.py --validate-only
+GITHUB_TOKEN=<token> python scripts/check_branch_protection.py --repo OWASP/openshield --evidence evidence.json
+```
+
+A read-only token can see enforced rules. Bypass actors are only returned to a token that can administer rulesets; store one as the `BRANCH_PROTECTION_AUDIT_TOKEN` secret, otherwise bypass actors are reported as *unverified* rather than assumed compliant.
+
+As of the 2026-08-21 audit recorded in issue #298, both branches reported `protected: true` but required status-check enforcement was `off` and no rulesets existed. Until an administrator applies the rulesets above and the audit passes, treat the review and check requirements in this section as **declared, not enforced**.
+
+To demonstrate enforcement after applying (acceptance criteria for #298): open a throwaway PR with a deliberately failing test and confirm merge is blocked; push to `dev` after that PR's last CI run and confirm the stale head cannot merge; open a `dev → main` PR and confirm its author cannot satisfy the approval requirement.
+
+### Emergency changes
+
+There is no standing bypass. If a production incident requires merging without the normal gates:
+
+1. Open an issue labelled `priority: critical` describing the incident, the change and why the gates cannot be met.
+2. An administrator temporarily switches the affected ruleset's enforcement to **Evaluate** (or adds themselves as a bypass actor), merges the reviewed fix, and restores **Active** immediately.
+3. Record the time window, the actor and the merged commit on the issue, then run the Branch Protection Audit workflow and attach its evidence to the issue.
+4. The change still receives a retrospective review from a second maintainer.
+
+### Post-merge CI and automated statistics
+
+CI and CodeQL also run on every push to `dev` and `main`, so each merged commit has its own result instead of relying only on a PR run against an older base. Post-merge runs are never cancelled.
+
+The **Update Learn Page and README Stats** workflow no longer pushes to `dev`. When statistics change it force-updates the `docs/refresh-learn-page-stats` branch and opens (or refreshes) a pull request, which goes through the same protected flow. Pull requests opened with the default `GITHUB_TOKEN` do not start workflows, so administrators should provide a `STATS_BOT_TOKEN` secret (GitHub App token or fine-grained token with contents and pull-requests write) and allow GitHub Actions to create pull requests in repository settings.
 
 ---
 
