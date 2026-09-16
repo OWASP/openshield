@@ -37,17 +37,16 @@ Via the CMS (recommended):
    editorial workflow and are not published until merged.
 3. Saving opens a pull request from `cms/<slug>` against `dev`, signed off
    for DCO. A maintainer reviews and merges it.
-4. When the pull request merges into `dev`, GitHub Actions builds and
-   deploys the site automatically (about 1-2 minutes). The site follows
-   `dev`; `main` only receives release merges.
+4. Merging the pull request into `dev` validates the content but does not
+   publish it. The official site updates only after the change is promoted
+   to `main` through the repository's release process.
 
 ## Deployment pipeline
 
 `.github/workflows/website.yml` builds the site on every pull request targeting
-`dev` or `main`. Every push to `dev` rebuilds and deploys the verified artifact
-to GitHub Pages, so changes to rules, features, documentation, or site code are
-published without maintaining a fragile path list. Manual runs can deploy only
-from `dev`.
+`dev` or `main`. Every push to `main` rebuilds and deploys the verified artifact
+to GitHub Pages, so the official OWASP site reflects release-controlled source.
+Manual runs can deploy only when dispatched from `main`.
 
 GitHub Pages does not support custom response headers. The document-level
 content security policy covers supported directives, but hosting-level headers
@@ -58,7 +57,7 @@ such as `frame-ancestors` require a configurable hosting edge.
 1. In the repository settings, set Pages source to **GitHub Actions**.
 2. Register a GitHub OAuth App for Decap CMS:
    - New OAuth App: https://github.com/settings/applications/new
-   - Homepage URL: `https://openshield-org.github.io/openshield/admin/`
+   - Homepage URL: `https://owasp.github.io/openshield/admin/`
    - Authorization callback URL: `https://api.netlify.com/auth/done`
 3. Add its public Client ID as an Actions repository variable named
    `DECAP_GITHUB_APP_ID`. Do not store a client secret. A missing variable

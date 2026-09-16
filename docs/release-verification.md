@@ -1,5 +1,12 @@
 # Verifying OpenShield Releases
 
+For the current OWASP-hosted container workflow, see
+[container release integrity](container-release-integrity.md), including owner
+opt-in, the new GHCR namespace and digest verification. The commands below retain
+the historical source-artifact identity for releases from `openshield-org`;
+for new OWASP-hosted source releases substitute `OWASP/openshield` in both
+`--repo` and `--signer-workflow`.
+
 OpenShield release artifacts are produced only from a GitHub-verified signed
 annotated tag. GitHub Actions generates a deterministic source archive, a
 CycloneDX SBOM and SHA-256 checksums, then creates identity-bound Sigstore

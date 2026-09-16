@@ -14,13 +14,19 @@ function filesUnder(directory) {
   });
 }
 
-const sourceFiles = [path.join(root, 'src'), path.join(root, 'public'), path.join(root, 'README.md')]
+const sourceFiles = [
+  path.join(root, 'src'),
+  path.join(root, 'public'),
+  path.join(root, 'README.md'),
+  path.join(root, 'astro.config.mjs'),
+]
   .flatMap((entry) => fs.statSync(entry).isDirectory() ? filesUnder(entry) : [entry])
   .filter((file) => /\.(astro|css|html|js|json|md|mjs|svg|ts|xml|xsl)$/.test(file));
 
 for (const file of sourceFiles) {
   const source = fs.readFileSync(file, 'utf8');
   if (source.includes('\u2014')) failures.push(`${path.relative(root, file)} contains an em dash`);
+  if (source.includes('openshield-org')) failures.push(`${path.relative(root, file)} contains the pre-OWASP repository identity`);
 }
 
 const htmlFiles = filesUnder(dist).filter((file) => file.endsWith('.html') && !file.includes(`${path.sep}admin${path.sep}`));
@@ -82,6 +88,9 @@ if (hasCmsConfig && hasAdminShell) {
 const robotsPath = path.join(dist, 'robots.txt');
 const robots = fs.existsSync(robotsPath) ? fs.readFileSync(robotsPath, 'utf8') : '';
 if (!robots.includes('Disallow: /openshield/admin/')) failures.push('robots.txt does not exclude the CMS route');
+if (!robots.includes('Sitemap: https://owasp.github.io/openshield/sitemap-index.xml')) {
+  failures.push('robots.txt does not advertise the OWASP Pages sitemap');
+}
 
 const jsFiles = filesUnder(path.join(dist, '_astro')).filter((file) => file.endsWith('.js'));
 const largestJs = jsFiles.reduce((largest, file) => Math.max(largest, fs.statSync(file).size), 0);

@@ -46,7 +46,7 @@ Then push a scan. With no arguments the client defaults to `scanner/output/test_
 python3 sentinel/ingest.py scanner/output/test_findings.json scan-001
 ```
 
-The full walkthrough, including the Sentinel onboarding commands, lives in [docs/sentinel-setup.md](https://github.com/openshield-org/openshield/blob/dev/docs/sentinel-setup.md).
+The full walkthrough, including the Sentinel onboarding commands, lives in [docs/sentinel-setup.md](https://github.com/OWASP/openshield/blob/dev/docs/sentinel-setup.md).
 
 ## Verify with KQL
 
