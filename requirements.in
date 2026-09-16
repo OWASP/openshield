@@ -30,6 +30,9 @@ pyjwt==2.13.0
 requests==2.34.2
 PyYAML==6.0.3
 gunicorn==26.0.0
+# SQLAlchemy requires greenlet on CPython/Linux. Keep it explicit so locks
+# generated or checked from another platform remain complete for production.
+greenlet==3.5.6
 cryptography==50.0.0
 msrest==0.7.1
 six>=1.16.0
