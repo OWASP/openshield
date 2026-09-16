@@ -3,22 +3,22 @@
 # One-time setup (see website/README.md):
 #   1. Register a GitHub OAuth App:
 #        https://github.com/settings/applications/new
-#      Homepage URL:            https://openshield-org.github.io/openshield/admin/
+#      Homepage URL:            https://owasp.github.io/openshield/admin/
 #      Authorization callback: https://api.netlify.com/auth/done
 #   2. Store the public Client ID in the DECAP_GITHUB_APP_ID repository
 #      variable. The deployment pipeline injects it into the built artifact.
 #
 # Publishing flow (compatible with branch protection on dev and main):
 #   author writes in /admin -> editorial_workflow opens a PR from cms/<slug>
-#   against dev, DCO-signed -> maintainer reviews and merges -> GitHub
-#   Actions builds and deploys to Pages automatically.
+#   against dev, DCO-signed -> maintainer reviews and merges -> the change is
+#   published after promotion to main through the repository release process.
 
-site_url: https://openshield-org.github.io/openshield/
-display_url: https://openshield-org.github.io/openshield/
+site_url: https://owasp.github.io/openshield/
+display_url: https://owasp.github.io/openshield/
 
 backend:
   name: github
-  repo: openshield-org/openshield
+  repo: OWASP/openshield
   branch: dev
   auth_type: pkce
   # The deployment build inserts app_id from the repository variable.

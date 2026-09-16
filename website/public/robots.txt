@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /openshield/admin/
 
-Sitemap: https://openshield-org.github.io/openshield/sitemap-index.xml
+Sitemap: https://owasp.github.io/openshield/sitemap-index.xml

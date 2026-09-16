@@ -120,9 +120,9 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - GitHub Actions continuous integration pipeline
 - SBOM generation with Syft
 
-[Unreleased]: https://github.com/openshield-org/openshield/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/openshield-org/openshield/releases/tag/v0.3.0
-[0.2.3]: https://github.com/openshield-org/openshield/commit/3d6d7cc
-[0.2.2]: https://github.com/openshield-org/openshield/commit/9575a33
-[0.2.0]: https://github.com/openshield-org/openshield/commit/484eb9b
-[0.1.0]: https://github.com/openshield-org/openshield/releases/tag/v0.1.0
+[Unreleased]: https://github.com/OWASP/openshield/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/OWASP/openshield/releases/tag/v0.3.0
+[0.2.3]: https://github.com/OWASP/openshield/commit/3d6d7cc
+[0.2.2]: https://github.com/OWASP/openshield/commit/9575a33
+[0.2.0]: https://github.com/OWASP/openshield/commit/484eb9b
+[0.1.0]: https://github.com/OWASP/openshield/releases/tag/v0.1.0

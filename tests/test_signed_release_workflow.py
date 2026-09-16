@@ -21,10 +21,10 @@ def test_release_workflow_has_keyless_attestation_permissions():
 
 
 def test_release_requires_verified_annotated_tag():
-    source = WORKFLOW.read_text(encoding="utf-8")
-    assert 'object_type" != "tag"' in source
-    assert ".verification.verified" in source
-    assert 'verified" != "true"' in source
+    steps = _workflow()["jobs"]["release"]["steps"]
+    verification = next(step for step in steps if step.get("id") == "verify")
+    assert verification["run"] == "python3 scripts/release_integrity.py verify"
+    assert steps.index(verification) < next(i for i, step in enumerate(steps) if step["name"] == "Install Syft")
 
 
 def test_release_attests_every_distributed_manifest():
