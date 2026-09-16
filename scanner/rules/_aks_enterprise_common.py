@@ -230,7 +230,11 @@ def scan_control(azure_client: Any, module: Mapping[str, Any], control: str) -> 
         "untrusted_registry",
         "mutable_image",
     }
-    policy = policy_from_env(rule_id) if policy_required else None
+    # Load an operator-supplied policy for every control so shared safeguards,
+    # such as excluded namespaces, apply consistently. Only controls whose
+    # evaluation depends on organisation-specific values require the policy to
+    # be present and valid.
+    policy = policy_from_env(rule_id)
     if policy_required and policy is None:
         return []
     approved_networks = (

@@ -409,6 +409,76 @@ def test_policy_independent_workload_rules_run_without_policy(rule, item, monkey
     assert len(rule.scan(client, "sub")) == 1
 
 
+@pytest.mark.parametrize(
+    ("rule", "item"),
+    [
+        (
+            az_aks_009,
+            evidence(
+                namespaces=("payments", "istio-system"),
+                network_policy_namespaces=("payments",),
+            ),
+        ),
+        (
+            az_aks_011,
+            evidence(
+                control_plane={"kms_enabled": False},
+                workloads=(
+                    workload(
+                        namespace="istio-system",
+                        native_secret_references=("mesh-ca",),
+                    ),
+                ),
+            ),
+        ),
+        (
+            az_aks_013,
+            evidence(
+                workloads=(
+                    workload(
+                        namespace="istio-system",
+                        containers=(container(privileged=True),),
+                    ),
+                ),
+            ),
+        ),
+        (az_aks_014, evidence(workloads=(workload(namespace="istio-system", host_network=True),))),
+        (az_aks_015, evidence(workloads=(workload(namespace="istio-system", host_pid=True),))),
+        (az_aks_016, evidence(workloads=(workload(namespace="istio-system", host_ipc=True),))),
+        (
+            az_aks_017,
+            evidence(workloads=(workload(namespace="istio-system", host_paths=("/var/run",)),)),
+        ),
+        (
+            az_aks_020,
+            evidence(
+                workloads=(
+                    workload(
+                        namespace="istio-system",
+                        containers=(container(image="contoso.azurecr.io/app/api:latest"),),
+                    ),
+                ),
+            ),
+        ),
+    ],
+)
+def test_policy_excludes_non_system_namespace_for_every_affected_rule(rule, item, policy_file):
+    policy_file.write_text(
+        """{
+  "approved_authorized_ip_ranges": ["203.0.113.0/24"],
+  "trusted_registry_prefixes": ["contoso.azurecr.io/"],
+  "allowed_cluster_admin_subjects": ["Group:aks-platform-admins"],
+  "excluded_namespaces": ["istio-system"],
+  "require_image_digests": true
+}""",
+        encoding="utf-8",
+    )
+    client = MagicMock()
+    client.get_aks_security_posture.return_value = [item]
+
+    assert rule.scan(client, "sub") == []
+
+
 @pytest.mark.parametrize("image", ("nginx", "redis:7", "library/nginx:1.29"))
 def test_docker_hub_short_form_images_match_trusted_registry(image, policy_file):
     policy_file.write_text(
