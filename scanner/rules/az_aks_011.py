@@ -11,7 +11,8 @@ CATEGORY = "Kubernetes"
 FRAMEWORKS = {"CIS": "N/A-AKS-011", "NIST": "PR.DS-1", "ISO27001": "A.10.1.1", "SOC2": "CC6.1"}
 DESCRIPTION = "A workload references native Kubernetes Secrets while Azure Key Vault KMS encryption is disabled."
 REMEDIATION = (
-    "Enable Key Vault KMS for Kubernetes secrets or the Key Vault Secrets Store CSI provider with workload identity."
+    "Enable and validate Key Vault KMS for native Kubernetes Secrets, or configure the Key Vault Secrets Store CSI "
+    "provider with Workload Identity and migrate the workload so it no longer references native Secrets."
 )
 PLAYBOOK = "playbooks/cli/fix_az_aks_011.sh"
 

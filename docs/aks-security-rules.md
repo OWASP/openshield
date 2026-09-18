@@ -47,7 +47,11 @@ The policy defines:
 - Namespaces excluded from workload evaluation.
 - Whether image digest pinning is required.
 
-Missing, malformed, or incomplete policy is UNKNOWN. OpenShield does not invent organization-specific defaults.
+Missing, malformed, or incomplete policy makes the four policy-dependent controls UNKNOWN: API server IP restrictions
+(`AZ-AKS-007`), approved cluster-admin subjects (`AZ-AKS-018`), trusted registry prefixes (`AZ-AKS-019`), and required
+image digest pinning (`AZ-AKS-021`). The other controls continue to evaluate available ARM and Kubernetes evidence.
+When a valid policy is present, its `excluded_namespaces` safeguard applies to every workload control. OpenShield does
+not invent organization-specific allowlists or defaults.
 
 ## Kubernetes credentials
 
@@ -80,7 +84,7 @@ Microsoft.Security/pricings/read
 The scan engine represents FAIL as a finding and represents PASS, UNKNOWN, and NOT_APPLICABLE as an empty finding list with an explicit log entry.
 
 - `FAIL` requires positive evidence of the unsafe setting.
-- `UNKNOWN` is used for missing policy, missing kubeconfig, stopped or unreachable clusters, authorization errors, malformed identity, and unavailable ARM or Defender evidence.
+- `UNKNOWN` is used for missing or invalid policy on the four policy-dependent controls, missing kubeconfig, stopped or unreachable clusters, authorization errors, malformed identity, and unavailable ARM or Defender evidence.
 - `PARTIAL` preserves positive evidence from reachable namespaces but never treats missing namespaces as compliant.
 - `NOT_APPLICABLE` is used when no AKS cluster, eligible namespace, workload, CSI provider, or relevant object exists.
 
@@ -89,6 +93,14 @@ Every FAIL includes cluster, namespace, workload, container, image, subject, rol
 ## Remediation safety
 
 Every rule has a matching `playbooks/cli/fix_az_aks_<id>.sh` file. The playbooks use the same review gate as other enterprise controls. Safe Azure changes are automated only after account, target, and impact confirmation. Kubernetes manifest, RBAC, and network policy changes remain operator-reviewed because a generic automatic patch could interrupt production or remove break-glass access.
+
+For `AZ-AKS-011`, enabling the Key Vault Secrets Store CSI add-on is only a prerequisite. It does not migrate an
+existing workload or protect native Kubernetes Secret references. To use the CSI remediation path, configure Workload
+Identity and least-privilege Key Vault access, create and test a `SecretProviderClass`, mount the
+`secrets-store.csi.k8s.io` volume, and remove the workload's native Secret volume, projected Secret, `env`, and
+`envFrom` references. Restart and test the workload, then verify that no native Secret references remain. If native
+Kubernetes Secrets must remain, enable and validate AKS Key Vault KMS instead. Re-run OpenShield only after the chosen
+path is complete.
 
 ## Compliance note
 

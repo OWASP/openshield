@@ -29,7 +29,17 @@ case "$RULE_ID" in
     ;;
   AZ-AKS-011)
     az account show --output none
+    echo "Enabling the Key Vault Secrets Store CSI add-on is a prerequisite only."
+    echo "It does not migrate existing Kubernetes Secret references or resolve AZ-AKS-011 by itself."
     az aks enable-addons --ids "$TARGET" --addons azure-keyvault-secrets-provider
+    echo "Next steps required for each affected workload:"
+    echo "  1. Configure AKS Workload Identity and grant its identity least-privilege Key Vault access."
+    echo "  2. Create and test a SecretProviderClass that reads the required Key Vault objects."
+    echo "  3. Add the secrets-store.csi.k8s.io volume and mount it in the workload."
+    echo "  4. Remove native Secret volume, projected Secret, env, and envFrom references from the workload."
+    echo "  5. Restart and test the workload, then verify that no native Secret references remain."
+    echo "Alternative: enable and validate AKS Key Vault KMS if native Kubernetes Secrets must remain."
+    echo "Re-run OpenShield after completing and validating one of these remediation paths."
     ;;
   AZ-AKS-012)
     az account show --output none
