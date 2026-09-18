@@ -10,8 +10,23 @@ import { normalizeRisk, normalizeSeverity } from './severity.js';
 const API_BASE = import.meta.env.VITE_API_URL
   || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://openshield-api.onrender.com');
 
-const getToken = () => localStorage.getItem('jwt_token');
-const setToken = (tok) => localStorage.setItem('jwt_token', tok);
+// Bearer tokens live in memory only, for the life of the page (issue #294).
+// They are never baked into the bundle as a Vite build-time variable and never
+// persisted to localStorage, where any script on the page or a later user of a
+// shared browser could recover them. A sign-in flow supplies the token through
+// api.setToken; without one, requests are sent unauthenticated.
+const LEGACY_TOKEN_KEY = 'jwt_token';
+let sessionToken = null;
+try {
+  // Purge a bearer token persisted by earlier dashboard builds.
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+} catch {
+  // Storage can be unavailable (privacy mode, sandboxed frames); nothing to purge.
+}
+
+export const getToken = () => sessionToken;
+const setToken = (tok) => { sessionToken = typeof tok === 'string' && tok ? tok : null; };
+const clearToken = () => { sessionToken = null; };
 
 // ── Core fetch ─────────────────────────────────────────────────────────────
 export const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
@@ -457,9 +472,10 @@ export const api = {
   },
   getFrameworks: async (options = {}) => { const d = await api.getCompliance(options); return d.frameworks; },
 
-  // ── JWT helpers ────────────────────────────────────────────────────────────
+  // ── In-memory bearer token helpers ─────────────────────────────────────────
   setToken,
   getToken,
+  clearToken,
 };
 
 export default api;
