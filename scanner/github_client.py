@@ -196,3 +196,24 @@ class GitHubClient:
         except Exception as exc:
             logger.error("Failed to parse repo info: %s", exc)
             return None
+
+    def get_workflow_permissions(self) -> Optional[str]:
+        """Return the repository's default GITHUB_TOKEN workflow permissions.
+
+        Reads GET /repos/{owner}/{repo}/actions/permissions/workflow, the only
+        endpoint that exposes default_workflow_permissions. Requires the token
+        to have administration: read on the repository.
+
+        Returns "read" or "write" when the setting can be read, or None when
+        the endpoint is unavailable (missing administration: read, 403/404, or
+        any other failure). Callers MUST treat None as UNKNOWN, never as a
+        compliant default.
+        """
+        resp = self._get(f"/repos/{self.owner}/{self.repo}/actions/permissions/workflow")
+        if resp is None:
+            return None
+        try:
+            return resp.json().get("default_workflow_permissions")
+        except Exception as exc:
+            logger.error("Failed to parse workflow permissions: %s", exc)
+            return None
