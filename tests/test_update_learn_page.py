@@ -12,7 +12,8 @@ _SPEC.loader.exec_module(learn)
 
 
 def _route_with_severity_boxes() -> str:
-    return """<div class="metrics" aria-label="OpenShield project metrics">
+    return (
+        """<div class="metrics" aria-label="OpenShield project metrics">
 <div class="metric"><strong>1</strong><span>Azure scan rules</span></div>
 <div class="metric"><strong>1</strong><span>CLI remediation playbooks</span></div>
 <div class="metric"><strong>1</strong><span>Compliance frameworks</span></div>
@@ -22,7 +23,8 @@ def _route_with_severity_boxes() -> str:
 <p><span class="dim">loading rules:</span> <span class="cyan">1 dynamic checks</span></p>
 <div class="pipeline-step"><strong>Rule Evaluation</strong><span>1 dynamic checks</span></div>
 <h2 class="section-title">1 Azure security rules</h2>
-<p class="section-intro">OpenShield currently has 1 dynamic rules. The strongest contributor work improves rule accuracy, reduces false positives,</p>
+<p class="section-intro">OpenShield currently has 1 dynamic rules. """
+        """The strongest contributor work improves rule accuracy, reduces false positives,</p>
 <div class="rule-chart" aria-label="Rule count by category">
   <div class="bar-row"><span>Old</span></div>
 </div>
@@ -30,6 +32,7 @@ def _route_with_severity_boxes() -> str:
 <div class="severity-box high"><strong>0</strong><span>HIGH</span></div>
 <div class="severity-box medium"><strong>0</strong><span>MEDIUM</span></div>
 <div class="severity-box low"><strong>0</strong><span>LOW</span></div>"""
+    )
 
 
 def test_render_updates_critical_box_and_requires_it():

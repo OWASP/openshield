@@ -61,7 +61,7 @@ if (!fs.existsSync(learnPath)) {
   failures.push('dist does not contain the /openshield/learn/ route');
 } else {
   const learn = fs.readFileSync(learnPath, 'utf8');
-  if (!learn.includes('https://owasp.github.io/openshield/learn/')) {
+  if (!/<link rel="canonical" href="https:\/\/owasp\.github\.io\/openshield\/learn\/">/.test(learn)) {
     failures.push('Learn route does not have the /openshield/learn/ canonical URL');
   }
   if (!learn.includes('Learn security posture from the source.')) {
