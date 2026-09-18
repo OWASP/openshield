@@ -241,12 +241,17 @@ print(json.dumps(result, indent=2))
 
 ## Update the Compliance Framework Files
 
-If your rule maps to controls not yet in the compliance JSON files, add entries to the relevant file(s) in `compliance/frameworks/`:
+Add an entry for your rule to each file in `compliance/frameworks/`:
 
 - `cis_azure_benchmark.json`
 - `nist_csf.json`
 - `iso27001.json`
 - `soc2.json`
+
+Every control entry is a versioned evidence claim, not just a label — CI's
+"Compliance mapping semantics validation" check rejects entries missing any
+of the fields below. See `docs/compliance-mapping-pack.md` for the full
+schema and the meaning of each `mapping_type`.
 
 ```json
 {
@@ -254,11 +259,27 @@ If your rule maps to controls not yet in the compliance JSON files, add entries 
     "AZ-XXXX-000": {
       "control_id": "3.7",
       "control_name": "CIS control name here",
-      "description": "Why this control is relevant to your finding."
+      "description": "Why this control is relevant to your finding.",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 3.7",
+      "rationale": "Why this rule's PASS/FAIL result is (or is not) direct technical evidence for this specific control.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   }
 }
 ```
+
+Use `mapping_type: "not_applicable"` instead of forcing a weak mapping when
+the framework edition genuinely does not define a relevant control (for
+example, a framework edition published before the practice your rule checks
+existed). `not_applicable` and `organizational` mappings are excluded from
+the framework's pass-rate denominator rather than counted as an automatic
+PASS or removed from the file. Leave `owner` and `review_date` as `null` and
+`review_status` as `"pending_review"` — these are set by a maintainer during
+independent mapping review, not by the contributor opening the rule PR.
 
 ---
 
@@ -273,7 +294,7 @@ git push origin rule/az-xxxx-000-short-description
 
 Then open a PR. Use the PR template — it will ask you for the rule ID, severity, and which frameworks you mapped. A maintainer will review within 48 hours.
 
-Before requesting review, make sure all seven CI checks pass:
+Before requesting review, make sure all eight rule-validation checks pass:
 
 - Python syntax on rule files
 - Rule structure validation
@@ -282,6 +303,7 @@ Before requesting review, make sure all seven CI checks pass:
 - Compliance JSON validation
 - API syntax check
 - Compliance rule cross-reference
+- Compliance mapping-pack semantics validation
 
 ---
 

@@ -13,6 +13,24 @@ function getScoreLabel(score) {
 }
 
 export default function ScoreGauge({ score, maxScore = 100 }) {
+  // A null score (no completed scan yet) is a distinct fact from a real,
+  // evaluated 0 - it must render as "no data", never as a gauge, a
+  // percentage, or the "Poor" label a confirmed worst-case score would get.
+  if (score === null || score === undefined) {
+    return (
+      <div className="flex flex-col items-center">
+        <div className="relative w-48 h-48 flex items-center justify-center">
+          <div className="w-[156px] h-[156px] rounded-full border-8 border-bg-secondary dark:border-bg-dark-tertiary flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold text-text-tertiary dark:text-text-dark-tertiary">—</span>
+            <span className="text-xs text-text-secondary dark:text-text-dark-tertiary font-medium">Not assessed</span>
+          </div>
+        </div>
+        <p className="text-sm font-semibold text-text-primary dark:text-text-dark-primary mt-2">Security Score</p>
+        <p className="text-xs text-text-secondary dark:text-text-dark-tertiary">No completed scan yet</p>
+      </div>
+    );
+  }
+
   const pct = Math.round((score / maxScore) * 100);
   const color = getScoreColor(pct);
   const remaining = 100 - pct;

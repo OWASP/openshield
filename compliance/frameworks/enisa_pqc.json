@@ -2,27 +2,52 @@
   "framework": "ENISA Post-Quantum Cryptography Recommendations",
   "version": "2021",
   "published": "2021-05",
+  "mapping_pack_version": "1.0.0",
+  "mapping_pack_status": "current",
+  "mapping_pack_source": "OpenShield compliance mapping pack, authored against ENISA post-quantum cryptography recommendations (2021). Technical-evidence mapping only.",
+  "mapping_pack_published": "2026-08-22",
   "controls": {
     "AZ-PQC-001": {
       "control_id": "ENISA-PQC-HYBRID",
       "control_name": "Protect communications with quantum-resistant designs",
       "description": "Assess classical TLS key establishment for quantum exposure and prepare hybrid implementations that combine pre-quantum and post-quantum mechanisms while protocols and products mature.",
       "framework": "ENISA Post-Quantum Cryptography Recommendations",
-      "url": "https://www.enisa.europa.eu/publications/post-quantum-cryptography-current-state-and-quantum-mitigation"
+      "url": "https://www.enisa.europa.eu/publications/post-quantum-cryptography-current-state-and-quantum-mitigation",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "https://www.enisa.europa.eu/publications/post-quantum-cryptography-current-state-and-quantum-mitigation",
+      "rationale": "ENISA Post-Quantum Cryptography Recommendations control ENISA-PQC-HYBRID ('Protect communications with quantum-resistant designs') directly specifies the quantum-safe migration practice that OpenShield rule AZ-PQC-001 evaluates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PQC-002": {
       "control_id": "ENISA-PQC-INVENTORY",
       "control_name": "Inventory and transition quantum-vulnerable keys",
       "description": "Identify RSA and elliptic-curve keys, assess their use cases and security lifetime, and prepare migration to standardised quantum-resistant key establishment and signature schemes.",
       "framework": "ENISA Post-Quantum Cryptography Recommendations",
-      "url": "https://www.enisa.europa.eu/publications/post-quantum-cryptography-current-state-and-quantum-mitigation"
+      "url": "https://www.enisa.europa.eu/publications/post-quantum-cryptography-current-state-and-quantum-mitigation",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "https://www.enisa.europa.eu/publications/post-quantum-cryptography-current-state-and-quantum-mitigation",
+      "rationale": "ENISA Post-Quantum Cryptography Recommendations control ENISA-PQC-INVENTORY ('Inventory and transition quantum-vulnerable keys') directly specifies the quantum-safe migration practice that OpenShield rule AZ-PQC-002 evaluates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     },
     "AZ-PQC-003": {
       "control_id": "ENISA-PQC-INTEGRATION",
       "control_name": "Integrate post-quantum signatures into PKI",
       "description": "Evaluate certificate and protocol dependencies, account for the operational trade-offs of post-quantum signatures, and design migration paths that retain security throughout the transition.",
       "framework": "ENISA Post-Quantum Cryptography Recommendations",
-      "url": "https://www.enisa.europa.eu/publications/post-quantum-cryptography-current-state-and-quantum-mitigation"
+      "url": "https://www.enisa.europa.eu/publications/post-quantum-cryptography-current-state-and-quantum-mitigation",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "https://www.enisa.europa.eu/publications/post-quantum-cryptography-current-state-and-quantum-mitigation",
+      "rationale": "ENISA Post-Quantum Cryptography Recommendations control ENISA-PQC-INTEGRATION ('Integrate post-quantum signatures into PKI') directly specifies the quantum-safe migration practice that OpenShield rule AZ-PQC-003 evaluates.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   }
 }

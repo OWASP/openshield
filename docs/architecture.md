@@ -201,7 +201,9 @@ GET /api/findings
 
 GET /api/score
     → db.get_score()                 # contract v1: CRITICAL -20, HIGH -10, MEDIUM -5, LOW -2
-    → returns plain integer (e.g. 18)
+    → returns { status, score, max_score } — status is "OK" (score: 0-100) or
+      "NO_SCAN_DATA" (score: null) when no completed scan exists yet, never a
+      false 100
 
 GET /api/resources
     → aggregates unique resources from latest scan's findings

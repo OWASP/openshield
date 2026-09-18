@@ -126,8 +126,17 @@ export async function apiFetch(path, options = {}) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function normalizeScore(raw) {
-  if (typeof raw === 'number') return { score: raw, max_score: 100 };
-  return { score: raw.score ?? raw.score_percent ?? 0, max_score: raw.max_score ?? 100 };
+  // score stays null (never coerced to 0) when the backend reports
+  // NO_SCAN_DATA - a missing score and a genuinely evaluated 0 are different
+  // facts, and collapsing them would render "no evidence yet" as "confirmed
+  // worst possible posture", the same false-negative gap fixed on the
+  // backend for get_score()/get_compliance_score() (issue #302).
+  if (typeof raw === 'number') return { status: 'OK', score: raw, max_score: 100 };
+  return {
+    status:    raw.status ?? 'OK',
+    score:     raw.score ?? null,
+    max_score: raw.max_score ?? 100,
+  };
 }
 
 function normalizeFinding(f) {
@@ -278,13 +287,24 @@ function normalizePlaybook(p) {
 function normalizeComplianceFramework(data, id, color) {
   return {
     id,
-    name:          data.framework,
-    version:       data.version,
-    score:         data.score_percent,
+    name:    data.framework,
+    version: data.version,
+    // status distinguishes why score can be null: NO_SCAN_DATA (no
+    // completed scan exists yet - no evidence at all) vs
+    // NO_IN_SCOPE_CONTROLS (a scan exists, but every mapped control is
+    // excluded from the denominator, so there's nothing to score) vs OK
+    // (a genuinely evaluated percentage). Never coerced to 0 - that would
+    // render "no evidence" as a confirmed 0% failing score.
+    status:        data.status ?? 'OK',
+    score:         data.score_percent ?? null,
     totalControls: data.total_controls,
     passing:       data.passed,
     failing:       data.failed,
-    notApplicable: (data.total_controls || 0) - (data.passed || 0) - (data.failed || 0),
+    reviewedControls: data.reviewed_controls,
+    unreviewedControls: data.unreviewed_controls,
+    excludedControls: data.excluded_controls,
+    notApplicable: data.not_applicable ?? ((data.total_controls || 0) - (data.passed || 0) - (data.failed || 0)),
+    organizationalControls: data.organizational,
     lastAssessed:  new Date().toISOString(),
     color,
   };
@@ -296,6 +316,7 @@ function normalizeComplianceControl(c, frameworkName) {
     framework: frameworkName,
     name:      c.control_name,
     status:    c.status,
+    reviewStatus: c.review_status,
     ruleId:    c.rule_id,
     severity:  normalizeSeverity(c.severity, { nullable: true }),
     category:  c.category  || 'General',

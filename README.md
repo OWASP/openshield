@@ -94,6 +94,7 @@ Project policies and assurance evidence:
 - [Support and upgrade policy](SUPPORT.md)
 - [Security requirements](docs/security-requirements.md) and [security assurance case](docs/security-assurance-case.md)
 - [Release security](docs/release-security.md) and [accessibility/i18n policy](docs/accessibility-and-i18n.md)
+- [Compliance mapping pack](docs/compliance-mapping-pack.md) — supported framework editions, mapping-pack versioning, and why compliance reports are evidence coverage, not certification
 - [OpenSSF Silver evidence register](docs/openssf-silver-evidence.md)
 
 ---

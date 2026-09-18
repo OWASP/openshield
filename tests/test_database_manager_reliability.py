@@ -26,10 +26,22 @@ def _mock_cursor(rows=None, rowcount=0):
 # ── REL-001: get_score must issue valid SQL (single GROUP BY) ──────────────
 
 
+def _mock_score_cursor(scan_row, severity_rows):
+    """get_score() issues two sequential queries on one cursor: a scan-existence
+    check (fetchone), then - only once a scan is found - the severity breakdown
+    (fetchall)."""
+    cur = MagicMock()
+    cur.__enter__ = lambda s: s
+    cur.__exit__ = MagicMock(return_value=False)
+    cur.fetchone.return_value = scan_row
+    cur.fetchall.return_value = severity_rows
+    return cur
+
+
 def test_get_score_sql_has_single_group_by():
     db = _db()
     conn = MagicMock()
-    conn.cursor.return_value = _mock_cursor([])
+    conn.cursor.return_value = _mock_score_cursor((1,), [])
     with patch.object(db, "_get_conn", return_value=conn):
         db.get_score()
     executed_sql = conn.cursor.return_value.execute.call_args[0][0]
@@ -39,11 +51,11 @@ def test_get_score_sql_has_single_group_by():
 def test_get_score_deducts_points_for_findings():
     db = _db()
     conn = MagicMock()
-    conn.cursor.return_value = _mock_cursor([("HIGH", 2), ("MEDIUM", 1)])
+    conn.cursor.return_value = _mock_score_cursor((1,), [("HIGH", 2), ("MEDIUM", 1)])
     with patch.object(db, "_get_conn", return_value=conn):
         score = db.get_score()
     # 100 - (10 * 2 + 5 * 1) = 75
-    assert score == 75
+    assert score == {"status": "OK", "score": 75, "max_score": 100}
 
 
 # REL-002 (recover_stale_scans's interval handling) is now covered by

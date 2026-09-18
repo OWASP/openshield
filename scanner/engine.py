@@ -119,12 +119,22 @@ class ScanEngine:
             len(self.rules),
         )
 
+        # A rule that raises or returns malformed data is not silently
+        # equivalent to "the rule ran and found nothing" - a caller scoring
+        # PASS/FAIL from absence of findings (get_compliance_score()) must be
+        # able to tell the two apart, or a crashed rule reads as a clean
+        # pass. Full per-resource evaluation persistence is issue #263;
+        # tracking which rules failed to complete at all is the minimum this
+        # scan result can honestly report without it.
+        failed_rule_ids: List[str] = []
+
         for rule in self.rules:
             rule_id = getattr(rule, "RULE_ID", "UNKNOWN")
             try:
                 rule_findings = rule.scan(self.client, self.subscription_id)
                 if not isinstance(rule_findings, list):
                     logger.warning("Rule %s returned %s instead of list — skipped", rule_id, type(rule_findings))
+                    failed_rule_ids.append(rule_id)
                     continue
 
                 validated_findings = []
@@ -147,6 +157,7 @@ class ScanEngine:
             except Exception as exc:
                 RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
                 logger.error("Rule %s raised an exception: %s", rule_id, exc, exc_info=True)
+                failed_rule_ids.append(rule_id)
 
             evaluations.extend(self._evaluate_rule(rule, rule_id))
 
@@ -183,6 +194,7 @@ class ScanEngine:
             "severity_contract_version": CONTRACT_VERSION,
             "findings": findings,
             "evaluations": [e.to_dict() for e in evaluations],
+            "failed_rule_ids": failed_rule_ids,
         }
 
         logger.info("Scan %s complete — %d total finding(s). Normalising results...", scan_id, len(findings))
