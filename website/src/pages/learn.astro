@@ -1,0 +1,169 @@
+---
+import Base from '../layouts/Base.astro';
+import { url } from '../lib/base';
+import { repoData } from '../lib/repoData';
+
+const GITHUB = 'https://github.com/OWASP/openshield';
+const { contributors, docs, release } = repoData;
+const learningDocs = docs.filter((doc) => [
+  'architecture.md',
+  'azure-setup.md',
+  'adding-a-rule.md',
+  'rules-reference.md',
+  'api-reference.md',
+  'ci-pipeline.md',
+].includes(doc.file));
+---
+
+<Base
+  title="Learn · OpenShield"
+  description="A practical, repository-backed guide to Azure security posture, OpenShield rules, remediation, and contribution."
+  active="learn"
+>
+  <div class="learn-hero">
+    <div class="wrap learn-hero-grid">
+      <div>
+        <p class="kicker">Open-source Azure CSPM</p>
+        <h1>Learn security posture from the source.</h1>
+        <p class="lede">OpenShield turns Azure configuration evidence into findings, framework mappings, and explicit remediation. This guide connects the platform design to the repository that implements it.</p>
+        <div class="actions">
+          <a class="btn btn-accent" href="#roadmap">Start learning <span class="ar">&#8594;</span></a>
+          <a class="btn btn-ghostline" href={url('/rules/')}>Explore rule book</a>
+        </div>
+      </div>
+      <aside class="terminal" aria-label="OpenShield scan pipeline summary">
+        <p><span class="prompt">openshield</span> scan --subscription Azure</p>
+        <p><span class="dim">loading rules:</span> <span class="cyan">126 dynamic checks</span></p>
+        <p><span class="dim">evidence:</span> Azure APIs and rule evaluations</p>
+        <p><span class="dim">outputs:</span> findings, score, compliance, remediation</p>
+        <p><span class="dim">release:</span> {release.tag}</p>
+      </aside>
+    </div>
+  </div>
+
+  <section class="metrics wrap" aria-label="OpenShield project metrics">
+    <div class="metric"><strong>126</strong><span>Azure scan rules</span></div>
+    <div class="metric"><strong>126</strong><span>CLI remediation playbooks</span></div>
+    <div class="metric"><strong>4</strong><span>Compliance frameworks</span></div>
+    <div class="metric"><strong>8</strong><span>AI security skills</span></div>
+    <div class="metric"><strong>82</strong><span>High-severity checks</span></div>
+  </section>
+
+  <div class="wrap learn-content">
+    <section class="learn-section" id="overview" data-search="overview scanner cve compliance remediation dashboard">
+      <p class="kicker">Overview</p>
+      <h2>What OpenShield does</h2>
+      <p class="section-intro">OpenShield is a focused Azure CSPM platform for identifying risky configuration, understanding impact, connecting technical evidence to compliance controls, and following practical remediation guidance.</p>
+      <div class="card-grid">
+        <article><h3>Scan</h3><p>Python rules inspect Azure resources through SDK clients and normalize the resulting findings.</p></article>
+        <article><h3>Explain</h3><p>CVE enrichment and severity provide context without inferring evidence from absent findings.</p></article>
+        <article><h3>Map</h3><p>Framework reports distinguish technical evidence from mappings that are not yet independently reviewed.</p></article>
+        <article><h3>Remediate</h3><p>Each rule has a matching Azure CLI playbook with validation steps.</p></article>
+      </div>
+    </section>
+
+    <section class="learn-section" id="architecture" data-search="architecture azure scanner api postgres react sentinel ai">
+      <p class="kicker">Architecture</p>
+      <h2>Follow the evidence path</h2>
+      <div class="pipeline" aria-label="OpenShield platform pipeline">
+        <div class="pipeline-step"><strong>Azure subscription</strong><span>Resource configuration</span></div>
+        <div class="pipeline-step"><strong>Scanner engine</strong><span>Python rule execution</span></div>
+        <div class="pipeline-step"><strong>Rule Evaluation</strong><span>126 dynamic checks</span></div>
+        <div class="pipeline-step"><strong>Flask API</strong><span>Findings and posture data</span></div>
+        <div class="pipeline-step"><strong>React dashboard</strong><span>Human review and action</span></div>
+      </div>
+    </section>
+
+    <section class="learn-section" id="rules" data-search="rules coverage category critical high medium low severity">
+      <p class="kicker">Rule coverage</p>
+      <h2 class="section-title">126 Azure security rules</h2>
+      <p class="section-intro">OpenShield currently has 126 dynamic rules. The strongest contributor work improves rule accuracy, reduces false positives, strengthens validation, or improves remediation quality.</p>
+      <div class="rule-layout">
+        <article class="chart-card">
+          <h3>Coverage by category</h3>
+          <div class="rule-chart" aria-label="Rule count by category">
+            <div class="bar-row"><span>Network</span><div class="bar"><span style="width: 100%;"></span></div><span>35</span></div>
+            <div class="bar-row"><span>Identity</span><div class="bar"><span style="width: 71%;"></span></div><span>25</span></div>
+            <div class="bar-row"><span>Security Operations</span><div class="bar"><span style="width: 29%;"></span></div><span>10</span></div>
+            <div class="bar-row"><span>Storage</span><div class="bar"><span style="width: 26%;"></span></div><span>9</span></div>
+            <div class="bar-row"><span>Database</span><div class="bar"><span style="width: 23%;"></span></div><span>8</span></div>
+            <div class="bar-row"><span>Supply Chain</span><div class="bar"><span style="width: 23%;"></span></div><span>8</span></div>
+            <div class="bar-row"><span>KeyVault</span><div class="bar"><span style="width: 17%;"></span></div><span>6</span></div>
+            <div class="bar-row"><span>Kubernetes</span><div class="bar"><span style="width: 17%;"></span></div><span>6</span></div>
+            <div class="bar-row"><span>Compute</span><div class="bar"><span style="width: 14%;"></span></div><span>5</span></div>
+            <div class="bar-row"><span>Serverless</span><div class="bar"><span style="width: 14%;"></span></div><span>5</span></div>
+            <div class="bar-row"><span>Backup</span><div class="bar"><span style="width: 11%;"></span></div><span>4</span></div>
+            <div class="bar-row"><span>PostQuantum</span><div class="bar"><span style="width: 9%;"></span></div><span>3</span></div>
+            <div class="bar-row"><span>Data Link</span><div class="bar"><span style="width: 6%;"></span></div><span>2</span></div>
+          </div>
+        </article>
+        <article class="chart-card">
+          <h3>Severity distribution</h3>
+          <p>Severity counts are generated from rule metadata and must reconcile with the headline rule total.</p>
+          <div class="severity" aria-label="Severity count summary">
+            <div class="severity-box critical"><strong>3</strong><span>CRITICAL</span></div>
+            <div class="severity-box high"><strong>82</strong><span>HIGH</span></div>
+            <div class="severity-box medium"><strong>37</strong><span>MEDIUM</span></div>
+            <div class="severity-box low"><strong>4</strong><span>LOW</span></div>
+          </div>
+        </article>
+      </div>
+      <a class="text-link" href={url('/rules/')}>Browse the generated rule book <span class="ar">&#8594;</span></a>
+    </section>
+
+    <section class="learn-section" id="roadmap" data-search="roadmap azure fundamentals cspm rule engineering compliance remediation">
+      <p class="kicker">Learning roadmap</p>
+      <h2>Build practical context first</h2>
+      <div class="roadmap">
+        <a href={`${GITHUB}/blob/dev/docs/azure-setup.md`}><strong>Azure foundations</strong><span>Credentials, subscriptions, resources, and safe local setup.</span></a>
+        <a href={`${GITHUB}/blob/dev/docs/architecture.md`}><strong>CSPM concepts</strong><span>Trace evidence from collection through findings and reporting.</span></a>
+        <a href={`${GITHUB}/blob/dev/docs/adding-a-rule.md`}><strong>Rule engineering</strong><span>Study metadata, tests, evidence, and safe remediation.</span></a>
+        <a href={`${GITHUB}/blob/dev/docs/compliance-mapping-pack.md`}><strong>Compliance mapping</strong><span>Understand direct evidence, excluded controls, and review status.</span></a>
+      </div>
+    </section>
+
+    <section class="learn-section" id="contributors" data-search="contributors rules playbooks compliance frontend backend testing">
+      <p class="kicker">Contribute</p>
+      <h2>Improve evidence, not just coverage</h2>
+      <p class="section-intro">{contributors.length} contributors have shaped the project. Useful changes improve detection correctness, evidence quality, remediation safety, documentation clarity, or platform reliability.</p>
+      <div class="card-grid">
+        <article><h3>Rules and tests</h3><p>Make a precise claim, collect the evidence needed to support it, and test normal and edge cases.</p></article>
+        <article><h3>Playbooks</h3><p>Keep fixes explicit, reversible where practical, and paired with validation.</p></article>
+        <article><h3>Compliance</h3><p>Do not assign a framework control just to inflate coverage. Review mappings control by control.</p></article>
+      </div>
+    </section>
+
+    <section class="learn-section" id="resources" data-search="documentation api architecture setup rules ci">
+      <p class="kicker">Repository guides</p>
+      <h2>Keep learning from primary project material</h2>
+      <div class="resource-list">
+        {learningDocs.map((doc) => (
+          <a href={`${GITHUB}/blob/dev/docs/${doc.file}`}><span>{doc.title}</span><span class="ar">&#8594;</span></a>
+        ))}
+      </div>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .learn-hero { padding: 82px 0 42px; background: radial-gradient(circle at 80% 10%, #dce7fb 0, transparent 38%), var(--paper); }
+  .learn-hero-grid, .rule-layout { display: grid; grid-template-columns: 1.2fr .8fr; gap: 28px; align-items: center; }
+  .kicker { color: var(--accent); font: 500 12px var(--mono); letter-spacing: .12em; text-transform: uppercase; margin: 0 0 12px; }
+  h1, h2, h3, p { margin-top: 0; } h1 { max-width: 760px; margin-bottom: 18px; } h2 { font-size: clamp(28px, 4vw, 46px); line-height: 1; margin-bottom: 14px; }
+  .lede, .section-intro { max-width: 760px; color: var(--muted); font-size: 18px; line-height: 1.7; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
+  .terminal { padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: #172436; color: #d9e6f7; box-shadow: 10px 10px 0 #bfd4ef; font: 13px/1.75 var(--mono); }
+  .terminal p { margin: 0; } .prompt, .cyan { color: #6ee7d2; } .dim { color: #9ab0c9; }
+  .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; margin-top: 18px; background: var(--line); border: 1px solid var(--line); }
+  .metric { padding: 20px; background: var(--paper); } .metric strong { display: block; font-size: 28px; color: var(--ink); } .metric span { color: var(--muted); font-size: 13px; }
+  .learn-content { padding-top: 48px; padding-bottom: 32px; } .learn-section { padding: 48px 0; border-bottom: 1px solid var(--line); }
+  .card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 26px; } .card-grid article, .chart-card { padding: 20px; border: 1px solid var(--line); background: #fff; }
+  .card-grid h3, .chart-card h3 { margin-bottom: 8px; } .card-grid p, .chart-card p { color: var(--muted); line-height: 1.6; }
+  .pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; } .pipeline-step { min-height: 110px; padding: 16px; border: 1px solid var(--line); background: #f3f7fc; } .pipeline-step strong, .pipeline-step span { display: block; } .pipeline-step span { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .rule-layout { align-items: stretch; } .rule-chart { display: grid; gap: 9px; margin-top: 18px; } .bar-row { display: grid; grid-template-columns: 120px 1fr 28px; gap: 9px; align-items: center; font-size: 13px; } .bar { height: 8px; background: #e7edf5; } .bar span { display: block; height: 100%; background: var(--accent); }
+  .severity { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px; } .severity-box { padding: 15px 8px; text-align: center; border: 1px solid var(--line); } .severity-box strong, .severity-box span { display: block; } .severity-box strong { font-size: 24px; } .severity-box span { font: 11px var(--mono); margin-top: 4px; } .critical { background: #fff0ee; color: #9e1c18; } .high { background: #fff5e9; color: #a04a10; } .medium { background: #fff9df; color: #795d05; } .low { background: #edf5ff; color: #245e94; }
+  .text-link { display: inline-block; margin-top: 20px; font-weight: 700; } .roadmap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; } .roadmap a, .resource-list a { border: 1px solid var(--line); text-decoration: none; padding: 18px; background: #fff; } .roadmap strong, .roadmap span { display: block; } .roadmap span { color: var(--muted); margin-top: 8px; font-size: 14px; }
+  .resource-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .resource-list a { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; }
+  @media (max-width: 900px) { .metrics { grid-template-columns: repeat(2, 1fr); } .learn-hero-grid, .rule-layout { grid-template-columns: 1fr; } .card-grid, .roadmap { grid-template-columns: repeat(2, 1fr); } .pipeline { grid-template-columns: repeat(2, 1fr); } .resource-list { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .learn-hero { padding-top: 48px; } .metrics, .card-grid, .roadmap, .resource-list, .pipeline { grid-template-columns: 1fr; } .severity { grid-template-columns: repeat(2, 1fr); } }
+</style>

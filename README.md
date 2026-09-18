@@ -315,7 +315,7 @@ Learn OpenShield covers:
 - Contributor onboarding
 - Documentation navigation
 
-Live Learning Portal: https://openshieldlearn.netlify.app/learn/
+Live Learning Portal: https://owasp.github.io/openshield/learn/
 Full documentation, the security rules gallery, architecture guide, evidence guide, and blog are available at the project website:
 
 **[owasp.github.io/openshield](https://owasp.github.io/openshield/)**
