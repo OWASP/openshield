@@ -32,10 +32,11 @@ def get_compliance(framework: str):
     This is versioned technical evidence coverage from the most recent
     completed scan, not a certification or a claim of full framework
     compliance. Each control also reports mapping_type, evidence_type,
-    primary_source, rationale, owner and review_status; controls whose
-    mapping_type is not_applicable or organizational are excluded from
-    score_percent. If no completed scan exists yet, status is NO_SCAN_DATA
-    and no PASS/FAIL is reported.
+    primary_source, rationale, owner and review_status. A control whose
+    review_status is not reviewed is UNREVIEWED_MAPPING and excluded from
+    score_percent regardless of mapping_type; reviewed not_applicable and
+    organizational controls are excluded as well. If no completed scan exists
+    yet, status is NO_SCAN_DATA and no PASS/FAIL is reported.
     """
     try:
         framework = choice(framework, "framework", SUPPORTED_FRAMEWORKS, case="lower")

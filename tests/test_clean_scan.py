@@ -209,8 +209,8 @@ def test_get_compliance_score_all_pass_after_clean_scan():
             "framework": "CIS Azure",
             "version": "2.0",
             "controls": {
-                "AZ-STOR-001": {"control_id": "3.1", "control_name": "No public blobs"},
-                "AZ-NET-001": {"control_id": "6.1", "control_name": "No unrestricted SSH"},
+                "AZ-STOR-001": {"control_id": "3.1", "control_name": "No public blobs", "review_status": "reviewed"},
+                "AZ-NET-001": {"control_id": "6.1", "control_name": "No unrestricted SSH", "review_status": "reviewed"},
             },
         }
     )
@@ -249,7 +249,7 @@ def test_get_compliance_score_no_evaluation_rows_is_unknown_not_pass():
             "framework": "CIS Azure",
             "version": "2.0",
             "controls": {
-                "AZ-STOR-001": {"control_id": "3.1", "control_name": "No public blobs"},
+                "AZ-STOR-001": {"control_id": "3.1", "control_name": "No public blobs", "review_status": "reviewed"},
             },
         }
     )
@@ -284,7 +284,7 @@ def test_get_compliance_score_remediated_rule_shows_pass():
             "framework": "CIS Azure",
             "version": "2.0",
             "controls": {
-                "AZ-STOR-001": {"control_id": "3.1", "control_name": "No public blobs"},
+                "AZ-STOR-001": {"control_id": "3.1", "control_name": "No public blobs", "review_status": "reviewed"},
             },
         }
     )
@@ -326,8 +326,8 @@ def test_get_compliance_score_reports_worst_critical_failure_without_inventing_p
             "framework": "CIS Azure",
             "version": "2.0",
             "controls": {
-                "AZ-STOR-001": {"control_id": "3.1", "control_name": "No public blobs"},
-                "AZ-NET-001": {"control_id": "6.1", "control_name": "No unrestricted SSH"},
+                "AZ-STOR-001": {"control_id": "3.1", "control_name": "No public blobs", "review_status": "reviewed"},
+                "AZ-NET-001": {"control_id": "6.1", "control_name": "No unrestricted SSH", "review_status": "reviewed"},
             },
         }
     )
@@ -346,14 +346,14 @@ def test_get_compliance_score_reports_worst_critical_failure_without_inventing_p
         "severity": "CRITICAL",
         "category": "Storage",
         "resources": 3,
-        # fake_framework's controls carry no evidence-schema fields, so
-        # these all fall back to their defaults.
+        # This fixture marks its mappings reviewed so it can verify the
+        # evaluation-derived PASS/FAIL path.
         "mapping_type": "supporting",
         "evidence_type": None,
         "primary_source": None,
         "rationale": None,
         "owner": None,
-        "review_status": None,
+        "review_status": "reviewed",
         "review_date": None,
     }
     assert controls["AZ-NET-001"]["status"] == "PASS"

@@ -825,10 +825,11 @@ class DatabaseManager:
 
         This reports coverage from the most recent completed scan, not a
         certification or a claim of full framework compliance. Controls whose
-        mapping_type is "not_applicable" or "organizational" are listed but
-        excluded from the pass-rate denominator (score_percent), because a
-        technical scan cannot itself establish an organizational control or a
-        control the mapped framework edition does not define.
+        mapping is not independently reviewed, or whose mapping_type is
+        "not_applicable" or "organizational", are listed but excluded from
+        the pass-rate denominator (score_percent). An unreviewed mapping must
+        not be presented as direct evidence, even when its mapping_type says
+        "direct".
 
         Args:
             framework: One of the keys in FRAMEWORK_FILE_MAP (e.g. 'cis', 'nist').
@@ -842,7 +843,8 @@ class DatabaseManager:
             dict with keys: framework, version, mapping_pack_version,
             mapping_pack_status, mapping_pack_source, mapping_pack_published,
             evaluation_basis, total_controls, in_scope_controls,
-            excluded_controls, passed, failed, score_percent, controls (list
+            excluded_controls, reviewed_controls, unreviewed_controls,
+            passed, failed, score_percent, controls (list
             of control detail objects each carrying mapping_type, evidence_type,
             primary_source, rationale, owner, review_status, review_date).
         """
@@ -909,6 +911,10 @@ class DatabaseManager:
                     "total_controls": len(controls),
                     "in_scope_controls": None,
                     "excluded_controls": None,
+                    "reviewed_controls": None,
+                    "unreviewed_controls": None,
+                    "not_applicable": None,
+                    "organizational": None,
                     "passed": None,
                     "failed": None,
                     "score_percent": None,
@@ -1044,10 +1050,20 @@ class DatabaseManager:
         results = []
         for rule_id, control in controls.items():
             mapping_type = control.get("mapping_type", "supporting")
-            is_excluded = mapping_type in ("not_applicable", "organizational")
+            review_status = control.get("review_status")
             failure = failures.get(rule_id)
-            if is_excluded:
-                status = EvaluationStatus.NOT_APPLICABLE if mapping_type == "not_applicable" else "ORGANIZATIONAL"
+            # Review status is an evidence gate, not just display metadata.
+            # A control-by-control review is required before a mapping can
+            # yield PASS/FAIL evidence or enter the score denominator. Treat
+            # absent/unknown review_status conservatively as unreviewed so
+            # legacy mapping snapshots cannot acquire evidence weight merely
+            # because they predate this field.
+            if review_status != "reviewed":
+                status = "UNREVIEWED_MAPPING"
+            elif mapping_type == "not_applicable":
+                status = EvaluationStatus.NOT_APPLICABLE
+            elif mapping_type == "organizational":
+                status = "ORGANIZATIONAL"
             else:
                 # Evaluation-derived (#263/#321). A control's status is the
                 # rolled-up status of its rule's rule_evaluations rows for
@@ -1078,7 +1094,7 @@ class DatabaseManager:
                     "primary_source": control.get("primary_source"),
                     "rationale": control.get("rationale"),
                     "owner": control.get("owner"),
-                    "review_status": control.get("review_status"),
+                    "review_status": review_status,
                     "review_date": control.get("review_date"),
                 }
             )
@@ -1089,26 +1105,30 @@ class DatabaseManager:
             "failed": sum(1 for r in results if r["status"] == EvaluationStatus.FAIL),
             "unknown": sum(1 for r in results if r["status"] == EvaluationStatus.UNKNOWN),
             "error": sum(1 for r in results if r["status"] == EvaluationStatus.ERROR),
-            "not_applicable": sum(
-                1 for r in results if r["status"] in (EvaluationStatus.NOT_APPLICABLE, "ORGANIZATIONAL")
-            ),
+            "not_applicable": sum(1 for r in results if r["status"] == EvaluationStatus.NOT_APPLICABLE),
+            "organizational": sum(1 for r in results if r["status"] == "ORGANIZATIONAL"),
+            "unreviewed_controls": sum(1 for r in results if r["status"] == "UNREVIEWED_MAPPING"),
         }
-        # Only mapping_type not_applicable/organizational controls fall outside
-        # the denominator - the mapping pack itself declares a technical scan
-        # cannot establish them. UNKNOWN and ERROR stay *in* the denominator:
-        # they never count as a pass, so lost or missing evidence lowers the
-        # score rather than silently shrinking the base it is measured against.
-        # evaluated == 0 (a scan exists but every control is excluded) is a
-        # distinct fact from "no evidence exists at all" (NO_SCAN_DATA above),
-        # so it gets its own status rather than a bare null score_percent.
-        evaluated = total - counts["not_applicable"]
+        counts["reviewed_controls"] = total - counts["unreviewed_controls"]
+        # Unreviewed mappings join not_applicable and organizational controls
+        # outside the denominator. UNKNOWN and ERROR for *reviewed* mappings
+        # stay in it: lost evidence must lower a score, not shrink its base.
+        # A completed scan with no reviewed controls is distinct from both no
+        # scan data and a reviewed pack containing only excluded controls.
+        excluded = counts["not_applicable"] + counts["organizational"] + counts["unreviewed_controls"]
+        evaluated = total - excluded
         score_pct = round((counts["passed"] / evaluated) * 100) if evaluated else None
-        status = "OK" if evaluated else "NO_IN_SCOPE_CONTROLS"
+        if evaluated:
+            status = "OK"
+        elif counts["reviewed_controls"] == 0:
+            status = "NO_REVIEWED_CONTROLS"
+        else:
+            status = "NO_IN_SCOPE_CONTROLS"
 
         return {
             **pack_meta,
             "scan_id": scan_id,
-            "contract_version": "2",
+            "contract_version": "3",
             "status": status,
             "mapping_provenance": mapping_provenance,
             "evaluation_basis": (
@@ -1121,13 +1141,14 @@ class DatabaseManager:
                 "forced to ERROR. UNKNOWN and ERROR count in the score_percent denominator "
                 "without counting as a pass, so missing or lost evidence lowers the score. "
                 "Findings supply only the severity/category/affected-resource detail on "
-                "failing controls. Controls with mapping_type not_applicable or organizational "
-                "are excluded from score_percent because a technical scan alone cannot "
-                "establish them."
+                "failing controls. Controls with review_status other than reviewed are "
+                "UNREVIEWED_MAPPING and excluded from score_percent; not_applicable and "
+                "organizational controls are also excluded because a technical scan alone "
+                "cannot establish them."
             ),
             "total_controls": total,
             "in_scope_controls": evaluated,
-            "excluded_controls": counts["not_applicable"],
+            "excluded_controls": excluded,
             "evaluated": evaluated,
             **counts,
             "score_percent": score_pct,

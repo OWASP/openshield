@@ -509,6 +509,27 @@ function checkAsync(description, fn) { test(description, fn); }
     assert.equal(result.score, null);
   });
 
+  check('normalizeComplianceFramework preserves mapping-review-pending state and counts', () => {
+    const result = normalizeComplianceFramework(
+      {
+        status: 'NO_REVIEWED_CONTROLS',
+        score_percent: null,
+        framework: 'CIS Azure',
+        version: '2.0',
+        total_controls: 95,
+        reviewed_controls: 0,
+        unreviewed_controls: 95,
+        excluded_controls: 95,
+      },
+      'cis',
+      '#3b82f6',
+    );
+    assert.equal(result.status, 'NO_REVIEWED_CONTROLS');
+    assert.equal(result.score, null);
+    assert.equal(result.reviewedControls, 0);
+    assert.equal(result.unreviewedControls, 95);
+  });
+
   check('normalizeComplianceFramework passes through a genuinely evaluated score', () => {
     const result = normalizeComplianceFramework(
       { status: 'OK', score_percent: 91, framework: 'CIS Azure', version: '2.0', total_controls: 95 },

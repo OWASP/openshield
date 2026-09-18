@@ -341,9 +341,13 @@ Supported framework values:
   cis, nist, iso27001, soc2, ncsc_pqc, enisa_pqc
 
 The current Compliance page requests cis, nist, iso27001, and soc2. A response
-contains framework, version, total_controls, passed, failed, score_percent, and
-a controls array. Each control includes control_id, control_name, rule_id, and
-status (PASS or FAIL), with additional finding metadata where available.
+contains framework, version, total_controls, passed, failed, score_percent,
+reviewed_controls, unreviewed_controls, and a controls array. Any control whose
+review_status is not reviewed is returned as UNREVIEWED_MAPPING and excluded
+from the direct-evidence score denominator, regardless of mapping_type.
+not_applicable and organizational controls are also excluded. When every
+mapping awaits review, status is NO_REVIEWED_CONTROLS and score_percent is null;
+the UI renders “Mapping review pending” rather than a percentage.
 
 An unsupported framework returns 400 and a supported-values list.
 

@@ -60,7 +60,7 @@ def _write_framework(tmp_path, filename, controls, **pack_overrides):
     return path
 
 
-def _control(control_id, mapping_type="direct"):
+def _control(control_id, mapping_type="direct", review_status="reviewed"):
     return {
         "control_id": control_id,
         "control_name": f"Control {control_id}",
@@ -71,9 +71,9 @@ def _control(control_id, mapping_type="direct"):
         else "automated_configuration_scan",
         "primary_source": "test source",
         "rationale": "test rationale",
-        "owner": None,
-        "review_status": "pending_review",
-        "review_date": None,
+        "owner": "Test reviewer" if review_status == "reviewed" else None,
+        "review_status": review_status,
+        "review_date": "2026-08-22" if review_status == "reviewed" else None,
     }
 
 
@@ -151,6 +151,55 @@ def test_direct_control_with_pass_evaluation_is_pass(tmp_path, monkeypatch):
     assert result["passed"] == 1
     assert result["failed"] == 0
     assert result["score_percent"] == 100
+
+
+def test_unreviewed_direct_control_is_not_direct_evidence(tmp_path, monkeypatch):
+    """Pending review overrides a direct mapping's evaluation-derived PASS."""
+    controls = {"AZ-TEST-001": _control("1.1", review_status="pending_review")}
+    scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path, controls, scan_row, [], evaluation_rows=[("AZ-TEST-001", "PASS")]
+    )
+    monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
+    monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        result = db.get_compliance_score("testfw")
+
+    assert result["controls"][0]["status"] == "UNREVIEWED_MAPPING"
+    assert result["passed"] == 0
+    assert result["unreviewed_controls"] == 1
+    assert result["in_scope_controls"] == 0
+    assert result["score_percent"] is None
+    assert result["status"] == "NO_REVIEWED_CONTROLS"
+
+
+def test_mixed_reviewed_and_unreviewed_controls_score_reviewed_evidence_only(tmp_path, monkeypatch):
+    controls = {
+        "AZ-TEST-001": _control("1.1", review_status="reviewed"),
+        "AZ-TEST-002": _control("1.2", review_status="pending_review"),
+    }
+    scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": None}
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path,
+        controls,
+        scan_row,
+        [],
+        evaluation_rows=[("AZ-TEST-001", "FAIL"), ("AZ-TEST-002", "PASS")],
+    )
+    monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
+    monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        result = db.get_compliance_score("testfw")
+
+    statuses = {control["rule_id"]: control["status"] for control in result["controls"]}
+    assert statuses == {"AZ-TEST-001": "FAIL", "AZ-TEST-002": "UNREVIEWED_MAPPING"}
+    assert result["reviewed_controls"] == 1
+    assert result["unreviewed_controls"] == 1
+    assert result["in_scope_controls"] == 1
+    assert result["excluded_controls"] == 1
+    assert result["score_percent"] == 0
 
 
 def test_direct_control_with_no_evaluation_row_is_unknown_not_pass(tmp_path, monkeypatch):
@@ -439,6 +488,46 @@ def test_mapping_pack_snapshot_preferred_over_live_file(tmp_path, monkeypatch):
     assert result["mapping_pack_status"] == "legacy"
     assert result["framework"] == "Test Framework (historical)"
     assert result["mapping_provenance"] == "snapshot"
+
+
+def test_historical_snapshot_keeps_its_controls_and_applies_review_gate(tmp_path, monkeypatch):
+    """A snapshot stays immutable, including an unreviewed mapping's status."""
+    historical_controls = {
+        "AZ-TEST-001": _control("1.1", review_status="pending_review"),
+    }
+    historical_snapshot = {
+        "testfw": {
+            "framework": "Test Framework (historical)",
+            "version": "0.9",
+            "mapping_pack_version": "0.1.0",
+            "mapping_pack_status": "legacy",
+            "mapping_pack_source": "historical fixture",
+            "mapping_pack_published": "2025-01-01",
+            "controls": historical_controls,
+            finding_module._CONTENT_HASH_KEY: finding_module._compute_mapping_pack_content_hash(historical_controls),
+        }
+    }
+    # The current pack has a reviewed replacement and another control. Neither
+    # may alter the old scan's saved controls or make its mapping evidence.
+    live_controls = {
+        "AZ-TEST-001": _control("1.1", review_status="reviewed"),
+        "AZ-TEST-002": _control("1.2", review_status="reviewed"),
+    }
+    scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": historical_snapshot}
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path, live_controls, scan_row, [], evaluation_rows=[("AZ-TEST-001", "PASS")]
+    )
+    monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
+    monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        result = db.get_compliance_score("testfw")
+
+    assert result["mapping_provenance"] == "snapshot"
+    assert [control["rule_id"] for control in result["controls"]] == ["AZ-TEST-001"]
+    assert result["controls"][0]["status"] == "UNREVIEWED_MAPPING"
+    assert result["unreviewed_controls"] == 1
+    assert result["status"] == "NO_REVIEWED_CONTROLS"
 
 
 def test_legacy_metadata_only_snapshot_is_not_labelled_snapshot(tmp_path, monkeypatch):
@@ -953,6 +1042,43 @@ def test_route_reports_mapping_metadata_fields(client, auth_headers):
     assert body["mapping_pack_version"] == "1.0.0"
     assert body["controls"][0]["mapping_type"] == "direct"
     assert body["controls"][0]["rationale"] == "test rationale"
+
+
+def test_route_contract_exposes_pending_review_counts(client, auth_headers):
+    db = MagicMock()
+    db.get_compliance_score.return_value = {
+        "framework": "Test Framework",
+        "version": "1.0",
+        "status": "NO_REVIEWED_CONTROLS",
+        "total_controls": 1,
+        "in_scope_controls": 0,
+        "excluded_controls": 1,
+        "reviewed_controls": 0,
+        "unreviewed_controls": 1,
+        "not_applicable": 0,
+        "organizational": 0,
+        "passed": 0,
+        "failed": 0,
+        "score_percent": None,
+        "controls": [
+            {
+                "rule_id": "AZ-TEST-001",
+                "control_id": "1.1",
+                "control_name": "Control 1.1",
+                "status": "UNREVIEWED_MAPPING",
+                "review_status": "pending_review",
+            }
+        ],
+    }
+    with patch.object(compliance_route, "_get_db", return_value=db):
+        resp = client.get("/api/compliance/cis", headers=auth_headers)
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["status"] == "NO_REVIEWED_CONTROLS"
+    assert body["unreviewed_controls"] == 1
+    assert body["score_percent"] is None
+    assert body["controls"][0]["status"] == "UNREVIEWED_MAPPING"
 
 
 # ── subscription_id scoping: a shared-database deployment must never return

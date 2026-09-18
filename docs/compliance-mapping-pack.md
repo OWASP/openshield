@@ -72,11 +72,20 @@ metadata plus per-control evidence metadata:
 
 ## Scoring: what is excluded from the denominator
 
+Any control whose `review_status` is not exactly `"reviewed"` is returned as
+`UNREVIEWED_MAPPING`, regardless of `mapping_type`. It contributes to neither
+`passed` nor `failed` and is excluded from `score_percent`'s denominator.
+This is an evidence gate, not display-only metadata: an unreviewed `direct`
+mapping must not be interpreted as validated direct evidence.
+
 `mapping_type: "not_applicable"` and `mapping_type: "organizational"`
-controls are listed in a compliance report but excluded from
-`score_percent`'s denominator — they contribute to neither `passed` nor
-`failed`. A report's `total_controls` count includes them;
-`in_scope_controls` is the denominator actually used for the score.
+controls are likewise listed but excluded from the denominator once reviewed.
+`total_controls` includes every mapping; `in_scope_controls` is the reviewed,
+scorable denominator. The response also supplies `reviewed_controls`,
+`unreviewed_controls`, `not_applicable`, `organizational`, and
+`excluded_controls` so consumers can distinguish coverage from mappings still
+awaiting review. When every control is unreviewed, `status` is
+`NO_REVIEWED_CONTROLS` and `score_percent` is `null`, not `0`.
 
 ## Historical accuracy
 
@@ -86,8 +95,10 @@ metadata (`framework`, `version`, `mapping_pack_version`,
 the `scans.compliance_mapping_snapshot` column at scan-completion time.
 `get_compliance_score()` prefers that snapshot over the live file when
 reporting on a specific scan, so a report for an old scan continues to show
-the mapping-pack identity that was actually in effect when it ran, even
-after the mapping pack on disk is later revised.
+the controls and mapping-pack identity that were actually in effect when it
+ran, even after the mapping pack on disk is later revised. The current
+review-status interpretation is then applied to those preserved controls;
+snapshots are never rewritten or silently reclassified from the live pack.
 
 ## Independent review
 

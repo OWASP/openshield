@@ -289,11 +289,28 @@ Query parameters:
 `status` is one of:
 - `OK` — a completed scan exists and at least one mapped control is in scope; `score_percent` is a real evaluated percentage.
 - `NO_SCAN_DATA` — no completed scan exists yet, so there is no evidence to report; `score_percent` is `null`.
-- `NO_IN_SCOPE_CONTROLS` — a completed scan exists, but every mapped control for this framework is `not_applicable`/`organizational` and excluded from the denominator; `score_percent` is `null`.
+- `NO_REVIEWED_CONTROLS` — a completed scan exists, but every mapping awaits review; `score_percent` is `null` and no direct-evidence score exists.
+- `NO_IN_SCOPE_CONTROLS` — a completed scan exists, but every reviewed mapped control for this framework is `not_applicable`/`organizational` and excluded from the denominator; `score_percent` is `null`.
 
-Per-control `status` is evaluation-derived (issue #263): `PASS`/`FAIL`/`UNKNOWN`/`ERROR` is the rolled-up status of that rule's persisted `rule_evaluations` rows for the scan, not an inference from the mere absence of a finding. A control whose rule has no evaluation row for the scan (a legacy rule not yet migrated to `evaluate()`, or one that was skipped) is reported `UNKNOWN`. `UNKNOWN` and `ERROR` count in the `score_percent` denominator without counting as a pass, so missing or lost evidence lowers the score rather than shrinking the base it is measured against; only `not_applicable`/`organizational` controls are excluded from the denominator.
+Per-control `status` is evaluation-derived (issue #263) only after its mapping
+has been reviewed: `PASS`/`FAIL`/`UNKNOWN`/`ERROR` is the rolled-up status of
+that rule's persisted `rule_evaluations` rows for the scan, not an inference
+from the mere absence of a finding. A reviewed control whose rule has no
+evaluation row for the scan (a legacy rule not yet migrated to `evaluate()`,
+or one that was skipped) is reported `UNKNOWN`. `UNKNOWN` and `ERROR` count in
+the `score_percent` denominator without counting as a pass, so missing or lost
+evidence lowers the score rather than shrinking the base it is measured
+against. Unreviewed, `not_applicable`, and `organizational` controls are
+excluded.
 
-Consumers must check `status` and never treat a `null` `score_percent` as `0` — a missing/excluded score is a different fact from a real, evaluated 0%.
+Any control with `review_status` other than `reviewed` has control status
+`UNREVIEWED_MAPPING`, regardless of its `mapping_type`. It is excluded from
+the denominator alongside `not_applicable` and `organizational` controls, and
+does not contribute to `passed` or `failed`. Consumers must check `status` and
+never treat a `null` `score_percent` as `0` — a missing/excluded score is a
+different fact from a real, evaluated 0%. `reviewed_controls`,
+`unreviewed_controls`, `not_applicable`, `organizational`, and
+`excluded_controls` make the reason explicit.
 
 Example response (`OK`):
 
@@ -301,6 +318,7 @@ Example response (`OK`):
 {
   "framework": "CIS Microsoft Azure Foundations Benchmark",
   "version": "2.0.0",
+  "contract_version": "3",
   "status": "OK",
   "mapping_pack_version": "1.0.0",
   "mapping_pack_status": "current",
@@ -309,11 +327,15 @@ Example response (`OK`):
   "scan_id": "scan-1",
   "evaluation_basis": "Status is evaluation-derived: PASS/FAIL/UNKNOWN/ERROR for each control is the rolled-up status of its rule's persisted rule_evaluations rows for the most recent completed scan (issue #263). ...",
   "total_controls": 95,
-  "in_scope_controls": 49,
-  "excluded_controls": 46,
-  "passed": 45,
+  "in_scope_controls": 20,
+  "excluded_controls": 75,
+  "reviewed_controls": 66,
+  "unreviewed_controls": 29,
+  "not_applicable": 40,
+  "organizational": 6,
+  "passed": 18,
   "failed": 2,
-  "unknown": 2,
+  "unknown": 0,
   "error": 0,
   "score_percent": 92,
   "controls": [
@@ -343,6 +365,8 @@ Example response (`NO_SCAN_DATA`, HTTP 200 — never 500):
   "total_controls": 95,
   "in_scope_controls": null,
   "excluded_controls": null,
+  "reviewed_controls": null,
+  "unreviewed_controls": null,
   "passed": null,
   "failed": null,
   "score_percent": null,

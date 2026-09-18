@@ -10,7 +10,12 @@ export default function FrameworkCards({ frameworks, selected, onSelect }) {
         // and must never render as one.
         const hasScore = typeof fw.score === 'number';
         const pct = hasScore ? fw.score : 0;
-        const notAssessedLabel = fw.status === 'NO_IN_SCOPE_CONTROLS' ? 'No in-scope controls' : 'Not assessed';
+        const notAssessedLabel = fw.status === 'NO_REVIEWED_CONTROLS'
+          ? 'Mapping review pending'
+          : fw.status === 'NO_IN_SCOPE_CONTROLS'
+            ? 'No in-scope controls'
+            : 'Not assessed';
+        const pendingReview = fw.unreviewedControls || 0;
         const isSelected = selected?.id === fw.id;
         return (
           <button
@@ -48,6 +53,11 @@ export default function FrameworkCards({ frameworks, selected, onSelect }) {
                 <FiXCircle size={11} /> {fw.failing} fail
               </span>
             </div>
+            {pendingReview > 0 && (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                {hasScore ? `${pendingReview} mapping${pendingReview === 1 ? '' : 's'} pending review; score uses reviewed controls only.` : `${pendingReview} mapping${pendingReview === 1 ? '' : 's'} pending review.`}
+              </p>
+            )}
           </button>
         );
       })}
