@@ -164,6 +164,11 @@
       "control_name": "Just-In-Time (JIT) VM access - Defender for Cloud recommendation, no numbered CIS Azure Foundations 2.0.0 control",
       "description": "CIS Microsoft Azure Foundations Benchmark 2.0.0 has no numbered recommendation for Just-In-Time VM access (it is a Microsoft Defender for Cloud recommendation), so under the repository's one-CIS-ID-per-rule convention this rule is not assigned a fabricated control id. It is mapped under NIST CSF PR.AC-3, ISO 27001 A.13.1.1, and SOC 2 CC6.6 instead."
     },
+    "AZ-CMP-005": {
+      "control_id": "N/A-CMP-005",
+      "control_name": "Trusted Launch (Secure Boot and vTPM) — no dedicated CIS Azure Foundations 2.0.0 recommendation",
+      "description": "CIS Microsoft Azure Foundations Benchmark 2.0.0 has no numbered recommendation for VM Trusted Launch, so under the repository's one-CIS-ID-per-rule convention this rule is not assigned a fabricated control id. It enforces Secure Boot and vTPM on Generation 2 VMs as boot-integrity hardening and is mapped under NIST CSF PR.DS-6, ISO 27001 A.12.5.1, and SOC 2 CC6.8 instead."
+    },
     "AZ-KV-001": {
       "control_id": "N/A-KV-001",
       "control_name": "Key Vault soft-delete baseline (covered by the repository's CIS 8.5 purge-protection rule)",

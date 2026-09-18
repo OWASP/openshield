@@ -9,20 +9,20 @@
 
 **Open source Cloud Security Posture Management (CSPM) for Azure** detect misconfigurations, map them to CIS / NIST / ISO 27001 / SOC 2, remediate with one command, and identify cryptographic assets requiring quantum-safe migration.
 
-[**Website**](https://openshield-org.github.io/openshield/) · [**Documentation**](docs/) · [**Roadmap**](ROADMAP.md) · [**Changelog**](CHANGELOG.md) · [**Security Policy**](.github/SECURITY.md) · [**Discord**](https://discord.gg/openshield)
+[**Website**](https://owasp.github.io/openshield/) · [**Documentation**](docs/) · [**Roadmap**](ROADMAP.md) · [**Changelog**](CHANGELOG.md) · [**Security Policy**](.github/SECURITY.md) · [**Discord**](https://discord.gg/openshield)
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13618/badge)](https://www.bestpractices.dev/projects/13618)
-[![OpenShield CI](https://github.com/openshield-org/openshield/actions/workflows/ci.yml/badge.svg)](https://github.com/openshield-org/openshield/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/openshield-org/openshield/actions/workflows/codeql.yml/badge.svg)](https://github.com/openshield-org/openshield/actions/workflows/codeql.yml)
-[![Deploy](https://github.com/openshield-org/openshield/actions/workflows/deploy.yml/badge.svg?branch=dev)](https://github.com/openshield-org/openshield/actions/workflows/deploy.yml)
+[![OpenShield CI](https://github.com/OWASP/openshield/actions/workflows/ci.yml/badge.svg)](https://github.com/OWASP/openshield/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/OWASP/openshield/actions/workflows/codeql.yml/badge.svg)](https://github.com/OWASP/openshield/actions/workflows/codeql.yml)
+[![Deploy](https://github.com/OWASP/openshield/actions/workflows/deploy.yml/badge.svg?branch=dev)](https://github.com/OWASP/openshield/actions/workflows/deploy.yml)
 [![OWASP](https://img.shields.io/badge/OWASP-listing%20review-orange.svg)](https://owasp.org)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
-[![GitHub Repo stars](https://img.shields.io/github/stars/openshield-org/openshield?style=flat-square)](https://github.com/openshield-org/openshield/stargazers)
-[![GitHub contributors](https://img.shields.io/github/contributors/openshield-org/openshield?style=flat-square)](https://github.com/openshield-org/openshield/graphs/contributors)
-[![GitHub last commit](https://img.shields.io/github/last-commit/openshield-org/openshield?style=flat-square)](https://github.com/openshield-org/openshield/commits/main)
-[![GitHub issues](https://img.shields.io/github/issues/openshield-org/openshield?style=flat-square)](https://github.com/openshield-org/openshield/issues)
+[![GitHub Repo stars](https://img.shields.io/github/stars/OWASP/openshield?style=flat-square)](https://github.com/OWASP/openshield/stargazers)
+[![GitHub contributors](https://img.shields.io/github/contributors/OWASP/openshield?style=flat-square)](https://github.com/OWASP/openshield/graphs/contributors)
+[![GitHub last commit](https://img.shields.io/github/last-commit/OWASP/openshield?style=flat-square)](https://github.com/OWASP/openshield/commits/main)
+[![GitHub issues](https://img.shields.io/github/issues/OWASP/openshield?style=flat-square)](https://github.com/OWASP/openshield/issues)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289da)](https://discord.gg/openshield)
 
@@ -64,7 +64,7 @@ Findings map to NIST FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), and FIPS 205 (SLH-DSA
 | **Scan History API** | Stores scans and findings in PostgreSQL and exposes findings, score, scan history, compliance posture, drift, and resource inventory over REST |
 | **Remediation Playbooks** | Every documented rule ships with a matching review-gated remediation script (95 playbooks) |
 | **Security Dashboard** | Full React dashboard deployed on Vercel - live monitoring, findings, compliance, drift, prioritization, and AI-layer views |
-| **Project Website** | Documentation and reference site at [openshield-org.github.io/openshield](https://openshield-org.github.io/openshield/) - blog, rules gallery, architecture, evidence guides, roadmap, and releases |
+| **Project Website** | Documentation and reference site at [owasp.github.io/openshield](https://owasp.github.io/openshield/) - blog, rules gallery, architecture, evidence guides, roadmap, and releases |
 | **Sentinel Integration** | Normalises findings and pushes them into Microsoft Sentinel via a Log Analytics custom table and KQL analytics rules |
 
 ---
@@ -130,7 +130,7 @@ flowchart TD
 |---|---|
 | **Security Dashboard** (Vercel) | `https://openshield-gules.vercel.app` |
 | **REST API** (Render) | `https://openshield-api.onrender.com` |
-| **Project Website** | `https://openshield-org.github.io/openshield/` |
+| **Project Website** | `https://owasp.github.io/openshield/` |
 
 > **Note:** The API is hosted on Render. The dashboard connects automatically on load and shows live data from the PostgreSQL database.
 
@@ -194,7 +194,7 @@ openshield/
 
 ```bash
 # Clone the repo
-git clone https://github.com/openshield-org/openshield.git
+git clone https://github.com/OWASP/openshield.git
 cd openshield
 
 # Install Python dependencies
@@ -318,7 +318,7 @@ Learn OpenShield covers:
 Live Learning Portal: https://openshieldlearn.netlify.app/learn/
 Full documentation, the security rules gallery, architecture guide, evidence guide, and blog are available at the project website:
 
-**[openshield-org.github.io/openshield](https://openshield-org.github.io/openshield/)**
+**[owasp.github.io/openshield](https://owasp.github.io/openshield/)**
 
 ## API Reference
 

@@ -31,7 +31,7 @@ Every misconfiguration rule is a self-contained Python file in `scanner/rules/`.
 
 ### Step 1 - Pick an Issue
 
-Browse issues labelled [`good-first-issue`](https://github.com/openshield-org/openshield/issues?q=label%3Agood-first-issue) or [`help-wanted`](https://github.com/openshield-org/openshield/issues?q=label%3Ahelp-wanted).
+Browse issues labelled [`good-first-issue`](https://github.com/OWASP/openshield/issues?q=label%3Agood-first-issue) or [`help-wanted`](https://github.com/OWASP/openshield/issues?q=label%3Ahelp-wanted).
 
 Comment on the issue: **"I'd like to work on this"** - we will assign it to you.
 

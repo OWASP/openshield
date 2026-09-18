@@ -159,6 +159,11 @@
       "control_name": "Network controls",
       "description": "A VM has management ports (SSH/RDP) open to the internet with no Just-In-Time VM access policy covering them. A.13.1.1 requires network controls that manage and protect access to systems. JIT limits management-port exposure to approved, time-boxed windows."
     },
+    "AZ-CMP-005": {
+      "control_id": "A.12.5.1",
+      "control_name": "Installation of software on operational systems",
+      "description": "A Generation 2 virtual machine does not have Trusted Launch (Secure Boot and vTPM) fully enabled. A.12.5.1 requires procedures to control the installation of software on operational systems. Secure Boot enforces that only signed, trusted boot software executes, preventing unsigned or malicious boot-level code from loading beneath the operating system."
+    },
     "AZ-CMP-003": {
       "control_id": "A.12.2.1",
       "control_name": "Controls against malware",

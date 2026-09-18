@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Generate a demo JWT for the OpenShield frontend.
+Mint a short-lived shared-secret JWT for local development and API smoke tests.
 
-The token is signed with the same JWT_SECRET used by the Render backend.
-Set the result as VITE_JWT_TOKEN in the Vercel environment to allow the
-frontend to authenticate against read (GET) /api/* endpoints.
+The token is signed with JWT_SECRET and is only accepted when the API runs with
+OPENSHIELD_AUTH_MODE=shared_secret (the default). It must never be embedded in
+the dashboard: the frontend no longer reads a build-time token, and anything
+placed in a Vite variable is published in the public JavaScript bundle
+(issue #294). Enterprise deployments use OPENSHIELD_AUTH_MODE=oidc instead; see
+docs/security/authentication.md.
 
 Usage:
-    JWT_SECRET=<your-production-secret> python scripts/generate_demo_jwt.py
-    JWT_SECRET=<your-production-secret> DEMO_JWT_TTL_HOURS=8 python scripts/generate_demo_jwt.py
+    JWT_SECRET=<secret> python scripts/generate_demo_jwt.py
+    JWT_SECRET=<secret> DEMO_JWT_TTL_HOURS=0.5 python scripts/generate_demo_jwt.py
 
-The API now requires every token to carry an expiry and rejects any request
-whose role isn't recognized (see issue #294) - this token expires after
-DEMO_JWT_TTL_HOURS (default 24) and must be regenerated after that, and its
-"viewer" role means it can never authorize a write (scan trigger, AI
-endpoints). It is still a bearer credential once issued: treat it like a
-password - set it only in the Vercel dashboard, never commit it to the repo,
-and regenerate it (this script, or a fresh JWT_SECRET) if it may have leaked.
+The token carries an expiry (DEMO_JWT_TTL_HOURS, default 1) and the read-only
+"viewer" role, so it can never authorize a write. It is still a bearer
+credential: keep it out of the repository, shell history shared with others,
+and any client-side configuration.
 """
 
 import os
@@ -32,10 +32,10 @@ secret = os.environ.get("JWT_SECRET")
 if not secret:
     sys.exit(
         "Error: JWT_SECRET environment variable is not set.\n"
-        "Usage: JWT_SECRET=<your-production-secret> python scripts/generate_demo_jwt.py"
+        "Usage: JWT_SECRET=<secret> python scripts/generate_demo_jwt.py"
     )
 
-_DEFAULT_TTL_HOURS = 24.0
+_DEFAULT_TTL_HOURS = 1.0
 try:
     ttl_hours = float(os.environ.get("DEMO_JWT_TTL_HOURS", _DEFAULT_TTL_HOURS))
 except ValueError:
@@ -55,10 +55,9 @@ token = jwt.encode(
     algorithm="HS256",
 )
 
-print(f"\nGenerated demo JWT, expires in {ttl_hours:g}h (set this as VITE_JWT_TOKEN on Vercel):\n")
+print(f"\nGenerated viewer JWT for local/API testing, expires in {ttl_hours:g}h:\n")
 print(token)
 print(
-    "\nNEVER commit this token or the JWT_SECRET to the repository.\n"
-    "Set it only in the Vercel dashboard → Settings → Environment Variables.\n"
-    "Regenerate before it expires - there is no automatic renewal.\n"
+    "\nUse it only as an Authorization header for API calls (curl, smoke tests).\n"
+    "NEVER commit it, and never put it in a VITE_* variable or any other frontend configuration.\n"
 )
