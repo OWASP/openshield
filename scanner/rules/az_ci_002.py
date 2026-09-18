@@ -58,12 +58,11 @@ def scan(github_client: Any, owner: str, repo: str) -> List[Dict[str, Any]]:
         logger.warning("%s: workflows could not be enumerated for %s/%s", RULE_ID, owner, repo)
         return findings
 
-    # Attempt to read repo default permissions (requires repo metadata)
-    repo_info = github_client.get_repo_info()
-    repo_default_permissions = None
-    if repo_info is not None:
-        # GitHub API exposes default_workflow_permissions on repo settings
-        repo_default_permissions = repo_info.get("default_workflow_permissions")
+    # default_workflow_permissions is exposed ONLY by the dedicated
+    # actions/permissions/workflow endpoint (requires administration: read),
+    # not by GET /repos/{owner}/{repo}. None means the effective default is
+    # UNKNOWN and is never assumed compliant.
+    repo_default_permissions = github_client.get_workflow_permissions()
 
     for wf in workflows:
         path = wf.get("path", "")

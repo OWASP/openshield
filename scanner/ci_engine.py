@@ -203,3 +203,39 @@ class CIScanEngine:
                     )
 
         return evaluations
+
+
+def _main() -> int:
+    """CLI entry point: run AZ-CI-001..004 against a repository.
+
+    Usage:
+        python -m scanner.ci_engine --owner <org> --repo <name> [--json]
+
+    Interim executable runner for the CI/CD controls. Persisted-scan storage
+    and an API route that invoke CIScanEngine are scoped to issue #259 PR 3/3;
+    this CLI ensures the rules are runnable rather than merged as dead code.
+    """
+    import argparse
+    import json as _json
+
+    parser = argparse.ArgumentParser(description="Run OpenShield CI/CD workflow security rules (AZ-CI-001..004)")
+    parser.add_argument("--owner", required=True, help="GitHub organisation or user")
+    parser.add_argument("--repo", required=True, help="Repository name")
+    parser.add_argument("--json", action="store_true", help="Emit results as JSON")
+    args = parser.parse_args()
+
+    engine = CIScanEngine(owner=args.owner, repo=args.repo)
+    results = engine.run_scan()
+
+    if args.json:
+        print(_json.dumps([r.to_dict() for r in results], indent=2))
+    else:
+        for r in results:
+            print(f"{r.status:15} {r.rule_id:10} {r.resource_id}")
+
+    # Non-zero exit when any rule FAILed so a CI/CD job can gate on it.
+    return 1 if any(r.status == EvaluationStatus.FAIL for r in results) else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

@@ -498,16 +498,15 @@ class TestAzCi002:
 
     def test_no_permissions_with_restricted_repo_default_no_finding(self):
         """Workflow with no permissions block + repo default=read must not flag."""
-        mock_repo_info = {"default_workflow_permissions": RESTRICTED_DEFAULT_PERMISSIONS}
         client = _make_client(contents=NO_PERMISSIONS_WORKFLOW)
-        client.get_repo_info = lambda: mock_repo_info
+        client.get_workflow_permissions = lambda: RESTRICTED_DEFAULT_PERMISSIONS
         findings = az_ci_002.scan(client, OWNER, REPO)
         assert findings == [], "Restricted repo default must suppress broad-permissions finding"
 
     def test_no_permissions_unknown_repo_default_returns_finding(self):
         """Workflow with no permissions block + unavailable repo default returns UNKNOWN finding."""
         client = _make_client(contents=NO_PERMISSIONS_WORKFLOW)
-        client.get_repo_info = lambda: None
+        client.get_workflow_permissions = lambda: None
         findings = az_ci_002.scan(client, OWNER, REPO)
         assert len(findings) == 1
         assert findings[0]["metadata"]["effective_permissions"] == "UNKNOWN"
@@ -655,6 +654,26 @@ class TestGitHubClient:
         with patch.object(client, "_get", return_value=None):
             result = client.get_workflow_content(".github/workflows/ci.yml")
         assert result is None
+
+    def test_get_workflow_permissions_returns_value(self):
+        from unittest.mock import MagicMock, patch
+
+        from scanner.github_client import GitHubClient
+
+        client = GitHubClient("org", "repo", token="tok")
+        resp = MagicMock()
+        resp.json.return_value = {"default_workflow_permissions": "read"}
+        with patch.object(client, "_get", return_value=resp):
+            assert client.get_workflow_permissions() == "read"
+
+    def test_get_workflow_permissions_none_on_failure(self):
+        from unittest.mock import patch
+
+        from scanner.github_client import GitHubClient
+
+        client = GitHubClient("org", "repo", token="tok")
+        with patch.object(client, "_get", return_value=None):
+            assert client.get_workflow_permissions() is None
 
 
 # ---------------------------------------------------------------------------
