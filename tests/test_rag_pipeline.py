@@ -255,24 +255,22 @@ class TestEmbedPipeline:
                 build_vectorstore()
 
     def test_build_vectorstore_calls_load_all_documents(self):
-        """build_vectorstore() calls load_all_documents to get source docs."""
-        mock_docs = [{"id": "doc-1", "content": "test content about azure", "metadata": {}}]
-        mock_chunks = [{"id": "c-1", "content": "test content about azure", "metadata": {}}]
+        """build_vectorstore() loads docs and writes a real BM25 index (no swallowed errors)."""
+        import tempfile
+
+        mock_docs = [{"id": "doc-1", "content": "azure security network", "metadata": {}}]
+        mock_chunks = [{"id": "c-1", "content": "azure security network", "metadata": {}}]
         with patch("ai.embed.load_all_documents", return_value=mock_docs) as mock_load:
             with patch("ai.embed.chunk_documents", return_value=mock_chunks):
-                with patch("ai.embed.VECTORSTORE_DIR") as mock_dir:
-                    from unittest.mock import MagicMock
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    tmp = Path(tmpdir)
+                    with patch("ai.embed.VECTORSTORE_DIR", tmp):
+                        with patch("ai.embed.INDEX_PATH", tmp / "bm25_index.json"):
+                            from ai.embed import build_vectorstore
 
-                    mock_dir.mkdir = MagicMock()
-                    with patch("builtins.open", MagicMock()):
-                        with patch("json.dump"):
-                            try:
-                                from ai.embed import build_vectorstore
-
-                                build_vectorstore()
-                            except Exception:
-                                pass
-            mock_load.assert_called_once()
+                            build_vectorstore()
+                            assert (tmp / "bm25_index.json").exists()
+        mock_load.assert_called_once()
 
     def test_build_vectorstore_returns_chunk_count(self):
         """build_vectorstore() returns the number of chunks indexed."""

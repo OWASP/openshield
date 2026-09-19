@@ -100,33 +100,57 @@ class TestScoreRoute:
 class TestComplianceRoute:
     """Tests for GET /api/compliance/<framework>."""
 
-    def test_compliance_cis_returns_200(self, client, auth_headers):
-        with patch("api.routes.compliance._get_db") as mock_get_db:
-            mock_get_db.return_value = _make_db()
-            resp = client.get("/api/compliance/cis", headers=auth_headers)
-        assert resp.status_code == 200
+    def _payload(self, framework):
+        return {
+            "framework": framework,
+            "total_controls": 10,
+            "passed": 8,
+            "failed": 2,
+            "score_percent": 80.0,
+            "controls": [],
+        }
 
-    def test_compliance_nist_returns_200(self, client, auth_headers):
-        with patch("api.routes.compliance._get_db") as mock_get_db:
-            mock_get_db.return_value = _make_db()
-            resp = client.get("/api/compliance/nist", headers=auth_headers)
+    def _check_framework(self, client, auth_headers, framework):
+        db = _make_db(compliance=self._payload(framework))
+        with patch("api.routes.compliance._get_db", return_value=db):
+            resp = client.get(f"/api/compliance/{framework}", headers=auth_headers)
         assert resp.status_code == 200
+        # The route must forward the validated framework verbatim to the DB layer.
+        db.get_compliance_score.assert_called_once_with(framework)
+        data = resp.get_json()
+        assert data["framework"] == framework
+        for key in ("total_controls", "passed", "failed", "score_percent", "controls"):
+            assert key in data, f"missing key {key} for {framework}"
+        assert data["passed"] + data["failed"] == data["total_controls"]
 
-    def test_compliance_iso27001_returns_200(self, client, auth_headers):
-        with patch("api.routes.compliance._get_db") as mock_get_db:
-            mock_get_db.return_value = _make_db()
-            resp = client.get("/api/compliance/iso27001", headers=auth_headers)
-        assert resp.status_code == 200
+    def test_compliance_cis(self, client, auth_headers):
+        self._check_framework(client, auth_headers, "cis")
 
-    def test_compliance_soc2_returns_200(self, client, auth_headers):
-        with patch("api.routes.compliance._get_db") as mock_get_db:
-            mock_get_db.return_value = _make_db()
-            resp = client.get("/api/compliance/soc2", headers=auth_headers)
-        assert resp.status_code == 200
+    def test_compliance_nist(self, client, auth_headers):
+        self._check_framework(client, auth_headers, "nist")
+
+    def test_compliance_iso27001(self, client, auth_headers):
+        self._check_framework(client, auth_headers, "iso27001")
+
+    def test_compliance_soc2(self, client, auth_headers):
+        self._check_framework(client, auth_headers, "soc2")
+
+    def test_compliance_ncsc_pqc(self, client, auth_headers):
+        self._check_framework(client, auth_headers, "ncsc_pqc")
+
+    def test_compliance_enisa_pqc(self, client, auth_headers):
+        self._check_framework(client, auth_headers, "enisa_pqc")
 
     def test_compliance_invalid_framework_returns_400(self, client, auth_headers):
         resp = client.get("/api/compliance/unknown", headers=auth_headers)
         assert resp.status_code == 400
+
+    def test_compliance_error_result_returns_500(self, client, auth_headers):
+        """A get_compliance_score result containing 'error' maps to HTTP 500."""
+        db = _make_db(compliance={"error": "frameworks unavailable"})
+        with patch("api.routes.compliance._get_db", return_value=db):
+            resp = client.get("/api/compliance/cis", headers=auth_headers)
+        assert resp.status_code == 500
 
     def test_compliance_returns_500_on_db_error(self, client, auth_headers):
         with patch("api.routes.compliance._get_db", side_effect=RuntimeError("DB error")):

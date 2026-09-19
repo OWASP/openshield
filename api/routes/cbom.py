@@ -1,7 +1,5 @@
 """Cryptographic Bill of Materials routes for post-quantum findings."""
 
-from __future__ import annotations
-
 import logging
 import os
 from datetime import datetime, timezone
