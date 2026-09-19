@@ -7,10 +7,31 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+import urllib.parse
+
 import requests
 from azure.core.exceptions import AzureError
 
 ARM_ENDPOINT = "https://management.azure.com"
+_ARM_HOST = "management.azure.com"
+
+
+def _is_valid_arm_continuation(url: str) -> bool:
+    """Return True only if url is a safe ARM pagination URL.
+
+    Accepts exactly scheme=https, host=management.azure.com, no userinfo,
+    no non-standard port. Rejects lookalike hosts and redirect targets.
+    """
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception:
+        return False
+    return (
+        parsed.scheme == "https"
+        and parsed.netloc == _ARM_HOST
+        and not parsed.username
+        and not parsed.password
+    )
 
 
 @dataclass(frozen=True)
@@ -113,7 +134,7 @@ class GovernanceCollector:
         items: list[dict[str, Any]] = []
         try:
             while url:
-                response = self.session.get(url, headers=self._headers(), timeout=30)
+                response = self.session.get(url, headers=self._headers(), timeout=30, allow_redirects=False)
                 response.raise_for_status()
                 payload = response.json()
                 if not isinstance(payload, dict):
@@ -123,7 +144,11 @@ class GovernanceCollector:
                     return None
                 items.extend(item for item in values if isinstance(item, dict))
                 next_link = payload.get("nextLink")
-                url = next_link if isinstance(next_link, str) and next_link.startswith(ARM_ENDPOINT) else ""
+                if next_link is None:
+                    break
+                if not isinstance(next_link, str) or not _is_valid_arm_continuation(next_link):
+                    return None
+                url = next_link
             return items
         except (requests.RequestException, AzureError, ValueError, TypeError):
             return None
@@ -157,7 +182,7 @@ class GovernanceCollector:
         items: list[dict[str, Any]] = []
         try:
             while url:
-                response = self.session.post(url, headers=self._headers(), json={}, timeout=30)
+                response = self.session.post(url, headers=self._headers(), json={}, timeout=30, allow_redirects=False)
                 response.raise_for_status()
                 payload = response.json()
                 values = payload.get("value")
@@ -165,7 +190,11 @@ class GovernanceCollector:
                     return None
                 items.extend(values)
                 next_link = payload.get("@odata.nextLink", payload.get("nextLink"))
-                url = next_link if isinstance(next_link, str) and next_link.startswith(ARM_ENDPOINT) else ""
+                if next_link is None:
+                    break
+                if not isinstance(next_link, str) or not _is_valid_arm_continuation(next_link):
+                    return None
+                url = next_link
             return items
         except (requests.RequestException, AzureError, ValueError, TypeError, AttributeError):
             return None
