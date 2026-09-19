@@ -56,6 +56,19 @@ const index = fs.existsSync(path.join(dist, 'index.html'))
   : '';
 if (!index.includes('Illustrative output')) failures.push('homepage does not label sample scan output');
 
+const learnPath = path.join(dist, 'learn', 'index.html');
+if (!fs.existsSync(learnPath)) {
+  failures.push('dist does not contain the /openshield/learn/ route');
+} else {
+  const learn = fs.readFileSync(learnPath, 'utf8');
+  if (!/<link rel="canonical" href="https:\/\/owasp\.github\.io\/openshield\/learn\/">/.test(learn)) {
+    failures.push('Learn route does not have the /openshield/learn/ canonical URL');
+  }
+  if (!learn.includes('Learn security posture from the source.')) {
+    failures.push('Learn route does not render the Learn experience');
+  }
+}
+
 const cmsConfigPath = path.join(dist, 'admin', 'config.yml');
 const adminPath = path.join(dist, 'admin', 'index.html');
 const hasCmsConfig = fs.existsSync(cmsConfigPath);

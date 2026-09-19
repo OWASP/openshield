@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Refresh the rule/playbook/severity statistics in the Learn page and README.
+"""Refresh repository-derived statistics in the deployed Learn page and README.
 
-docs/learn/index.html hardcodes rule, playbook, severity and category counts
+website/src/pages/learn.astro renders generated rule, playbook, severity and category counts
 in five places: the headline metric tiles, the hero terminal line, the
 pipeline step, the rules-section title/intro, the severity-box grid, and the
 "coverage by category" chart. README.md hardcodes the same rule and playbook
@@ -22,12 +22,12 @@ import html
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RULES_DIR = REPO_ROOT / "scanner" / "rules"
 PLAYBOOKS_DIR = REPO_ROOT / "playbooks" / "cli"
-LEARN_PAGE = REPO_ROOT / "docs" / "learn" / "index.html"
+LEARN_PAGE = REPO_ROOT / "website" / "src" / "pages" / "learn.astro"
 README_PATH = REPO_ROOT / "README.md"
 
 # Rule modules are named az_<category>_<number>.py. Matching on that prefix is
@@ -152,6 +152,26 @@ def render_category_rows(categories: Dict[str, int]) -> str:
     return "\n".join(rows)
 
 
+def validate_statistics(rule_count: int, severities: Dict[str, int], categories: Dict[str, int]) -> Optional[str]:
+    """Return an error when generated Learn totals cannot support the headline.
+
+    The route displays CRITICAL/HIGH/MEDIUM/LOW rather than a partial severity
+    chart. Keep that display honest: every counted rule must occur exactly once
+    in both the displayed severity set and the category chart.
+    """
+    displayed_severities = ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+    displayed_severity_total = sum(severities[severity] for severity in displayed_severities)
+    severity_total = sum(severities.values())
+    category_total = sum(categories.values())
+    if severity_total == rule_count and displayed_severity_total == rule_count and category_total == rule_count:
+        return None
+    return (
+        "generated Learn statistics do not reconcile with the rule total "
+        f"(rules: {rule_count}, all severities: {severity_total}, displayed "
+        f"CRITICAL/HIGH/MEDIUM/LOW: {displayed_severity_total}, categories: {category_total})."
+    )
+
+
 def _metric(label: str) -> str:
     """Build the pattern for one headline metric tile on the Learn page."""
     return rf'(<div class="metric"><strong>)\d+(</strong><span>{re.escape(label)}</span></div>)'
@@ -176,12 +196,13 @@ def render(
     content: str,
     rule_count: int,
     playbook_count: int,
+    critical_count: int,
     high_count: int,
     medium_count: int,
     low_count: int,
     category_rows: str,
 ) -> Tuple[str, List[str]]:
-    """Return (updated_content, failed_pattern_names) for docs/learn/index.html."""
+    """Return (updated_content, failed_pattern_names) for the Astro Learn route."""
     intro = (
         r'(<p class="section-intro">\s*OpenShield currently has )\d+'
         r"( dynamic rules\. The strongest contributor work improves rule "
@@ -193,6 +214,7 @@ def render(
     )
     section_title = r'(<h2 class="section-title">)\d+( Azure security rules</h2>)'
     hero_terminal = r'(<span class="dim">loading rules:</span> <span class="cyan">)\d+( dynamic checks</span></p>)'
+    severity_critical = r'(<div class="severity-box critical"><strong>)\d+(</strong><span>CRITICAL</span></div>)'
     severity_high = r'(<div class="severity-box high"><strong>)\d+(</strong><span>HIGH</span></div>)'
     severity_medium = r'(<div class="severity-box medium"><strong>)\d+(</strong><span>MEDIUM</span></div>)'
     severity_low = r'(<div class="severity-box low"><strong>)\d+(</strong><span>LOW</span></div>)'
@@ -207,6 +229,7 @@ def render(
         ("rules section title", section_title, rule_count),
         ("rules section intro paragraph", intro, rule_count),
         ("hero terminal: dynamic checks line", hero_terminal, rule_count),
+        ("severity box: CRITICAL", severity_critical, critical_count),
         ("severity box: HIGH", severity_high, high_count),
         ("severity box: MEDIUM", severity_medium, medium_count),
         ("severity box: LOW", severity_low, low_count),
@@ -214,7 +237,7 @@ def render(
 
     content, failures = apply_replacements(content, replacements)
 
-    category_block = r'(<div class="rule-chart" aria-label="Rule count by category">\n)(.*?)(\n {10}</div>)'
+    category_block = r'(<div class="rule-chart" aria-label="Rule count by category">\n)(.*?)(\n\s*</div>)'
     content, count = re.subn(
         category_block,
         lambda m: m.group(1) + category_rows + m.group(3),
@@ -302,29 +325,21 @@ def main() -> int:
 
     if missing_severity:
         print(
-            f"Warning: {len(missing_severity)} rule file(s) have no parseable SEVERITY "
-            f"and are excluded from the severity counts: {', '.join(missing_severity)}",
+            f"Error: {len(missing_severity)} rule file(s) have no parseable SEVERITY: {', '.join(missing_severity)}",
             file=sys.stderr,
         )
+        return 1
     if missing_category:
         print(
-            f"Warning: {len(missing_category)} rule file(s) have no parseable CATEGORY "
-            f"and are excluded from the coverage-by-category chart: {', '.join(missing_category)}",
+            f"Error: {len(missing_category)} rule file(s) have no parseable CATEGORY: {', '.join(missing_category)}",
             file=sys.stderr,
         )
+        return 1
 
-    chart_severities = {"HIGH", "MEDIUM", "LOW"}
-    excluded_severities = {
-        severity: count for severity, count in severities.items() if severity not in chart_severities and count
-    }
-    if excluded_severities:
-        excluded_detail = ", ".join(f"{severity}: {count}" for severity, count in sorted(excluded_severities.items()))
-        excluded_total = sum(excluded_severities.values())
-        print(
-            f"Warning: {excluded_total} rule(s) with severities outside the "
-            f"HIGH/MEDIUM/LOW chart are excluded from the severity boxes: {excluded_detail}",
-            file=sys.stderr,
-        )
+    statistics_error = validate_statistics(rule_count, severities, categories)
+    if statistics_error:
+        print(f"Error: {statistics_error}", file=sys.stderr)
+        return 1
 
     category_rows = render_category_rows(categories)
 
@@ -333,6 +348,7 @@ def main() -> int:
         learn_original,
         rule_count,
         playbook_count,
+        severities["CRITICAL"],
         severities["HIGH"],
         severities["MEDIUM"],
         severities["LOW"],
@@ -342,7 +358,7 @@ def main() -> int:
     readme_original = README_PATH.read_text(encoding="utf-8")
     readme_updated, readme_failures = render_readme(readme_original, rule_count, playbook_count)
 
-    failures = [f"docs/learn/index.html -> {name}" for name in learn_failures]
+    failures = [f"website/src/pages/learn.astro -> {name}" for name in learn_failures]
     failures += [f"README.md -> {name}" for name in readme_failures]
 
     if failures:
@@ -369,7 +385,8 @@ def main() -> int:
 
     print(
         f"Updated {', '.join(changed)} - rules: {rule_count}, playbooks: {playbook_count}, "
-        f"severity HIGH: {severities['HIGH']}, MEDIUM: {severities['MEDIUM']}, LOW: {severities['LOW']}"
+        f"severity CRITICAL: {severities['CRITICAL']}, HIGH: {severities['HIGH']}, "
+        f"MEDIUM: {severities['MEDIUM']}, LOW: {severities['LOW']}"
     )
     return 0
 

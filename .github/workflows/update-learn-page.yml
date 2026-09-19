@@ -31,7 +31,7 @@ jobs:
       - name: Detect changes
         id: diff
         run: |
-          if git diff --quiet -- docs/learn/index.html README.md; then
+          if git diff --quiet -- website/src/pages/learn.astro README.md; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -44,6 +44,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/learn/index.html README.md
+          git add website/src/pages/learn.astro README.md
           git commit -s -m "docs: refresh learn page and README statistics [skip ci]"
           git push origin "HEAD:$TARGET_REF"
