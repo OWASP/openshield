@@ -41,9 +41,12 @@ for (const file of htmlFiles) {
   if (!html.includes('<link rel="canonical"')) failures.push(`${relative} has no canonical URL`);
   const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/i)?.[1] || '';
   if (!csp) failures.push(`${relative} has no Content-Security-Policy meta policy`);
-  const scriptPolicy = csp.split(';').find((directive) => directive.trim().startsWith('script-src')) || '';
-  if (!scriptPolicy || scriptPolicy.includes('unsafe-inline')) {
-    failures.push(`${relative} allows inline script execution in its Content-Security-Policy`);
+  const scriptPolicy = csp.split(';').find((directive) => directive.trim().toLowerCase().startsWith('script-src')) || '';
+  // This site deliberately permits scripts from its own origin only. Checking
+  // merely for the absence of unsafe-inline would allow a future remote source
+  // to weaken the CSP without failing the production-build verification.
+  if (scriptPolicy.trim() !== "script-src 'self'") {
+    failures.push(`${relative} must use exactly script-src 'self' in its Content-Security-Policy`);
   }
   // script-src 'self' with no 'unsafe-inline'/nonce/hash means the browser
   // silently blocks any inline script on the deployed site. Checking the CSP
