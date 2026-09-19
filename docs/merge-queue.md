@@ -137,25 +137,32 @@ contributor pushed a fix:
 
 ## Governance-policy changes
 
-Changes to `GOVERNANCE.md`, `.mergify.yml`, or `docs/merge-queue.md` require
-two approvals before they can merge through the queue. This matches the
-project-lead plus one additional maintainer requirement in GOVERNANCE.md §5.
+Changes to `GOVERNANCE.md`, `MAINTAINERS.md`, `.mergify.yml`, or
+`docs/merge-queue.md` require two approvals before they can merge through the
+queue, and the project lead (`@Vishnu2707`) must be one of the two approvers.
+This matches the project-lead plus one additional maintainer requirement in
+GOVERNANCE.md §5. `MAINTAINERS.md` is included because it names the
+role-holders referenced by that policy.
 
 The queue enforces this via the condition:
 
 ```
 or:
-  - -files~=^(GOVERNANCE\.md|\.mergify\.yml|docs/merge-queue\.md)$
-  - "#approved-reviews-by>=2"
+  - -files~=^(GOVERNANCE\.md|MAINTAINERS\.md|\.mergify\.yml|docs/merge-queue\.md)$
+  - and:
+      - "#approved-reviews-by>=2"
+      - approved-reviews-by=Vishnu2707
 ```
 
 For PRs that do not touch these files the left side is true and one approval
-is sufficient. For PRs that do touch them, the left side is false, so two
-approvals are required.
+is sufficient. For PRs that do touch them, the left side is false, so both
+conditions on the right must be satisfied: at least two approvals, and
+`@Vishnu2707` must be one of the approvers.
 
-Governance-policy PRs may not auto-merge with only one approval regardless of
-how many other checks pass. They follow the same queue path as all other PRs;
-no separate manual merge step is needed once two approvals are in place.
+Governance-policy PRs may not auto-merge with only one approval, or with two
+approvals that do not include the project lead, regardless of how many other
+checks pass. They follow the same queue path as all other PRs; no separate
+manual merge step is needed once the two-approval-plus-lead condition is met.
 
 ### Validation scenarios
 
@@ -193,13 +200,13 @@ A PR modifies `.mergify.yml` or `GOVERNANCE.md` and receives exactly one
 approving review, with all CI checks green.
 
 Expected behavior:
-- The `or: [-files~=..., "#approved-reviews-by>=2"]` condition evaluates the
-  left side as false (the PR does touch governance files).
-- The right side (`#approved-reviews-by>=2`) is false because only one approval
-  exists.
+- The left side of the `or` condition is false (the PR touches governance files).
+- The right side requires both `#approved-reviews-by>=2` and
+  `approved-reviews-by=Vishnu2707`. With only one approval, neither sub-condition
+  is satisfied.
 - The whole `or` condition is false; the PR does not enter the queue.
-- A second approval from another maintainer or the project lead satisfies the
-  condition and allows the PR to proceed through the normal queue path.
+- The PR can only proceed once it has at least two approvals and `@Vishnu2707`
+  is one of the approvers.
 
 ## GitHub branch protection
 
