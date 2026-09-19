@@ -61,13 +61,16 @@ queue_rules:
           - -files~=^infra/terraform/
           - check-success=Terraform fmt / validate / plan
       - "#approved-reviews-by>=1"
-      # Governance-policy files (GOVERNANCE.md, .mergify.yml, docs/merge-queue.md)
-      # require project lead + one additional maintainer per GOVERNANCE.md §5.
+      # Governance-policy files require project lead (@Vishnu2707) + one
+      # additional maintainer per GOVERNANCE.md §5. MAINTAINERS.md is included
+      # because it names the role-holders referenced by that policy.
       # This condition enforces that: either the PR does not touch governance
-      # files (one approval already satisfied above), or it has two approvals.
+      # files, or it has two approvals AND the project lead has approved.
       - or:
-          - -files~=^(GOVERNANCE\.md|\.mergify\.yml|docs/merge-queue\.md)$
-          - "#approved-reviews-by>=2"
+          - -files~=^(GOVERNANCE\.md|MAINTAINERS\.md|\.mergify\.yml|docs/merge-queue\.md)$
+          - and:
+              - "#approved-reviews-by>=2"
+              - approved-reviews-by=Vishnu2707
       - "#changes-requested-reviews-by=0"
       - "#review-threads-unresolved=0"
       - -draft
@@ -117,8 +120,10 @@ pull_request_rules:
           - check-success=Terraform fmt / validate / plan
       - "#approved-reviews-by>=1"
       - or:
-          - -files~=^(GOVERNANCE\.md|\.mergify\.yml|docs/merge-queue\.md)$
-          - "#approved-reviews-by>=2"
+          - -files~=^(GOVERNANCE\.md|MAINTAINERS\.md|\.mergify\.yml|docs/merge-queue\.md)$
+          - and:
+              - "#approved-reviews-by>=2"
+              - approved-reviews-by=Vishnu2707
       - "#changes-requested-reviews-by=0"
       - "#review-threads-unresolved=0"
       - -draft

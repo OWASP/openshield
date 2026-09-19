@@ -22,18 +22,16 @@ are true:
   including the Astro website build and rendered-site verification)
 - `DCO sign-off` check is successful
 - `dependency-review` check is successful
-- `CodeQL` check is successful
 - `Analyze (python)` check is successful
 - `Analyze (javascript)` check is successful
-- `Build site` check is successful
 - `Terraform fmt / validate / plan` check is successful, or the PR does
   not touch any files under `infra/terraform/` (the check only runs for
   terraform-touching PRs, so a plain `check-success` condition would stall
   every other PR)
 - At least one approving review exists and is current for the latest push
-- If the PR touches `GOVERNANCE.md`, `.mergify.yml`, or `docs/merge-queue.md`:
-  at least two approving reviews (project lead + one additional maintainer,
-  per GOVERNANCE.md §5)
+- If the PR touches `GOVERNANCE.md`, `MAINTAINERS.md`, `.mergify.yml`, or
+  `docs/merge-queue.md`: at least two approving reviews, and the project
+  lead (`@Vishnu2707`) must be one of the approvers (per GOVERNANCE.md §5)
 - No active `CHANGES_REQUESTED` review exists
 - All review conversations are resolved
 - The pull request is not a draft
@@ -43,13 +41,13 @@ Mergify processes one pull request at a time. It rebases the queued PR onto
 the latest `dev` and runs CI again before merging, so the branch is always
 tested against what is actually on `dev` at merge time.
 
-`CI Summary` covers all jobs inside `ci.yml`. `CodeQL` and `Build site` run
-in separate workflows (`codeql.yml` and `website.yml`) and are not part of
-`CI Summary`, which is why they are listed explicitly above. The external
-Semgrep app checks are deliberately not gated: their coverage duplicates the
-`SAST (Semgrep)` job already in `CI Summary`, and gating third-party app
-checks would stall the queue if the app is ever uninstalled or its plan
-changes.
+`CI Summary` covers all jobs inside `ci.yml`. `Analyze (python)` and
+`Analyze (javascript)` are the CodeQL per-job checks from `codeql.yml`;
+they are gated separately because `codeql.yml` is a different workflow and
+is not included in `CI Summary`. The external Semgrep app checks are
+deliberately not gated: their coverage duplicates the `SAST (Semgrep)` job
+already in `CI Summary`, and gating third-party app checks would stall the
+queue if the app is ever uninstalled or its plan changes.
 
 ## Keeping a PR out of the queue
 
