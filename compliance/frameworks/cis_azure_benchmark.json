@@ -159,6 +159,11 @@
       "control_name": "Ensure that 'OS patching' is enabled for virtual machines",
       "description": "The virtual machine does not have automatic OS patching enabled. CIS 8.3 requires that OS patches are applied in a timely manner. Unpatched VMs are vulnerable to known exploits targeting unpatched OS vulnerabilities."
     },
+    "AZ-CMP-006": {
+      "control_id": "N/A-CMP-006",
+      "control_name": "VM Scale Set NSG baseline (covered by the repository's CIS 7.1 network-interface NSG rule)",
+      "description": "CIS Azure Foundations recommendation 7.1 (\"Ensure that Network Security Groups are attached to network interfaces with public IP addresses\") is assigned to AZ-CMP-001 under the repository's one-CIS-ID-per-rule convention. This is the same underlying control applied to VM Scale Set network interface configurations instead of standalone VM NICs, so it is not assigned a second numbered mapping."
+    },
     "AZ-CMP-007": {
       "control_id": "N/A-CMP-007",
       "control_name": "Just-In-Time (JIT) VM access - Defender for Cloud recommendation, no numbered CIS Azure Foundations 2.0.0 control",

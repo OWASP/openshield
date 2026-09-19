@@ -160,7 +160,15 @@ def _vnet_id(name):
     return f"/subscriptions/{_SUB}/resourceGroups/{_RG}/providers/Microsoft.Network/virtualNetworks/{name}"
 
 
-def _net_003_rule(name, direction="Inbound", access="Allow", source="0.0.0.0/0", source_list=None, port="443"):
+def _net_003_rule(
+    name,
+    direction="Inbound",
+    access="Allow",
+    source="0.0.0.0/0",
+    source_list=None,
+    port="443",
+    port_list=None,
+):
     return make_resource(
         name=name,
         direction=direction,
@@ -168,6 +176,7 @@ def _net_003_rule(name, direction="Inbound", access="Allow", source="0.0.0.0/0",
         source_address_prefix=source,
         source_address_prefixes=source_list or [],
         destination_port_range=port,
+        destination_port_ranges=port_list or [],
     )
 
 
@@ -225,6 +234,48 @@ def test_net_003_detects_plural_source_prefixes(mock_azure, subscription_id):
     mock_azure.set_network_security_groups([nsg])
     findings = az_net_003.scan(mock_azure, subscription_id)
     assert len(findings) == 1
+
+
+def test_net_003_detects_plural_destination_port_ranges(mock_azure, subscription_id):
+    """COR-003: port 443 listed only in destination_port_ranges must be detected."""
+    nsg = make_resource(
+        id=_nsg_id("nsg-plural-port"),
+        name="nsg-plural-port",
+        security_rules=[
+            _net_003_rule(
+                "AllowHTTPSPluralPort",
+                source="0.0.0.0/0",
+                port="",
+                port_list=["443"],
+            )
+        ],
+    )
+    mock_azure.set_network_security_groups([nsg])
+    findings = az_net_003.scan(mock_azure, subscription_id)
+    assert len(findings) == 1
+    assert findings[0]["rule_id"] == "AZ-NET-003"
+    assert findings[0]["severity"] == "HIGH"
+
+
+def test_net_003_compliant_plural_destination_port_ranges(mock_azure, subscription_id):
+    """Non-blocking (parthrohit22): a rule using destination_port_ranges for
+    ports that don't include 443/* must not be flagged — pins down that the
+    plural-port fix only broadens detection for 443/*, not for any port."""
+    nsg = make_resource(
+        id=_nsg_id("nsg-plural-port-safe"),
+        name="nsg-plural-port-safe",
+        security_rules=[
+            _net_003_rule(
+                "AllowOtherPortsPluralOpen",
+                source="0.0.0.0/0",
+                port="",
+                port_list=["80", "8080"],
+            )
+        ],
+    )
+    mock_azure.set_network_security_groups([nsg])
+    findings = az_net_003.scan(mock_azure, subscription_id)
+    assert findings == []
 
 
 @pytest.mark.skipif(not _AZURE_SDK_AVAILABLE, reason="azure-mgmt-network not installed")
