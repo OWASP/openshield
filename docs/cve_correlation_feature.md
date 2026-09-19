@@ -19,7 +19,8 @@ The CVE Correlation feature integrates the MITRE National Vulnerability Database
 | File | Change | Why |
 |---|---|---|
 | scanner/engine.py | Decoupled Scan. Removed synchronous enrichment from the scan lifecycle. | Performance: Azure scans now return immediately without waiting for NVD rate limits (7s per resource type). |
-| api/routes/scans.py | New Endpoint. Added `POST /api/scans/<scan_id>/enrich`. | Flexibility: CVE enrichment can now be triggered on-demand or by a background job after the scan completes. |
+| api/routes/scans.py | Durable endpoint. `POST /api/scans/<scan_id>/enrich` enqueues or returns a PostgreSQL job. | No Gunicorn daemon thread owns authoritative work. |
+| scanner/enrichment_worker.py | Checkpointed durable enrichment execution. | Reclaims expired work safely and resumes at a finding checkpoint. |
 | api/models/finding.py | Updated Scan model and added enrichment status tracking. | Persistence: Adds `cve_enrichment_status` to track `PENDING`, `COMPLETED`, or `FAILED` states. |
 | alembic/versions/ | Defines CVE columns in the versioned database schema. | Deployment: Alembic owns schema changes independently of Flask application startup. |
 | api/routes/score.py | Added GET /api/score/cve-summary endpoint. | Dashboard UI: Provides the frontend with high-level data like Total Known Exploits and enrichment status. |
@@ -30,10 +31,10 @@ The CVE Correlation feature integrates the MITRE National Vulnerability Database
 To ensure the frontend dashboard works perfectly, the architecture uses a Decoupled Enrichment model:
 
 1. Fast Dashboard Loads: The scan engine completes rapidly. The dashboard can check the enrichment status of the latest scan.
-2. Manual/Job Enrichment: A "Trigger Enrichment" button or a background task calls `POST /api/scans/<scan_id>/enrich` to populate CVE data.
+2. Durable Enrichment: Completion creates one job; `POST /api/scans/<scan_id>/enrich` returns that job idempotently. The worker claims, retries, and checkpoints it in PostgreSQL.
 3. Dashboard-Ready Summary Endpoint: The /api/score/cve-summary endpoint includes the `status` field, allowing the UI to show a "Scan Enriched" badge or a "Pending" spinner.
 4. Actionable Risk (CISA KEV): The exploit_available flag uses the CISA Known Exploited Vulnerabilities catalogue, allowing the dashboard to highlight high-priority risks that are being exploited in the wild.
-5. Persistent Historical State: Enrichment happens at the time of the enrichment call, and the result is persisted.
+5. Persistent Historical State: Enrichment checkpoint state and results survive API/worker restarts. NVD pagination continues through every `totalResults` page.
 
 ## Security and Compliance Audit
 

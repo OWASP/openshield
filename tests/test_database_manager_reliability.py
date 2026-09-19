@@ -71,6 +71,27 @@ def test_connect_acquires_connection_from_shared_pool():
     assert db.conn is fake_conn
 
 
+def test_reconnect_rolls_back_and_returns_previous_connection_once():
+    dsn = "postgresql://pool-test/db"
+    fake_pool = MagicMock()
+    old_conn = MagicMock()
+    old_conn.closed = 0
+    old_conn.info.transaction_status = 0
+    new_conn = MagicMock()
+    new_conn.closed = 0
+    fake_pool.getconn.return_value = new_conn
+    db = _db(dsn)
+    db.conn = old_conn
+
+    with patch.object(finding_module, "_get_pool", return_value=fake_pool):
+        db.connect()
+
+    old_conn.rollback.assert_called_once()
+    fake_pool.putconn.assert_called_once_with(old_conn, close=False)
+    fake_pool.getconn.assert_called_once()
+    assert db.conn is new_conn
+
+
 def test_close_returns_healthy_connection_to_pool():
     dsn = "postgresql://pool-test/db"
     fake_pool = MagicMock()
