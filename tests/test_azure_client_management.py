@@ -32,6 +32,11 @@ def test_parse_resource_id_handles_full_and_short_ids():
         ("get_public_ip_addresses", "scanner.azure_client.NetworkManagementClient", "public_ip_addresses.list_all"),
         ("get_load_balancers", "scanner.azure_client.NetworkManagementClient", "load_balancers.list_all"),
         ("get_virtual_machines", "scanner.azure_client.ComputeManagementClient", "virtual_machines.list_all"),
+        (
+            "get_virtual_machine_scale_sets",
+            "scanner.azure_client.ComputeManagementClient",
+            "virtual_machine_scale_sets.list_all",
+        ),
         ("get_postgresql_servers", "scanner.azure_client.PostgreSQLManagementClient", "servers.list"),
         ("get_sql_servers", "scanner.azure_client.SqlManagementClient", "servers.list"),
         ("get_key_vaults", "scanner.azure_client.KeyVaultManagementClient", "vaults.list_by_subscription"),

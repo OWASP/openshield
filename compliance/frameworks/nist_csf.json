@@ -159,6 +159,11 @@
       "control_name": "A vulnerability management plan is developed and implemented",
       "description": "The virtual machine does not have automatic OS patching enabled. PR.IP-12 requires that a vulnerability management plan is developed and implemented. Without automatic patching, known OS vulnerabilities remain unmitigated and exploitable."
     },
+    "AZ-CMP-006": {
+      "control_id": "PR.AC-3",
+      "control_name": "Remote access is managed",
+      "description": "VM Scale Set instances with public IPs and no NSG on their network interface configuration have unrestricted network access. NSGs should be attached to control inbound and outbound traffic and manage remote access to compute resources."
+    },
     "AZ-CMP-007": {
       "control_id": "PR.AC-3",
       "control_name": "Remote access is managed",
