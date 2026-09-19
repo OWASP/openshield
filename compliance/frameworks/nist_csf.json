@@ -304,6 +304,81 @@
       "control_name": "A vulnerability management plan is developed and implemented",
       "description": "Managed node OS upgrade channels apply tested security updates to reduce exposure to known operating-system vulnerabilities."
     },
+    "AZ-AKS-007": {
+      "control_id": "PR.AC-3",
+      "control_name": "Remote access is managed",
+      "description": "Approved API server IP ranges constrain remote AKS administration paths."
+    },
+    "AZ-AKS-008": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "A network policy engine provides enforcement for Kubernetes workload traffic boundaries."
+    },
+    "AZ-AKS-009": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "Namespace NetworkPolicy objects define and enforce allowed workload communication."
+    },
+    "AZ-AKS-010": {
+      "control_id": "DE.CM-8",
+      "control_name": "Vulnerability scans are performed",
+      "description": "Defender for Containers supplies managed workload vulnerability and threat monitoring."
+    },
+    "AZ-AKS-011": {
+      "control_id": "PR.DS-1",
+      "control_name": "Data at rest is protected",
+      "description": "Key Vault CSI or KMS-backed protection reduces exposure of Kubernetes secret material."
+    },
+    "AZ-AKS-012": {
+      "control_id": "PR.AC-1",
+      "control_name": "Identities and credentials are managed",
+      "description": "Automatic CSI rotation keeps mounted workload credentials within their approved lifecycle."
+    },
+    "AZ-AKS-013": {
+      "control_id": "PR.AC-4",
+      "control_name": "Access permissions are managed",
+      "description": "Blocking privileged containers prevents workloads from receiving unrestricted node capabilities."
+    },
+    "AZ-AKS-014": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "Blocking hostNetwork keeps workload networking inside Kubernetes isolation boundaries."
+    },
+    "AZ-AKS-015": {
+      "control_id": "PR.AC-4",
+      "control_name": "Access permissions are managed",
+      "description": "Blocking hostPID prevents workloads from observing or controlling node processes."
+    },
+    "AZ-AKS-016": {
+      "control_id": "PR.AC-4",
+      "control_name": "Access permissions are managed",
+      "description": "Blocking hostIPC prevents workloads from sharing node inter-process communication resources."
+    },
+    "AZ-AKS-017": {
+      "control_id": "PR.AC-4",
+      "control_name": "Access permissions are managed",
+      "description": "Blocking hostPath prevents direct workload access to the node filesystem."
+    },
+    "AZ-AKS-018": {
+      "control_id": "PR.AC-4",
+      "control_name": "Access permissions are managed",
+      "description": "Restricting cluster-admin bindings enforces least privilege for Kubernetes subjects."
+    },
+    "AZ-AKS-019": {
+      "control_id": "PR.DS-6",
+      "control_name": "Integrity checking mechanisms are used",
+      "description": "Trusted registries provide an approved source boundary for workload images."
+    },
+    "AZ-AKS-020": {
+      "control_id": "PR.IP-1",
+      "control_name": "A baseline configuration is maintained",
+      "description": "Avoiding latest tags makes deployed image versions explicit and reviewable."
+    },
+    "AZ-AKS-021": {
+      "control_id": "PR.DS-6",
+      "control_name": "Integrity checking mechanisms are used",
+      "description": "Digest pinning binds a workload to verified immutable image content."
+    },
     "AZ-IDN-010": {
       "control_id": "PR.AC-4",
       "control_name": "Access permissions and authorizations are managed",
