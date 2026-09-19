@@ -33,6 +33,21 @@ provenance attestations. See [release verification](docs/release-verification.md
 
 ---
 
+## Project Leadership
+
+OpenShield is led through a collaborative, maintainer-led governance model.
+
+| Name | Role | Responsibilities |
+|---|---|---|
+| [Vishnu Ajith](https://github.com/Vishnu2707) | Project Lead | Project direction, final governance decisions, releases, and organization administration |
+| [Muhammad Ibrahim](https://github.com/m-khan-97) | Co-Project Lead | Engineering direction, security and enterprise-readiness, contributor coordination, and project delivery |
+| [Muhammad Sihan Haroon](https://github.com/H-Sihan) | Co-Project Lead | Technical leadership, contributor coordination, and project delivery |
+
+The complete leadership and maintainer responsibilities are recorded in
+[MAINTAINERS.md](MAINTAINERS.md) and governed by [GOVERNANCE.md](GOVERNANCE.md).
+
+---
+
 ## The Problem
 
 Enterprise cloud security tools like **Wiz**, **Prisma Cloud**, and **Microsoft Defender for Cloud** cost **$50,000–$500,000/year**.
