@@ -72,14 +72,17 @@ def test_collector_follows_arm_next_link():
     assert collector._get_all("/first") == [{"id": "one"}, {"id": "two"}]
 
 
-@pytest.mark.parametrize("bad_url", [
-    "https://management.azure.com.attacker.invalid/next",
-    "https://user@management.azure.com/next",
-    "https://management.azure.com:8443/next",
-    "http://management.azure.com/next",
-    "https://evil.com/next",
-    "",
-])
+@pytest.mark.parametrize(
+    "bad_url",
+    [
+        "https://management.azure.com.attacker.invalid/next",
+        "https://user@management.azure.com/next",
+        "https://management.azure.com:8443/next",
+        "http://management.azure.com/next",
+        "https://evil.com/next",
+        "",
+    ],
+)
 def test_get_all_rejects_unsafe_continuation_and_returns_none(bad_url):
     class BadNextSession:
         def get(self, *_args, **_kwargs):
@@ -104,11 +107,14 @@ def test_get_all_does_not_follow_redirects():
     assert called_with["allow_redirects"] is False
 
 
-@pytest.mark.parametrize("bad_url", [
-    "https://management.azure.com.attacker.invalid/next",
-    "https://user@management.azure.com/next",
-    "http://management.azure.com/next",
-])
+@pytest.mark.parametrize(
+    "bad_url",
+    [
+        "https://management.azure.com.attacker.invalid/next",
+        "https://user@management.azure.com/next",
+        "http://management.azure.com/next",
+    ],
+)
 def test_post_values_rejects_unsafe_continuation_and_returns_none(bad_url):
     class BadODataSession:
         def post(self, *_args, **_kwargs):
