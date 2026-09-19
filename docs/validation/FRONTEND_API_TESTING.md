@@ -64,19 +64,19 @@ This guide validates the **frontend/API/database integration** of OpenShield. It
 | Variable | Where | Purpose | Example Value |
 |---|---|---|---|
 | `VITE_API_URL` | `frontend/.env.local` | Backend base URL | `http://localhost:5000` |
-| `VITE_JWT_TOKEN` | `frontend/.env.local` | Pre-signed JWT for dev | `<signed-dev-jwt>` |
-| `JWT_SECRET` | Backend env | HS256 signing key (min 32 chars in prod) | `<random-secret-min-32-chars>` |
+| `OPENSHIELD_AUTH_MODE` | Backend env | `shared_secret` (default) or `oidc` | `oidc` |
+| `JWT_SECRET` | Backend env | HS256 signing key for `shared_secret` mode (min 32 chars in prod) | `<random-secret-min-32-chars>` |
 | `DATABASE_URL` | Backend env | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/openshield` |
 | `ALLOWED_ORIGINS` | Backend env | CORS allowed origins (comma-separated) | `http://localhost:5173` |
 
 ### Token Handling
 
-1. On mount, `App.jsx` checks for `VITE_JWT_TOKEN` in environment
-2. If present, stores it in `localStorage` key `jwt_token` (overrides any stale value)
-3. If absent and no existing token in localStorage, sets fallback `dev-local-token`
-4. `api.js` reads `localStorage.getItem('jwt_token')` on every request
-5. Token is sent as `Authorization: Bearer <token>` header on ALL requests (GET and POST)
-6. Backend only validates token on non-GET, non-OPTIONS requests (GETs are public)
+1. The dashboard never reads a build-time token: `VITE_JWT_TOKEN` and the `dev-local-token` fallback were removed (issue #294). Any value in a `VITE_*` variable is published in the public bundle, and CI fails the build if a JWT-shaped value appears in `frontend/dist`.
+2. `api.js` keeps the bearer token in memory only (`api.setToken`, `api.getToken`, `api.clearToken`); it is lost on reload and never written to `localStorage`.
+3. On load, `api.js` deletes any `jwt_token` left in `localStorage` by earlier builds, without using it.
+4. When a token is set, it is sent as `Authorization: Bearer <token>`; otherwise requests are unauthenticated.
+5. Without a token, reads work only when the API runs with `OPENSHIELD_PUBLIC_DEMO=true`; writes always require an `operator` or `admin` token.
+6. For local API testing, mint a short-lived token with `scripts/generate_demo_jwt.py` and pass it to `curl`, not to the frontend.
 
 ### Port Configuration
 
@@ -87,7 +87,7 @@ This guide validates the **frontend/API/database integration** of OpenShield. It
 ### Important Notes
 
 - Do NOT commit `.env.local` files
-- `JWT_SECRET` must match the key used to sign `VITE_JWT_TOKEN`
+- Never put a bearer token in `frontend/.env.local` or any `VITE_*` variable
 - In production (`OPENSHIELD_ENV=production` or `RENDER=true`), the app refuses to start with a weak/missing JWT_SECRET
 - CORS defaults to `*` if `ALLOWED_ORIGINS` not set (with a loud security warning)
 

@@ -6,6 +6,11 @@ Welcome! OpenShield is built by the community - students, developers, and securi
 
 ## What Can I Contribute?
 
+For Python development on Linux/Python 3.11, install the runtime and test tools with
+`python -m pip install --require-hashes --only-binary=:all: -r requirements-dev.txt`.
+Production installs use `requirements.txt` and exclude test/lint tools. See
+[dependency locking](docs/dependency-locking.md) before changing dependencies.
+
 | Contribution Type | Difficulty | Time |
 |---|---|---|
 | New misconfiguration scan rule | Beginner | 20–30 min |
@@ -26,7 +31,7 @@ Every misconfiguration rule is a self-contained Python file in `scanner/rules/`.
 
 ### Step 1 - Pick an Issue
 
-Browse issues labelled [`good-first-issue`](https://github.com/openshield-org/openshield/issues?q=label%3Agood-first-issue) or [`help-wanted`](https://github.com/openshield-org/openshield/issues?q=label%3Ahelp-wanted).
+Browse issues labelled [`good-first-issue`](https://github.com/OWASP/openshield/issues?q=label%3Agood-first-issue) or [`help-wanted`](https://github.com/OWASP/openshield/issues?q=label%3Ahelp-wanted).
 
 Comment on the issue: **"I'd like to work on this"** - we will assign it to you.
 

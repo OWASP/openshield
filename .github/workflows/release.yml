@@ -5,6 +5,10 @@ on:
     tags:
       - "v*"
 
+concurrency:
+  group: signed-release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   id-token: write
@@ -13,30 +17,25 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.verify.outputs.release_tag }}
+      release_commit: ${{ steps.verify.outputs.release_commit }}
+      tag_object: ${{ steps.verify.outputs.tag_object }}
     env:
       TAG: ${{ github.ref_name }}
+      RELEASE_TAG: ${{ github.ref_name }}
     steps:
       - name: Checkout signed tag
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Verify annotated tag signature
+      - name: Verify signed tag and main ancestry
+        id: verify
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          tag_object=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha')
-          object_type=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type')
-          if [ "$object_type" != "tag" ]; then
-            echo "Release tags must be signed annotated tags; ${TAG} is ${object_type}."
-            exit 1
-          fi
-          verified=$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_object}" --jq '.verification.verified')
-          if [ "$verified" != "true" ]; then
-            echo "GitHub could not verify the signature on ${TAG}."
-            exit 1
-          fi
+        run: python3 scripts/release_integrity.py verify
 
       - name: Install Syft
         env:
@@ -52,12 +51,14 @@ jobs:
           sudo tar --extract --gzip --file "$archive" --directory /usr/local/bin syft
 
       - name: Build deterministic release artifacts
+        env:
+          RELEASE_COMMIT: ${{ steps.verify.outputs.release_commit }}
         run: |
           set -euo pipefail
           mkdir -p dist
           syft dir:. --source-name openshield --source-version "$TAG" \
             -o "cyclonedx-json=dist/openshield-${TAG}-sbom.cyclonedx.json"
-          git archive --format=tar --prefix="openshield-${TAG}/" "$TAG" | \
+          git archive --format=tar --prefix="openshield-${TAG}/" "$RELEASE_COMMIT" | \
             gzip --no-name > "dist/openshield-${TAG}.tar.gz"
           cd dist
           sha256sum "openshield-${TAG}.tar.gz" "openshield-${TAG}-sbom.cyclonedx.json" > SHA256SUMS
@@ -77,9 +78,29 @@ jobs:
         with:
           subject-path: dist/SHA256SUMS
 
+      - name: Reverify source before release publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_COMMIT: ${{ steps.verify.outputs.release_commit }}
+          EXPECTED_TAG_OBJECT: ${{ steps.verify.outputs.tag_object }}
+        run: python3 scripts/release_integrity.py verify
+
       - name: Publish release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           generate_release_notes: true
           make_latest: true
           files: dist/*
+
+  container:
+    needs: release
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/docker.yml
+    with:
+      release_tag: ${{ needs.release.outputs.release_tag }}
+      release_commit: ${{ needs.release.outputs.release_commit }}
+      tag_object: ${{ needs.release.outputs.tag_object }}

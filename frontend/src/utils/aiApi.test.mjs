@@ -24,6 +24,9 @@ function loadAiApiModule(seed = {}) {
     "'http://localhost:5000'",
   );
   assert.ok(!source.includes('import.meta'), 'failed to neutralize import.meta usage — test harness is stale');
+  // The bearer token comes from api.js's in-memory store; these tests never send requests.
+  source = source.replace("import { getToken } from './api.js';", 'const getToken = () => null;');
+  assert.ok(!/^import /m.test(source), 'unexpected import in aiApi.js — test harness is stale');
 
   // Turn `export const x = ...` into `const x = ...` and return the bindings
   // via a wrapper function, so the real module body runs unmodified.

@@ -31,7 +31,8 @@ jobs:
           cache: pip
 
       - name: Install ruff
-        run: pip install ruff
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r requirements-dev.txt
 
       - name: ruff check
         run: ruff check .
@@ -55,8 +56,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --require-hashes --only-binary=:all: -r requirements.txt
+          python -m pip check
+
+      - name: Verify dependency locks
+        run: |
+          LOCK_TOOL_ENV="${RUNNER_TEMP}/openshield-lock-tools"
+          python -m venv "$LOCK_TOOL_ENV"
+          "$LOCK_TOOL_ENV/bin/python" -m pip install --require-hashes --only-binary=:all: -r requirements-lock.txt
+          "$LOCK_TOOL_ENV/bin/python" scripts/lock_dependencies.py --check
 
       # ── CHECK 1: Python syntax on all rule files ───────────────────────
       - name: Python syntax check (rule files)
@@ -642,8 +650,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --require-hashes --only-binary=:all: -r requirements-dev.txt
+          python -m pip check
 
       - name: Apply database migrations
         env:
@@ -693,7 +701,21 @@ jobs:
         run: npm run test:a11y && npm run test:i18n
 
       - name: Build
-        run: npm run build
+        # A canary bearer value proves a build-time token variable can no
+        # longer reach the public bundle (issue #294). It is assembled at run
+        # time so the workflow file itself contains no JWT-shaped string.
+        env:
+          CANARY_HEADER: eyJhbGciOiJIUzI1NiJ9
+          CANARY_PAYLOAD: eyJjYW5hcnkiOiJvcGVuc2hpZWxkLWNpIn0
+        run: VITE_JWT_TOKEN="${CANARY_HEADER}.${CANARY_PAYLOAD}.canary-signature" npm run build
+
+      - name: Assert no bearer credential in the public bundle
+        run: |
+          if grep -rnoE 'eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}|dev-local-token|canary-signature' dist; then
+            echo "::error::A JWT-shaped credential or token bootstrap value is present in frontend/dist."
+            exit 1
+          fi
+          echo "OK: no bearer credential found in frontend/dist"
 
   # Website validation joins CI Summary; website.yml handles Pages deployment.
   website:

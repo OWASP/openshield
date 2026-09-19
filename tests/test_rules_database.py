@@ -103,17 +103,20 @@ def test_db_002_enabled_policy_returns_no_findings(mock_azure, subscription_id):
     assert findings == []
 
 
-def test_db_002_api_failure_returns_no_findings(mock_azure, subscription_id):
-    """COR-003: a failed policy lookup (None) must be skipped, not flagged.
-
-    Previously, a None policy (API/auth failure) was treated the same as an
-    explicitly disabled policy, producing a false positive.
+def test_db_002_api_failure_returns_indeterminate_finding(mock_azure, subscription_id):
+    """TFT444 review: a failed policy lookup (None) must produce an
+    indeterminate LOW finding (metadata.determination == "indeterminate"),
+    matching the AZ-CMP-002 convention — not a silent skip and not a
+    confirmed MEDIUM violation, since the actual auditing state is unknown.
     """
     server = make_resource(id=_sql_id("sql-api-failed"), name="sql-api-failed")
     mock_azure.set_sql_servers([server])
     mock_azure.set_sql_server_auditing_policy(_RG, "sql-api-failed", None)
     findings = az_db_002.scan(mock_azure, subscription_id)
-    assert findings == []
+    assert len(findings) == 1
+    assert findings[0]["rule_id"] == "AZ-DB-002"
+    assert findings[0]["severity"] == "LOW"
+    assert findings[0]["metadata"]["determination"] == "indeterminate"
 
 
 def test_db_002_malformed_arm_id_does_not_raise(mock_azure, subscription_id):
