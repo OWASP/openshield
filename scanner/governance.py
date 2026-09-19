@@ -26,12 +26,7 @@ def _is_valid_arm_continuation(url: str) -> bool:
         parsed = urllib.parse.urlparse(url)
     except Exception:
         return False
-    return (
-        parsed.scheme == "https"
-        and parsed.netloc == _ARM_HOST
-        and not parsed.username
-        and not parsed.password
-    )
+    return parsed.scheme == "https" and parsed.netloc == _ARM_HOST and not parsed.username and not parsed.password
 
 
 @dataclass(frozen=True)
