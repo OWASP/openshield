@@ -74,10 +74,10 @@ Findings map to NIST FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), and FIPS 205 (SLH-DSA
 
 | Feature | Description |
 |---|---|
-| **Misconfiguration Scanner** | Runs 95 Azure security rules across storage, network, identity, database, compute, Key Vault, AKS, post-quantum cryptography, backup, serverless, private endpoint, and supply chain posture |
+| **Misconfiguration Scanner** | Runs 95 Azure security rules across storage, network, identity, database, compute, Key Vault, AKS, Kubernetes workloads, post-quantum cryptography, backup, serverless, private endpoint, and supply chain posture |
 | **Compliance Mapper** | Maps findings to CIS Benchmarks, NIST CSF, ISO 27001, and SOC 2 framework JSON files |
 | **Scan History API** | Stores scans and findings in PostgreSQL and exposes findings, score, scan history, compliance posture, drift, and resource inventory over REST |
-| **Remediation Playbooks** | Every rule ships with a matching Azure CLI remediation script (95 playbooks) |
+| **Remediation Playbooks** | Every documented rule ships with a matching review-gated remediation script (95 playbooks) |
 | **Security Dashboard** | Full React dashboard deployed on Vercel - live monitoring, findings, compliance, drift, prioritization, and AI-layer views |
 | **Project Website** | Documentation and reference site at [owasp.github.io/openshield](https://owasp.github.io/openshield/) - blog, rules gallery, architecture, evidence guides, roadmap, and releases |
 | **Sentinel Integration** | Normalises findings and pushes them into Microsoft Sentinel via a Log Analytics custom table and KQL analytics rules |

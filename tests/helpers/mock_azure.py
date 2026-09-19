@@ -88,6 +88,7 @@ class MockAzureClient:
         self._dns_record_sets: Dict[Tuple[str, str], List[Any]] = {}
         self._web_apps: List[Any] = []
         self._managed_clusters: Optional[List[Any]] = []
+        self._aks_security_posture: Optional[List[Any]] = []
         self._applications: Optional[List[Dict[str, Any]]] = []
         self._managed_identity_principals: Optional[List[Dict[str, Any]]] = []
         self._subscription_role_assignments: Optional[List[Any]] = []
@@ -144,6 +145,14 @@ class MockAzureClient:
 
     def get_managed_clusters(self) -> Optional[List[Any]]:
         return self._managed_clusters
+
+    def set_aks_security_posture(self, posture: Optional[List[Any]]) -> "MockAzureClient":
+        """Configure AKS enterprise evidence; ``None`` represents collection failure."""
+        self._aks_security_posture = posture
+        return self
+
+    def get_aks_security_posture(self) -> Optional[List[Any]]:
+        return self._aks_security_posture
 
     def set_applications(self, applications: Optional[List[Dict[str, Any]]]) -> "MockAzureClient":
         self._applications = applications

@@ -13,6 +13,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Fifteen enterprise AKS and Kubernetes workload rules covering API restrictions, network policy, Defender, secrets, workload isolation, RBAC, and image trust
 - OIDC bearer-token verification (`OPENSHIELD_AUTH_MODE=oidc`) with JWKS signature, issuer, audience, tenant and IdP app-role enforcement (#294)
 - Azure Network Layer Assurance API with 20-domain coverage, network-rule classification, and authoritative IP forwarding and direct Internet route checks
 - Azure Resource Graph inventory snapshots as the first OpenShield Evidence Graph foundation

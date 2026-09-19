@@ -299,6 +299,81 @@
       "control_name": "AKS node OS upgrade baseline (not mapped in CIS Azure Foundations 2.0.0)",
       "description": "Microsoft recommends a managed node OS upgrade channel for timely security patches. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
     },
+    "AZ-AKS-007": {
+      "control_id": "N/A-AKS-007",
+      "control_name": "AKS API authorized IP baseline (not mapped in CIS Azure Foundations 2.0.0)",
+      "description": "Restricting a public AKS API server to approved administrator networks has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+    },
+    "AZ-AKS-008": {
+      "control_id": "N/A-AKS-008",
+      "control_name": "AKS network policy engine baseline (not mapped in CIS Azure Foundations 2.0.0)",
+      "description": "Enabling a Kubernetes network policy engine has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+    },
+    "AZ-AKS-009": {
+      "control_id": "N/A-AKS-009",
+      "control_name": "Kubernetes namespace NetworkPolicy baseline (not mapped in CIS Azure Foundations 2.0.0)",
+      "description": "Requiring NetworkPolicy objects for application namespaces is a Kubernetes data-plane control outside the Azure Foundations benchmark."
+    },
+    "AZ-AKS-010": {
+      "control_id": "2.1.8",
+      "control_name": "Ensure that Microsoft Defender for Containers is set to On",
+      "description": "The Containers pricing plan must use the Standard tier to provide Microsoft Defender for Containers protection."
+    },
+    "AZ-AKS-011": {
+      "control_id": "N/A-AKS-011",
+      "control_name": "AKS Key Vault or KMS secret protection baseline (not directly mapped)",
+      "description": "Key Vault CSI and KMS-backed Kubernetes secret protection have no single direct control in CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-012": {
+      "control_id": "N/A-AKS-012",
+      "control_name": "Secrets Store CSI rotation baseline (not directly mapped)",
+      "description": "Automatic rotation of CSI-mounted secrets has no direct control in CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-013": {
+      "control_id": "N/A-AKS-013",
+      "control_name": "Privileged container baseline (Kubernetes data-plane control)",
+      "description": "Privileged container restrictions are Kubernetes data-plane controls outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-014": {
+      "control_id": "N/A-AKS-014",
+      "control_name": "Host network baseline (Kubernetes data-plane control)",
+      "description": "Host network restrictions are Kubernetes data-plane controls outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-015": {
+      "control_id": "N/A-AKS-015",
+      "control_name": "Host PID baseline (Kubernetes data-plane control)",
+      "description": "Host PID namespace restrictions are Kubernetes data-plane controls outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-016": {
+      "control_id": "N/A-AKS-016",
+      "control_name": "Host IPC baseline (Kubernetes data-plane control)",
+      "description": "Host IPC namespace restrictions are Kubernetes data-plane controls outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-017": {
+      "control_id": "N/A-AKS-017",
+      "control_name": "HostPath volume baseline (Kubernetes data-plane control)",
+      "description": "HostPath volume restrictions are Kubernetes data-plane controls outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-018": {
+      "control_id": "N/A-AKS-018",
+      "control_name": "Kubernetes cluster-admin assignment baseline (not directly mapped)",
+      "description": "Kubernetes ClusterRoleBinding scope is outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-019": {
+      "control_id": "N/A-AKS-019",
+      "control_name": "Trusted container registry baseline (not directly mapped)",
+      "description": "Kubernetes workload registry trust policy has no direct control in CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-020": {
+      "control_id": "N/A-AKS-020",
+      "control_name": "Latest image tag baseline (not directly mapped)",
+      "description": "Kubernetes image tag immutability has no direct control in CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-021": {
+      "control_id": "N/A-AKS-021",
+      "control_name": "Digest-pinned image baseline (not directly mapped)",
+      "description": "Kubernetes image digest pinning has no direct control in CIS Azure Foundations 2.0.0."
+    },
     "AZ-IDN-010": {
       "control_id": "N/A-IDN-010",
       "control_name": "App Registration ownership (not mapped in CIS Azure Foundations 2.0.0)",

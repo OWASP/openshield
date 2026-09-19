@@ -52,6 +52,7 @@ class AzureClient:
         self.subscription_id = subscription_id
         self.credential = credential or DefaultAzureCredential()
         self._managed_clusters_cache: Any = _UNSET
+        self._aks_security_posture_cache: Any = _UNSET
         self._function_apps_cache: Any = _UNSET
         self._private_endpoint_posture_cache: Any = _UNSET
         self._recovery_vaults_cache: Any = _UNSET
@@ -707,6 +708,19 @@ class AzureClient:
             self._managed_clusters_cache = None
 
         return self._managed_clusters_cache
+
+    def get_aks_security_posture(self) -> Optional[List[Any]]:
+        """Collect cached ARM, Defender, and Kubernetes evidence for AKS rules."""
+        if self._aks_security_posture_cache is not _UNSET:
+            return self._aks_security_posture_cache
+        clusters = self.get_managed_clusters()
+        if clusters is None:
+            self._aks_security_posture_cache = None
+            return None
+        from scanner.aks_security import AksSecurityCollector
+
+        self._aks_security_posture_cache = AksSecurityCollector(self.credential, self.subscription_id).collect(clusters)
+        return self._aks_security_posture_cache
 
     # ------------------------------------------------------------------ #
     # Compute                                                               #

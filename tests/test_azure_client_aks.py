@@ -42,3 +42,24 @@ def test_get_managed_clusters_returns_none_on_unexpected_failure(client_type):
     client = AzureClient("sub-1", credential=MagicMock())
 
     assert client.get_managed_clusters() is None
+
+
+@patch("scanner.aks_security.AksSecurityCollector")
+@patch("scanner.azure_client.ContainerServiceClient")
+def test_get_aks_security_posture_collects_and_caches(client_type, collector_type):
+    clusters = ["cluster-a"]
+    client_type.return_value.managed_clusters.list.return_value = clusters
+    collector_type.return_value.collect.return_value = ["evidence-a"]
+    client = AzureClient("sub-1", credential=MagicMock())
+
+    assert client.get_aks_security_posture() == ["evidence-a"]
+    assert client.get_aks_security_posture() == ["evidence-a"]
+    collector_type.return_value.collect.assert_called_once_with(clusters)
+
+
+@patch("scanner.azure_client.ContainerServiceClient")
+def test_get_aks_security_posture_preserves_inventory_failure(client_type):
+    client_type.return_value.managed_clusters.list.side_effect = RuntimeError("unavailable")
+    client = AzureClient("sub-1", credential=MagicMock())
+
+    assert client.get_aks_security_posture() is None
