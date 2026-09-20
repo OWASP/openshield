@@ -252,16 +252,14 @@ def render(
 
 def render_readme(content: str, rule_count: int, playbook_count: int) -> Tuple[str, List[str]]:
     """Return (updated_content, failed_pattern_names) for README.md."""
-    feature_row = (
-        r"(\| \*\*Misconfiguration Scanner\*\* \| Runs )\d+"
-        r"( Azure security rules across storage, network, identity, database, "
-        r"compute, Key Vault, AKS, post-quantum cryptography, backup, serverless, "
-        r"private endpoint, and supply chain posture \|)"
-    )
-    playbook_row = (
-        r"(\| \*\*Remediation Playbooks\*\* \| Every rule ships with a matching "
-        r"Azure CLI remediation script \()\d+( playbooks\) \|)"
-    )
+    # Anchored on the row label and the unit that follows the number, not on
+    # the full prose. The wording of these rows (the category list, how the
+    # scripts are described) is edited independently of the counts, and pinning
+    # the whole sentence made this script fail on every unrelated reword while
+    # the counts silently went stale. Losing the row itself, or the "Azure
+    # security rules"/"(N playbooks)" shape, still fails loudly.
+    feature_row = r"(\| \*\*Misconfiguration Scanner\*\* \| Runs )\d+( Azure security rules)"
+    playbook_row = r"(\| \*\*Remediation Playbooks\*\* \|[^|]*\()\d+( playbooks\) \|)"
     mermaid_scanner = r'(C\["Scanner Engine\\n)\d+( Python rules"\])'
     mermaid_playbooks = r'(G\["Azure CLI Playbooks\\n)\d+( remediation scripts"\])'
 

@@ -58,3 +58,40 @@ def test_validate_statistics_rejects_partial_severity_or_category_totals():
     assert learn.validate_statistics(10, severities, {"Network": 6, "Identity": 4}) is None
     assert learn.validate_statistics(10, severities, {"Network": 9}) is not None
     assert learn.validate_statistics(10, {**severities, "INFO": 1}, {"Network": 6, "Identity": 4}) is not None
+
+
+def _readme(scanner_prose: str, playbook_prose: str) -> str:
+    return (
+        f"| **Misconfiguration Scanner** | Runs 5{scanner_prose} |\n"
+        f"| **Remediation Playbooks** | {playbook_prose} (5 playbooks) |\n"
+        '    C["Scanner Engine\\n5 Python rules"]\n'
+        '    G["Azure CLI Playbooks\\n5 remediation scripts"]\n'
+    )
+
+
+def test_render_readme_survives_reworded_feature_rows():
+    """The counts, not the surrounding prose, are what this script owns.
+
+    Both rows are edited independently of the counts (the category list grows,
+    the scripts get re-described). Pinning the whole sentence made the script
+    fail on an unrelated reword while the counts silently went stale, which is
+    exactly the drift it exists to prevent.
+    """
+    reworded = _readme(
+        " Azure security rules across storage, network, and a category added later",
+        "Every documented rule ships with a matching review-gated remediation script",
+    )
+    content, failures = learn.render_readme(reworded, 143, 143)
+    assert failures == []
+    assert "Runs 143 Azure security rules" in content
+    assert "(143 playbooks)" in content
+    assert 'C["Scanner Engine\\n143 Python rules"]' in content
+    assert 'G["Azure CLI Playbooks\\n143 remediation scripts"]' in content
+
+
+def test_render_readme_still_fails_when_a_row_disappears():
+    missing = _readme(" Azure security rules across storage", "Every rule ships with a script").replace(
+        "| **Remediation Playbooks** |", "| **Removed** |"
+    )
+    _, failures = learn.render_readme(missing, 143, 143)
+    assert "feature table: Remediation Playbooks row" in failures
