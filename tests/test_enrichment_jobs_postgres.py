@@ -2,12 +2,16 @@
 
 import os
 import threading
+import time
 import uuid
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import psycopg2
 import psycopg2.extras
 import pytest
+from alembic import command
+from alembic.config import Config
 
 from api.models.finding import DatabaseManager, LostLease
 from scanner.enrichment_worker import process_enrichment_job
@@ -16,6 +20,85 @@ from scanner.enrichment_worker import process_enrichment_job
 pytestmark = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"), reason="DATABASE_URL is required for PostgreSQL tests"
 )
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+@contextmanager
+def _isolated_database():
+    """Create a migrated database whose recovery count has no external rows."""
+    base = os.environ["DATABASE_URL"].rsplit("/", 1)[0]
+    name = f"openshield_enrichment_{uuid.uuid4().hex[:12]}"
+    admin = psycopg2.connect(f"{base}/postgres")
+    admin.autocommit = True
+    try:
+        with admin.cursor() as cur:
+            cur.execute(f'CREATE DATABASE "{name}"')
+        dsn = f"{base}/{name}"
+        config = Config()
+        config.set_main_option("script_location", os.path.join(_REPO_ROOT, "alembic"))
+        previous = os.environ.get("DATABASE_URL")
+        os.environ["DATABASE_URL"] = dsn
+        try:
+            command.upgrade(config, "head")
+        finally:
+            if previous is None:
+                os.environ.pop("DATABASE_URL", None)
+            else:
+                os.environ["DATABASE_URL"] = previous
+        yield dsn
+    finally:
+        with admin.cursor() as cur:
+            cur.execute(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()",
+                (name,),
+            )
+            cur.execute(f'DROP DATABASE IF EXISTS "{name}"')
+        admin.close()
+
+
+def _seed_stale_job(dsn, *, owner, attempts, checkpoint):
+    """Insert one expired running job and its completed parent scan."""
+    scan_id, job_id = str(uuid.uuid4()), str(uuid.uuid4())
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO scans
+                    (scan_id, subscription_id, started_at, completed_at, status, cve_enrichment_status)
+                VALUES (%s, %s, CURRENT_TIMESTAMP - INTERVAL '1 hour', CURRENT_TIMESTAMP,
+                        'completed', 'ENRICHING')
+                """,
+                (scan_id, str(uuid.uuid4())),
+            )
+            cur.execute(
+                """
+                INSERT INTO enrichment_jobs
+                    (job_id, scan_id, status, lease_owner, lease_expires_at, last_heartbeat_at,
+                     fencing_token, attempt_count, next_retry_at, checkpoint, error_message)
+                VALUES (%s, %s, 'running', %s,
+                        CURRENT_TIMESTAMP - INTERVAL '5 minutes',
+                        CURRENT_TIMESTAMP - INTERVAL '6 minutes',
+                        17, %s, CURRENT_TIMESTAMP - INTERVAL '10 minutes', %s, %s)
+                """,
+                (job_id, scan_id, owner, attempts, checkpoint, f"previous error from {owner}"),
+            )
+    return scan_id, job_id
+
+
+def _recovery_row(dsn, job_id):
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT j.*, s.cve_enrichment_status
+                FROM enrichment_jobs AS j
+                JOIN scans AS s ON s.scan_id = j.scan_id
+                WHERE j.job_id = %s
+                """,
+                (job_id,),
+            )
+            return dict(cur.fetchone())
 
 
 @pytest.fixture
@@ -192,6 +275,118 @@ def test_expired_job_is_recovered_with_new_token_and_stale_owner_is_rejected(enr
             db.heartbeat_enrichment_job(str(first["job_id"]), "worker-a", first["fencing_token"], 120)
     finally:
         db.close()
+
+
+def test_stale_recovery_skips_locked_job_and_recovers_it_on_the_next_pass():
+    """A locked stale job is deferred without convoying other recovery work."""
+    with _isolated_database() as dsn:
+        _locked_scan, locked_job = _seed_stale_job(dsn, owner="locked-owner", attempts=1, checkpoint=11)
+        _retry_scan, retry_job = _seed_stale_job(dsn, owner="retry-owner", attempts=1, checkpoint=22)
+        _failed_scan, failed_job = _seed_stale_job(dsn, owner="failed-owner", attempts=3, checkpoint=33)
+
+        locked_before = _recovery_row(dsn, locked_job)
+        retry_before = _recovery_row(dsn, retry_job)
+        failed_before = _recovery_row(dsn, failed_job)
+
+        holder = psycopg2.connect(dsn)
+        recovery_finished = threading.Event()
+        result = {}
+
+        def recover() -> None:
+            db = DatabaseManager(dsn)
+            started = time.perf_counter()
+            try:
+                result["count"] = db.recover_stale_enrichment_jobs(max_attempts=3)
+            except Exception as exc:  # pragma: no cover - asserted in the caller
+                result["error"] = exc
+            finally:
+                result["elapsed"] = time.perf_counter() - started
+                db.close()
+                recovery_finished.set()
+
+        thread = threading.Thread(target=recover)
+        lock_started = time.perf_counter()
+        try:
+            with holder.cursor() as cur:
+                cur.execute("SELECT job_id FROM enrichment_jobs WHERE job_id = %s FOR UPDATE", (locked_job,))
+
+            thread.start()
+            # The lock is deliberately still held here. The timeout is only a
+            # deadlock guard; the event proves recovery completed before this
+            # transaction released Job A.
+            assert recovery_finished.wait(timeout=2), "stale recovery blocked behind a locked enrichment job"
+            assert "error" not in result
+            assert result["count"] == 2
+
+            locked_during = _recovery_row(dsn, locked_job)
+            retry_after = _recovery_row(dsn, retry_job)
+            failed_after = _recovery_row(dsn, failed_job)
+
+            preserved_fields = (
+                "status",
+                "lease_owner",
+                "lease_expires_at",
+                "last_heartbeat_at",
+                "fencing_token",
+                "attempt_count",
+                "next_retry_at",
+                "checkpoint",
+                "error_message",
+                "completed_at",
+                "cve_enrichment_status",
+            )
+            assert {field: locked_during[field] for field in preserved_fields} == {
+                field: locked_before[field] for field in preserved_fields
+            }
+
+            assert retry_after["status"] == "pending"
+            assert retry_after["lease_owner"] is None
+            assert retry_after["lease_expires_at"] is None
+            assert retry_after["attempt_count"] == retry_before["attempt_count"]
+            assert retry_after["checkpoint"] == retry_before["checkpoint"]
+            assert retry_after["fencing_token"] == retry_before["fencing_token"]
+            assert retry_after["last_heartbeat_at"] == retry_before["last_heartbeat_at"]
+            assert retry_after["next_retry_at"] == retry_before["next_retry_at"]
+            assert retry_after["completed_at"] == retry_before["completed_at"]
+            assert retry_after["error_message"] == "Enrichment worker interrupted; queued for retry."
+            assert retry_after["cve_enrichment_status"] == "PENDING"
+
+            assert failed_after["status"] == "failed"
+            assert failed_after["lease_owner"] is None
+            assert failed_after["lease_expires_at"] is None
+            assert failed_after["attempt_count"] == failed_before["attempt_count"]
+            assert failed_after["checkpoint"] == failed_before["checkpoint"]
+            assert failed_after["fencing_token"] == failed_before["fencing_token"]
+            assert failed_after["last_heartbeat_at"] == failed_before["last_heartbeat_at"]
+            assert failed_after["next_retry_at"] == failed_before["next_retry_at"]
+            assert failed_after["completed_at"] is not None
+            assert failed_after["error_message"] == (
+                "Enrichment exceeded maximum retry attempts after worker interruption."
+            )
+            assert failed_after["cve_enrichment_status"] == "FAILED"
+        finally:
+            result["lock_held"] = time.perf_counter() - lock_started
+            holder.rollback()
+            holder.close()
+            if thread.ident is not None:
+                thread.join(timeout=10)
+
+        db = DatabaseManager(dsn)
+        try:
+            assert db.recover_stale_enrichment_jobs(max_attempts=3) == 1
+        finally:
+            db.close()
+
+        locked_after = _recovery_row(dsn, locked_job)
+        assert locked_after["status"] == "pending"
+        assert locked_after["lease_owner"] is None
+        assert locked_after["lease_expires_at"] is None
+        assert locked_after["attempt_count"] == locked_before["attempt_count"]
+        assert locked_after["checkpoint"] == locked_before["checkpoint"]
+        assert locked_after["fencing_token"] == locked_before["fencing_token"]
+        assert locked_after["cve_enrichment_status"] == "PENDING"
+        assert result["elapsed"] < 2
+        assert result["lock_held"] >= result["elapsed"]
 
 
 def _fail_terminally(dsn, db, scan_id):

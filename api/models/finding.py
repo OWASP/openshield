@@ -903,39 +903,63 @@ class DatabaseManager:
             raise
 
     def recover_stale_enrichment_jobs(self, max_attempts: int = 3) -> int:
-        """Return expired enrichment claims to pending or terminally fail them."""
+        """Recover expired enrichment claims without blocking the worker loop.
+
+        Selection, job transition, and parent-scan status update are one
+        statement.  Both rows are locked with ``SKIP LOCKED`` so a job (or its
+        scan) currently handled by another transaction is deferred to a later
+        recovery pass instead of convoying all queue work behind it.
+        """
         conn = self._get_conn()
         try:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    UPDATE enrichment_jobs SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
-                        lease_owner = NULL, lease_expires_at = NULL,
-                        error_message = 'Enrichment exceeded maximum retry attempts after worker interruption.'
-                    WHERE status = 'running' AND attempt_count >= %s
-                      AND lease_expires_at < CURRENT_TIMESTAMP
-                    RETURNING scan_id
+                    WITH stale AS (
+                        SELECT j.job_id, j.scan_id, j.attempt_count
+                        FROM enrichment_jobs AS j
+                        JOIN scans AS s ON s.scan_id = j.scan_id
+                        WHERE j.status = 'running'
+                          AND j.lease_expires_at < CURRENT_TIMESTAMP
+                        ORDER BY j.lease_expires_at ASC, j.job_id ASC
+                        FOR UPDATE OF j, s SKIP LOCKED
+                    ), transitioned AS (
+                        UPDATE enrichment_jobs AS j
+                        SET status = CASE
+                                WHEN stale.attempt_count >= %(max_attempts)s THEN 'failed'
+                                ELSE 'pending'
+                            END,
+                            completed_at = CASE
+                                WHEN stale.attempt_count >= %(max_attempts)s THEN CURRENT_TIMESTAMP
+                                ELSE j.completed_at
+                            END,
+                            lease_owner = NULL,
+                            lease_expires_at = NULL,
+                            error_message = CASE
+                                WHEN stale.attempt_count >= %(max_attempts)s
+                                THEN 'Enrichment exceeded maximum retry attempts after worker interruption.'
+                                ELSE 'Enrichment worker interrupted; queued for retry.'
+                            END
+                        FROM stale
+                        WHERE j.job_id = stale.job_id
+                        RETURNING j.job_id, j.scan_id, j.status
+                    ), updated_scans AS (
+                        UPDATE scans AS s
+                        SET cve_enrichment_status = CASE
+                                WHEN transitioned.status = 'failed' THEN 'FAILED'
+                                ELSE 'PENDING'
+                            END
+                        FROM transitioned
+                        WHERE s.scan_id = transitioned.scan_id
+                        RETURNING transitioned.job_id, transitioned.scan_id, transitioned.status
+                    )
+                    SELECT job_id, scan_id, status FROM updated_scans
                     """,
-                    (max_attempts,),
+                    {"max_attempts": max_attempts},
                 )
-                failed_scans = [row[0] for row in cur.fetchall()]
-                cur.execute(
-                    """
-                    UPDATE enrichment_jobs SET status = 'pending', lease_owner = NULL, lease_expires_at = NULL,
-                        error_message = 'Enrichment worker interrupted; queued for retry.'
-                    WHERE status = 'running' AND attempt_count < %s
-                      AND lease_expires_at < CURRENT_TIMESTAMP
-                    RETURNING scan_id
-                    """,
-                    (max_attempts,),
-                )
-                retried_scans = [row[0] for row in cur.fetchall()]
-                for scan_id in failed_scans:
-                    cur.execute("UPDATE scans SET cve_enrichment_status = 'FAILED' WHERE scan_id = %s", (scan_id,))
-                for scan_id in retried_scans:
-                    cur.execute("UPDATE scans SET cve_enrichment_status = 'PENDING' WHERE scan_id = %s", (scan_id,))
+                transitions = cur.fetchall()
             conn.commit()
-            return len(failed_scans) + len(retried_scans)
+            return len(transitions)
         except Exception:
             self.rollback(conn)
             raise
