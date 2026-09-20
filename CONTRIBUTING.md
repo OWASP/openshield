@@ -183,7 +183,7 @@ Use the format: `AZ-[CATEGORY]-[NUMBER]`
 | Database | DB | AZ-DB-001 |
 | Compute | CMP | AZ-CMP-001 |
 | Key Vault | KV | AZ-KV-001 |
-| Kubernetes (AKS) | AKS | AZ-AKS-001 |
+| Kubernetes (AKS) | AKS | AZ-AKS-001 to AZ-AKS-021 |
 
 Check existing rules before picking a number to avoid clashes.
 
@@ -208,6 +208,7 @@ Use the existing wrapper methods in `scanner/azure_client.py` rather than constr
 | `azure_client.get_sql_server_auditing_policy(resource_group, server_name)` | ServerBlobAuditingPolicy or None |
 | `azure_client.get_key_vaults()` | List of Key Vault objects |
 | `azure_client.get_managed_clusters()` | List of AKS ManagedCluster objects, or `None` on API failure |
+| `azure_client.get_aks_security_posture()` | Cached ARM, Defender, and Kubernetes evidence, or `None` on AKS inventory failure |
 | `azure_client.get_applications()` | Paginated App Registration dictionaries, or `None` on Graph failure |
 | `azure_client.get_managed_identity_service_principals()` | Managed Identity service principals, or `None` on Graph failure |
 | `azure_client.get_subscription_role_assignments()` | Subscription RBAC assignments, or `None` on API failure |
