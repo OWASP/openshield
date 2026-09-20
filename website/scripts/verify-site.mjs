@@ -54,8 +54,8 @@ for (const file of htmlFiles) {
   // built HTML carries no executable inline script - every script must be an
   // external same-origin file (data blocks like application/json and
   // application/ld+json are not executed and are fine). Astro is configured
-  // (build.assetsInlineLimit: 0) to emit hoisted scripts as files for exactly
-  // this reason. Scanned by hand rather than a tag regex so this is not a
+  // (vite.build.assetsInlineLimit: 0) to emit hoisted scripts as files for
+  // exactly this reason. Scanned by hand rather than a tag regex so this is not a
   // brittle HTML filter (CodeQL js/bad-tag-filter): a case-insensitive index
   // walk from each opening tag to its closing tag.
   const lower = html.toLowerCase();
@@ -65,7 +65,16 @@ for (const file of htmlFiles) {
     const attrs = html.slice(open + 7, tagEnd);
     const close = lower.indexOf('</script', tagEnd);
     const body = close === -1 ? '' : html.slice(tagEnd + 1, close).trim();
-    if (/\bsrc\s*=/i.test(attrs)) continue;
+    const srcMatch = /\bsrc\s*=\s*["']?([^"'\s>]+)/i.exec(attrs);
+    if (srcMatch) {
+      // An external script is only loadable under script-src 'self'; a remote
+      // src would build green and then be CSP-blocked in the browser, which is
+      // the same broken-but-verified class this scan exists to prevent.
+      if (!srcMatch[1].startsWith('/openshield/')) {
+        failures.push(`${relative} loads script ${srcMatch[1]}, which script-src 'self' will block on the deployed site`);
+      }
+      continue;
+    }
     const typeMatch = /\btype\s*=\s*["']?([^"'\s>]+)/i.exec(attrs);
     const type = typeMatch ? typeMatch[1].toLowerCase() : '';
     if (type === 'application/json' || type === 'application/ld+json' || type === 'speculationrules') continue;
