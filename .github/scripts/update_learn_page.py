@@ -371,9 +371,10 @@ def main() -> int:
         print("Learn page and README statistics already current; nothing to do.")
         return 0
 
+    crit = severities["CRITICAL"]
     print(
         f"Updated {', '.join(changed)} - rules: {rule_count}, playbooks: {playbook_count}, "
-        f"severity CRITICAL: {severities['CRITICAL']}, HIGH: {severities['HIGH']}, MEDIUM: {severities['MEDIUM']}, LOW: {severities['LOW']}"
+        f"severity CRITICAL: {crit}, HIGH: {severities['HIGH']}, MEDIUM: {severities['MEDIUM']}, LOW: {severities['LOW']}"
     )
     return 0
 
