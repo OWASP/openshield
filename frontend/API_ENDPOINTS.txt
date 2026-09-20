@@ -27,13 +27,14 @@ AUTHENTICATION
 Default behavior
 ----------------
 
-Every route except the always-public routes below requires a valid HS256 JWT:
+Every route except the always-public routes below requires a valid JWT:
 
   Authorization: Bearer <jwt>
 
-The frontend reads this token from localStorage key jwt_token. App.jsx first
-uses VITE_JWT_TOKEN when it is configured. The API validates the token with
-JWT_SECRET; an arbitrary string is not a valid JWT.
+The API verifies it according to OPENSHIELD_AUTH_MODE: HS256 with JWT_SECRET
+(shared_secret, default) or the identity provider's JWKS (oidc). The frontend
+holds the token in memory only (api.setToken); it never reads a build-time
+token and never stores one in localStorage (issue #294).
 
 Always public:
 

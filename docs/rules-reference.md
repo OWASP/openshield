@@ -1,6 +1,6 @@
 ﻿# Rules Reference
 
-OpenShield currently ships 90 Azure scan rules. This table is generated from the module-level constants in `scanner/rules/`.
+OpenShield currently ships 95 Azure scan rules. This table is generated from the module-level constants in `scanner/rules/`.
 
 | Rule ID | Name | Severity | Category | CIS | NIST | ISO 27001 |
 |---|---|---|---|---|---|---|
@@ -91,6 +91,21 @@ OpenShield currently ships 90 Azure scan rules. This table is generated from the
 | AZ-AKS-004 | AKS Workload Identity Not Fully Enabled | MEDIUM | Kubernetes | N/A-AKS-004 | PR.AC-4 | A.9.2.3 |
 | AZ-AKS-005 | AKS Azure Policy Add-on Not Enabled | MEDIUM | Kubernetes | N/A-AKS-005 | PR.IP-1 | A.12.1.2 |
 | AZ-AKS-006 | AKS Node OS Automatic Upgrades Disabled | HIGH | Kubernetes | N/A-AKS-006 | PR.IP-12 | A.12.6.1 |
+| AZ-AKS-007 | AKS API Server Lacks Approved IP Restrictions | HIGH | Kubernetes | N/A-AKS-007 | PR.AC-3 | A.13.1.1 |
+| AZ-AKS-008 | AKS Cluster Has No Kubernetes Network Policy | HIGH | Kubernetes | N/A-AKS-008 | PR.AC-5 | A.13.1.3 |
+| AZ-AKS-009 | Kubernetes Namespace Has No NetworkPolicy | HIGH | Kubernetes | N/A-AKS-009 | PR.AC-5 | A.13.1.3 |
+| AZ-AKS-010 | Defender for Containers Protection Disabled | HIGH | Kubernetes | 2.1.8 | DE.CM-8 | A.12.6.1 |
+| AZ-AKS-011 | AKS Secrets Lack Key Vault or KMS-Backed Protection | HIGH | Kubernetes | N/A-AKS-011 | PR.DS-1 | A.10.1.1 |
+| AZ-AKS-012 | Secrets Store CSI Secret Rotation Disabled | MEDIUM | Kubernetes | N/A-AKS-012 | PR.AC-1 | A.9.4.3 |
+| AZ-AKS-013 | Kubernetes Workload Permits Privileged Containers | CRITICAL | Kubernetes | N/A-AKS-013 | PR.AC-4 | A.9.4.1 |
+| AZ-AKS-014 | Kubernetes Workload Uses Host Network | HIGH | Kubernetes | N/A-AKS-014 | PR.AC-5 | A.13.1.3 |
+| AZ-AKS-015 | Kubernetes Workload Uses Host PID Namespace | HIGH | Kubernetes | N/A-AKS-015 | PR.AC-4 | A.9.4.1 |
+| AZ-AKS-016 | Kubernetes Workload Uses Host IPC Namespace | HIGH | Kubernetes | N/A-AKS-016 | PR.AC-4 | A.9.4.1 |
+| AZ-AKS-017 | Kubernetes Workload Uses Unrestricted HostPath Volumes | HIGH | Kubernetes | N/A-AKS-017 | PR.AC-4 | A.9.4.1 |
+| AZ-AKS-018 | Kubernetes Cluster Admin Access Assigned Too Broadly | CRITICAL | Kubernetes | N/A-AKS-018 | PR.AC-4 | A.9.2.3 |
+| AZ-AKS-019 | Kubernetes Workload Uses Untrusted Registry | HIGH | Kubernetes | N/A-AKS-019 | PR.DS-6 | A.14.2.5 |
+| AZ-AKS-020 | Kubernetes Workload Uses Latest Image Tag | HIGH | Kubernetes | N/A-AKS-020 | PR.IP-1 | A.12.1.2 |
+| AZ-AKS-021 | Kubernetes Workload Image Is Not Digest Pinned | MEDIUM | Kubernetes | N/A-AKS-021 | PR.DS-6 | A.14.2.5 |
 | AZ-BAK-001 | Backup Soft Delete Disabled or Below 35 Days | CRITICAL | Backup | N/A-BAK-001 | PR.IP-4 | A.12.3.1 |
 | AZ-BAK-002 | Backup Vault Immutability Disabled | HIGH | Backup | N/A-BAK-002 | PR.IP-4 | A.12.3.1 |
 | AZ-BAK-004 | Backup Multiuser Authorization Missing | HIGH | Backup | N/A-BAK-004 | PR.AC-4 | A.9.2.3 |
