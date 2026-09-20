@@ -221,11 +221,8 @@ class ScanEngine:
             "score": score,
             "severity_contract_version": CONTRACT_VERSION,
             "findings": findings,
-<<<<<<< HEAD
             "evaluations": [e.to_dict() for e in evaluations],
-=======
             "rule_outcomes": rule_outcomes,
->>>>>>> c0155f9 (feat(lifecycle): implement finding lifecycle tracking (#311))
         }
 
         logger.info("Scan %s complete - %d total finding(s). Normalising results...", scan_id, len(findings))
