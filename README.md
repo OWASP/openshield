@@ -33,6 +33,21 @@ provenance attestations. See [release verification](docs/release-verification.md
 
 ---
 
+## Project Leadership
+
+OpenShield is led through a collaborative, maintainer-led governance model.
+
+| Name | Role | Responsibilities |
+|---|---|---|
+| [Vishnu Ajith](https://github.com/Vishnu2707) | Project Lead | Project direction, final governance decisions, releases, and organization administration |
+| [Muhammad Ibrahim](https://github.com/m-khan-97) | Co-Project Lead | Engineering direction, security and enterprise-readiness, contributor coordination, and project delivery |
+| [Muhammad Sihan Haroon](https://github.com/H-Sihan) | Co-Project Lead | Technical leadership, contributor coordination, and project delivery |
+
+The complete leadership and maintainer responsibilities are recorded in
+[MAINTAINERS.md](MAINTAINERS.md) and governed by [GOVERNANCE.md](GOVERNANCE.md).
+
+---
+
 ## The Problem
 
 Enterprise cloud security tools like **Wiz**, **Prisma Cloud**, and **Microsoft Defender for Cloud** cost **$50,000–$500,000/year**.
@@ -59,10 +74,10 @@ Findings map to NIST FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), and FIPS 205 (SLH-DSA
 
 | Feature | Description |
 |---|---|
-| **Misconfiguration Scanner** | Runs 126 Azure security rules across storage, network, identity, database, compute, Key Vault, AKS, post-quantum cryptography, backup, serverless, private endpoint, and supply chain posture |
+| **Misconfiguration Scanner** | Runs 95 Azure security rules across storage, network, identity, database, compute, Key Vault, AKS, Kubernetes workloads, post-quantum cryptography, backup, serverless, private endpoint, and supply chain posture |
 | **Compliance Mapper** | Maps findings to CIS Benchmarks, NIST CSF, ISO 27001, and SOC 2 framework JSON files |
 | **Scan History API** | Stores scans and findings in PostgreSQL and exposes findings, score, scan history, compliance posture, drift, and resource inventory over REST |
-| **Remediation Playbooks** | Every rule ships with a matching Azure CLI remediation script (126 playbooks) |
+| **Remediation Playbooks** | Every documented rule ships with a matching review-gated remediation script (95 playbooks) |
 | **Security Dashboard** | Full React dashboard deployed on Vercel - live monitoring, findings, compliance, drift, prioritization, and AI-layer views |
 | **Project Website** | Documentation and reference site at [owasp.github.io/openshield](https://owasp.github.io/openshield/) - blog, rules gallery, architecture, evidence guides, roadmap, and releases |
 | **Sentinel Integration** | Normalises findings and pushes them into Microsoft Sentinel via a Log Analytics custom table and KQL analytics rules |

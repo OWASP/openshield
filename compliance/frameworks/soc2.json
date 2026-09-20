@@ -174,10 +174,20 @@
       "control_name": "System Vulnerabilities are Identified and Managed",
       "description": "The virtual machine does not have automatic OS patching enabled. CC7.1 requires that vulnerabilities in system components are identified and managed through a defined process. Without automatic patching, known OS vulnerabilities are left unmitigated and exploitable."
     },
+    "AZ-CMP-006": {
+      "control_id": "CC6.6",
+      "control_name": "Restricts Access from Outside the Network Boundary",
+      "description": "A VM Scale Set network interface configuration with a public IP and no NSG has unrestricted inbound network access from the internet with no filtering in place. CC6.6 requires that logical access from outside the network boundary is restricted and controlled."
+    },
     "AZ-CMP-007": {
       "control_id": "CC6.6",
       "control_name": "Restricts Access from Outside the Network Boundary",
       "description": "A VM has management ports (SSH/RDP) open to the internet with no Just-In-Time VM access policy covering them. CC6.6 requires that access from outside the network boundary is restricted. JIT opens management ports only for approved, time-boxed requests instead of continuously."
+    },
+    "AZ-CMP-005": {
+      "control_id": "CC6.8",
+      "control_name": "Prevents or Detects Unauthorized Software",
+      "description": "A Generation 2 virtual machine does not have Trusted Launch (Secure Boot and vTPM) fully enabled. CC6.8 requires controls that prevent or detect the introduction of unauthorized software. Secure Boot prevents unsigned boot components from executing and the vTPM attests boot integrity, blocking boot-level malware from loading and persisting beneath the OS."
     },
     "AZ-KV-001": {
       "control_id": "A1.2",
@@ -293,6 +303,81 @@
       "control_id": "CC7.1",
       "control_name": "Detects and Monitors Configuration Changes",
       "description": "Managed node OS upgrade channels maintain worker-node security patches through an observable Azure-controlled process."
+    },
+    "AZ-AKS-007": {
+      "control_id": "CC6.6",
+      "control_name": "Restricts Access to Information Assets",
+      "description": "Authorized IP ranges restrict AKS API access to approved administration networks."
+    },
+    "AZ-AKS-008": {
+      "control_id": "CC6.6",
+      "control_name": "Restricts Access from Outside Boundaries",
+      "description": "A network policy engine enables workload boundary enforcement."
+    },
+    "AZ-AKS-009": {
+      "control_id": "CC6.6",
+      "control_name": "Restricts Access from Outside Boundaries",
+      "description": "Namespace NetworkPolicy objects enforce workload traffic boundaries."
+    },
+    "AZ-AKS-010": {
+      "control_id": "CC7.1",
+      "control_name": "Detection and Monitoring",
+      "description": "Defender for Containers detects workload threats and vulnerabilities."
+    },
+    "AZ-AKS-011": {
+      "control_id": "CC6.1",
+      "control_name": "Logical Access Security",
+      "description": "Key Vault or KMS-backed secret protection reduces credential exposure."
+    },
+    "AZ-AKS-012": {
+      "control_id": "CC6.1",
+      "control_name": "Logical Access Security",
+      "description": "Automatic CSI rotation maintains workload credential controls."
+    },
+    "AZ-AKS-013": {
+      "control_id": "CC6.1",
+      "control_name": "Logical Access Security",
+      "description": "Privileged container restrictions preserve node isolation."
+    },
+    "AZ-AKS-014": {
+      "control_id": "CC6.6",
+      "control_name": "Restricts Access from Outside Boundaries",
+      "description": "Host network restrictions preserve network isolation."
+    },
+    "AZ-AKS-015": {
+      "control_id": "CC6.1",
+      "control_name": "Logical Access Security",
+      "description": "Host PID restrictions prevent node process access."
+    },
+    "AZ-AKS-016": {
+      "control_id": "CC6.1",
+      "control_name": "Logical Access Security",
+      "description": "Host IPC restrictions prevent node communication access."
+    },
+    "AZ-AKS-017": {
+      "control_id": "CC6.1",
+      "control_name": "Logical Access Security",
+      "description": "HostPath restrictions prevent direct node filesystem access."
+    },
+    "AZ-AKS-018": {
+      "control_id": "CC6.3",
+      "control_name": "Role-Based Access",
+      "description": "A cluster-admin allowlist enforces least privilege."
+    },
+    "AZ-AKS-019": {
+      "control_id": "CC8.1",
+      "control_name": "Change Management",
+      "description": "Trusted registries constrain approved deployment sources."
+    },
+    "AZ-AKS-020": {
+      "control_id": "CC8.1",
+      "control_name": "Change Management",
+      "description": "Explicit image versions make workload changes traceable."
+    },
+    "AZ-AKS-021": {
+      "control_id": "CC8.1",
+      "control_name": "Change Management",
+      "description": "Digest pinning makes deployed image content immutable."
     },
     "AZ-IDN-010": {
       "control_id": "CC6.2",

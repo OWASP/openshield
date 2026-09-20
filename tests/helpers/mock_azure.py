@@ -50,6 +50,7 @@ class MockAzureClient:
         self._network_security_groups: List[Any] = []
         self._express_route_ports: Optional[List[Any]] = []
         self._virtual_machines: List[Any] = []
+        self._virtual_machine_scale_sets: List[Any] = []
         self._key_vaults: List[Any] = []
         self._sql_servers: List[Any] = []
         self._service_principals: List[Any] = []
@@ -58,6 +59,7 @@ class MockAzureClient:
         self._network_interfaces: Dict[Tuple[str, str], Any] = {}
         self._all_network_interfaces: Optional[List[Any]] = []
         self._route_tables: Optional[List[Any]] = []
+        self._subnets: Dict[str, Optional[Any]] = {}
         self._vm_extensions: Dict[Tuple[str, str], Optional[List[Any]]] = {}
         self._disks: Dict[str, Optional[Any]] = {}
         self._storage_lifecycle: Dict[Tuple[str, str], Optional[bool]] = {}
@@ -87,12 +89,15 @@ class MockAzureClient:
         self._dns_record_sets: Dict[Tuple[str, str], List[Any]] = {}
         self._web_apps: List[Any] = []
         self._managed_clusters: Optional[List[Any]] = []
+        self._aks_security_posture: Optional[List[Any]] = []
         self._applications: Optional[List[Dict[str, Any]]] = []
         self._managed_identity_principals: Optional[List[Dict[str, Any]]] = []
         self._subscription_role_assignments: Optional[List[Any]] = []
         self._container_registries: Optional[List[Any]] = []
         self._blob_containers: Dict[Tuple[str, str], Optional[List[Any]]] = {}
         self._blob_service_properties: Dict[Tuple[str, str], Optional[Any]] = {}
+        self._security_assessments: Optional[List[Any]] = None
+        self._vm_patch_status: Dict[Tuple[str, str], Optional[Any]] = {}
         # None by default, matching AzureClient.devops_client's "not configured" state.
         self.devops_client: Optional[Any] = None
         # Privileged access / identity collectors (issue #258)
@@ -141,6 +146,14 @@ class MockAzureClient:
 
     def get_managed_clusters(self) -> Optional[List[Any]]:
         return self._managed_clusters
+
+    def set_aks_security_posture(self, posture: Optional[List[Any]]) -> "MockAzureClient":
+        """Configure AKS enterprise evidence; ``None`` represents collection failure."""
+        self._aks_security_posture = posture
+        return self
+
+    def get_aks_security_posture(self) -> Optional[List[Any]]:
+        return self._aks_security_posture
 
     def set_applications(self, applications: Optional[List[Dict[str, Any]]]) -> "MockAzureClient":
         self._applications = applications
@@ -199,6 +212,10 @@ class MockAzureClient:
         self._virtual_machines = vms
         return self
 
+    def set_virtual_machine_scale_sets(self, scale_sets: List[Any]) -> "MockAzureClient":
+        self._virtual_machine_scale_sets = scale_sets
+        return self
+
     def set_key_vaults(self, vaults: List[Any]) -> "MockAzureClient":
         self._key_vaults = vaults
         return self
@@ -226,6 +243,9 @@ class MockAzureClient:
     def get_virtual_machines(self) -> List[Any]:
         return self._virtual_machines
 
+    def get_virtual_machine_scale_sets(self) -> List[Any]:
+        return self._virtual_machine_scale_sets
+
     def get_key_vaults(self) -> List[Any]:
         return self._key_vaults
 
@@ -248,6 +268,14 @@ class MockAzureClient:
 
     def get_network_interface(self, resource_group: str, nic_name: str) -> Optional[Any]:
         return self._network_interfaces.get((resource_group, nic_name))
+
+    def set_subnet(self, subnet_id: str, subnet: Optional[Any]) -> "MockAzureClient":
+        """Configure the Subnet resource returned for a subnet ID; ``None`` represents an unreadable subnet."""
+        self._subnets[subnet_id] = subnet
+        return self
+
+    def get_subnet(self, subnet_id: str) -> Optional[Any]:
+        return self._subnets.get(subnet_id)
 
     def set_vm_extensions(
         self, resource_group: str, vm_name: str, extensions: Optional[List[Any]]
@@ -274,6 +302,28 @@ class MockAzureClient:
 
     def get_jit_network_access_policies(self) -> Optional[List[Any]]:
         return self._jit_policies
+
+    def set_vm_patch_status(self, resource_group: str, vm_name: str, summary: Optional[Any]) -> "MockAzureClient":
+        """Configure the AvailablePatchSummary returned for a VM; ``None`` means no real
+        assessment evidence is available."""
+        self._vm_patch_status[(resource_group, vm_name)] = summary
+        return self
+
+    def get_vm_patch_status(self, resource_group: str, vm_name: str) -> Optional[Any]:
+        return self._vm_patch_status.get((resource_group, vm_name))
+
+    # ------------------------------------------------------------------ #
+    # Microsoft Defender for Cloud                                          #
+    # ------------------------------------------------------------------ #
+
+    def set_security_assessments(self, assessments: Optional[List[Any]]) -> "MockAzureClient":
+        """Configure Defender for Cloud assessments; ``None`` represents an API failure
+        or a subscription that was never onboarded to Defender for Cloud."""
+        self._security_assessments = assessments
+        return self
+
+    def get_security_assessments(self) -> Optional[List[Any]]:
+        return self._security_assessments
 
     # ------------------------------------------------------------------ #
     # Storage — lifecycle & service logging (three-state: True/False/None) #

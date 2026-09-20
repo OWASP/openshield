@@ -58,7 +58,7 @@ def main() -> int:
     args = parser.parse_args()
     if sys.version_info[:2] != (3, 11) or sys.platform != "linux":
         parser.error("Generate/check locks using Python 3.11 on Linux (the supported runtime).")
-    if version("pip-tools") != "7.5.3" or version("pip") != "26.1.2":
+    if version("pip-tools") != "7.6.1" or version("pip") != "26.2.1":
         parser.error("Install requirements-lock.txt in an isolated virtual environment first.")
     if args.check:
         stale = check_locks(ROOT)

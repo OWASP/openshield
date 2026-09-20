@@ -8,7 +8,7 @@ import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function loadApiModule({ fetchImpl, timers, token = null } = {}) {
+function loadApiModule({ fetchImpl, timers, token = null, storage = {} } = {}) {
   let source = readFileSync(path.join(__dirname, 'api.js'), 'utf8');
   source = source.replace(
     "import { normalizeRisk, normalizeSeverity } from './severity.js';",
@@ -26,20 +26,24 @@ function loadApiModule({ fetchImpl, timers, token = null } = {}) {
     ApiTimeoutError, ApiCancellationError, ApiHttpError, ApiNetworkError,
   };`;
 
+  const store = new Map(Object.entries(storage));
   const localStorageStub = {
-    getItem: (key) => key === 'jwt_token' ? token : null,
-    setItem: () => {},
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+    removeItem: (key) => store.delete(key),
   };
   const load = new Function(
     'localStorage', 'fetch', 'AbortController', 'setTimeout', 'clearTimeout', source,
   );
-  return load(
+  const mod = load(
     localStorageStub,
     fetchImpl || (() => Promise.reject(new Error('unexpected fetch'))),
     AbortController,
     timers?.setTimeout || setTimeout,
     timers?.clearTimeout || clearTimeout,
   );
+  if (token !== null) mod.api.setToken(token);
+  return { ...mod, store };
 }
 
 function createTimers() {
@@ -442,6 +446,30 @@ test('triggerScan is attempted once and options cannot override its POST body', 
   assert.equal(requestOptions.method, 'POST');
   assert.equal(requestOptions.body, JSON.stringify({ subscription_id: 'sub-1' }));
   assert.equal(requestOptions.headers['X-Request-ID'], 'request-1');
+});
+
+test('bearer token is memory-only and a legacy persisted token is purged, not used', async () => {
+  let requestOptions;
+  const { api, store } = loadApiModule({
+    storage: { jwt_token: 'leaked-legacy-token' },
+    fetchImpl: async (_url, options) => {
+      requestOptions = options;
+      return jsonResponse({ score: 88 });
+    },
+  });
+
+  assert.equal(store.has('jwt_token'), false, 'legacy jwt_token must be removed on load');
+  await api.getScore();
+  assert.equal(requestOptions.headers.Authorization, undefined, 'legacy token must never be sent');
+
+  api.setToken('session-token');
+  await api.getScore();
+  assert.equal(requestOptions.headers.Authorization, 'Bearer session-token');
+  assert.equal([...store.values()].includes('session-token'), false, 'token must not be persisted');
+
+  api.clearToken();
+  await api.getScore();
+  assert.equal(requestOptions.headers.Authorization, undefined);
 });
 
 let failures = 0;

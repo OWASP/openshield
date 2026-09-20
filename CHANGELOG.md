@@ -13,6 +13,8 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Fifteen enterprise AKS and Kubernetes workload rules covering API restrictions, network policy, Defender, secrets, workload isolation, RBAC, and image trust
+- OIDC bearer-token verification (`OPENSHIELD_AUTH_MODE=oidc`) with JWKS signature, issuer, audience, tenant and IdP app-role enforcement (#294)
 - Azure Network Layer Assurance API with 20-domain coverage, network-rule classification, and authoritative IP forwarding and direct Internet route checks
 - Azure Resource Graph inventory snapshots as the first OpenShield Evidence Graph foundation
 - Azure Data Link Layer Assurance API with LLC and MAC coverage plus ExpressRoute Direct MACsec checks
@@ -36,6 +38,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- Dashboard no longer embeds a build-time bearer token or a `dev-local-token` fallback, keeps tokens in memory only, and purges legacy `localStorage` tokens; CI fails if a JWT-shaped value reaches the public bundle (#294)
 - Upgraded cryptography to 50.0.0 to address CVE-2026-69247
 - AI provider errors no longer expose upstream response details
 - Request body limits, AI rate limiting, and playbook path validation added

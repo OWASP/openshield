@@ -1,8 +1,6 @@
-import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { DarkModeProvider } from './contexts/DarkModeContext';
 import { I18nProvider } from './contexts/I18nContext';
-import { api } from './utils/api';
 import Layout from './components/layout/Layout';
 import Discovery from './pages/Discovery';
 import Prioritization from './pages/Prioritization';
@@ -13,17 +11,6 @@ import Drift from './pages/Drift';
 import AILayer from './pages/AILayer';
 
 export default function App() {
-  useEffect(() => {
-    // Always prefer the build-time token so a stale localStorage value
-    // from a previous deployment never blocks authenticated requests.
-    const envToken = import.meta.env.VITE_JWT_TOKEN;
-    if (envToken) {
-      api.setToken(envToken);
-    } else if (!api.getToken()) {
-      api.setToken('dev-local-token');
-    }
-  }, []);
-
   return (
     <DarkModeProvider>
       <I18nProvider>

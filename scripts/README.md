@@ -50,11 +50,11 @@ python3 scripts/audit_ai_grounding.py
 ## 2. General Utility Scripts
 
 ### `generate_demo_jwt.py`
-**Purpose:** Generates a mock JSON Web Token (JWT) for testing the API authentication layer without needing a full Entra ID provider.
+**Purpose:** Mints a short-lived (default 1 hour) read-only `viewer` JWT signed with `JWT_SECRET`, for calling the API locally or in smoke tests when `OPENSHIELD_AUTH_MODE=shared_secret`. It is not accepted in `oidc` mode and must never be placed in frontend configuration (issue #294).
 
 **How to use:**
 ```bash
-python3 scripts/generate_demo_jwt.py
+JWT_SECRET=<secret> python3 scripts/generate_demo_jwt.py
 ```
 
 ---

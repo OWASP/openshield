@@ -159,10 +159,20 @@
       "control_name": "Ensure that 'OS patching' is enabled for virtual machines",
       "description": "The virtual machine does not have automatic OS patching enabled. CIS 8.3 requires that OS patches are applied in a timely manner. Unpatched VMs are vulnerable to known exploits targeting unpatched OS vulnerabilities."
     },
+    "AZ-CMP-006": {
+      "control_id": "N/A-CMP-006",
+      "control_name": "VM Scale Set NSG baseline (covered by the repository's CIS 7.1 network-interface NSG rule)",
+      "description": "CIS Azure Foundations recommendation 7.1 (\"Ensure that Network Security Groups are attached to network interfaces with public IP addresses\") is assigned to AZ-CMP-001 under the repository's one-CIS-ID-per-rule convention. This is the same underlying control applied to VM Scale Set network interface configurations instead of standalone VM NICs, so it is not assigned a second numbered mapping."
+    },
     "AZ-CMP-007": {
       "control_id": "N/A-CMP-007",
       "control_name": "Just-In-Time (JIT) VM access - Defender for Cloud recommendation, no numbered CIS Azure Foundations 2.0.0 control",
       "description": "CIS Microsoft Azure Foundations Benchmark 2.0.0 has no numbered recommendation for Just-In-Time VM access (it is a Microsoft Defender for Cloud recommendation), so under the repository's one-CIS-ID-per-rule convention this rule is not assigned a fabricated control id. It is mapped under NIST CSF PR.AC-3, ISO 27001 A.13.1.1, and SOC 2 CC6.6 instead."
+    },
+    "AZ-CMP-005": {
+      "control_id": "N/A-CMP-005",
+      "control_name": "Trusted Launch (Secure Boot and vTPM) — no dedicated CIS Azure Foundations 2.0.0 recommendation",
+      "description": "CIS Microsoft Azure Foundations Benchmark 2.0.0 has no numbered recommendation for VM Trusted Launch, so under the repository's one-CIS-ID-per-rule convention this rule is not assigned a fabricated control id. It enforces Secure Boot and vTPM on Generation 2 VMs as boot-integrity hardening and is mapped under NIST CSF PR.DS-6, ISO 27001 A.12.5.1, and SOC 2 CC6.8 instead."
     },
     "AZ-KV-001": {
       "control_id": "N/A-KV-001",
@@ -293,6 +303,81 @@
       "control_id": "N/A-AKS-006",
       "control_name": "AKS node OS upgrade baseline (not mapped in CIS Azure Foundations 2.0.0)",
       "description": "Microsoft recommends a managed node OS upgrade channel for timely security patches. This check has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+    },
+    "AZ-AKS-007": {
+      "control_id": "N/A-AKS-007",
+      "control_name": "AKS API authorized IP baseline (not mapped in CIS Azure Foundations 2.0.0)",
+      "description": "Restricting a public AKS API server to approved administrator networks has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+    },
+    "AZ-AKS-008": {
+      "control_id": "N/A-AKS-008",
+      "control_name": "AKS network policy engine baseline (not mapped in CIS Azure Foundations 2.0.0)",
+      "description": "Enabling a Kubernetes network policy engine has no direct control in the repository's CIS Azure Foundations 2.0.0 benchmark."
+    },
+    "AZ-AKS-009": {
+      "control_id": "N/A-AKS-009",
+      "control_name": "Kubernetes namespace NetworkPolicy baseline (not mapped in CIS Azure Foundations 2.0.0)",
+      "description": "Requiring NetworkPolicy objects for application namespaces is a Kubernetes data-plane control outside the Azure Foundations benchmark."
+    },
+    "AZ-AKS-010": {
+      "control_id": "2.1.8",
+      "control_name": "Ensure that Microsoft Defender for Containers is set to On",
+      "description": "The Containers pricing plan must use the Standard tier to provide Microsoft Defender for Containers protection."
+    },
+    "AZ-AKS-011": {
+      "control_id": "N/A-AKS-011",
+      "control_name": "AKS Key Vault or KMS secret protection baseline (not directly mapped)",
+      "description": "Key Vault CSI and KMS-backed Kubernetes secret protection have no single direct control in CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-012": {
+      "control_id": "N/A-AKS-012",
+      "control_name": "Secrets Store CSI rotation baseline (not directly mapped)",
+      "description": "Automatic rotation of CSI-mounted secrets has no direct control in CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-013": {
+      "control_id": "N/A-AKS-013",
+      "control_name": "Privileged container baseline (Kubernetes data-plane control)",
+      "description": "Privileged container restrictions are Kubernetes data-plane controls outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-014": {
+      "control_id": "N/A-AKS-014",
+      "control_name": "Host network baseline (Kubernetes data-plane control)",
+      "description": "Host network restrictions are Kubernetes data-plane controls outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-015": {
+      "control_id": "N/A-AKS-015",
+      "control_name": "Host PID baseline (Kubernetes data-plane control)",
+      "description": "Host PID namespace restrictions are Kubernetes data-plane controls outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-016": {
+      "control_id": "N/A-AKS-016",
+      "control_name": "Host IPC baseline (Kubernetes data-plane control)",
+      "description": "Host IPC namespace restrictions are Kubernetes data-plane controls outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-017": {
+      "control_id": "N/A-AKS-017",
+      "control_name": "HostPath volume baseline (Kubernetes data-plane control)",
+      "description": "HostPath volume restrictions are Kubernetes data-plane controls outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-018": {
+      "control_id": "N/A-AKS-018",
+      "control_name": "Kubernetes cluster-admin assignment baseline (not directly mapped)",
+      "description": "Kubernetes ClusterRoleBinding scope is outside CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-019": {
+      "control_id": "N/A-AKS-019",
+      "control_name": "Trusted container registry baseline (not directly mapped)",
+      "description": "Kubernetes workload registry trust policy has no direct control in CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-020": {
+      "control_id": "N/A-AKS-020",
+      "control_name": "Latest image tag baseline (not directly mapped)",
+      "description": "Kubernetes image tag immutability has no direct control in CIS Azure Foundations 2.0.0."
+    },
+    "AZ-AKS-021": {
+      "control_id": "N/A-AKS-021",
+      "control_name": "Digest-pinned image baseline (not directly mapped)",
+      "description": "Kubernetes image digest pinning has no direct control in CIS Azure Foundations 2.0.0."
     },
     "AZ-IDN-010": {
       "control_id": "N/A-IDN-010",

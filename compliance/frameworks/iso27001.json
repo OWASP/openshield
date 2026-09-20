@@ -154,10 +154,20 @@
       "control_name": "Management of technical vulnerabilities",
       "description": "The virtual machine does not have automatic OS patching enabled. A.12.6.1 requires that information about technical vulnerabilities is obtained and the organisation's exposure evaluated. Without automatic patching, known OS vulnerabilities remain unmitigated."
     },
+    "AZ-CMP-006": {
+      "control_id": "A.13.1.1",
+      "control_name": "Network controls",
+      "description": "VM Scale Set instances with public IPs and no NSG on their network interface configuration have unrestricted network access. Network controls should be applied to all compute resources accessible from the internet."
+    },
     "AZ-CMP-007": {
       "control_id": "A.13.1.1",
       "control_name": "Network controls",
       "description": "A VM has management ports (SSH/RDP) open to the internet with no Just-In-Time VM access policy covering them. A.13.1.1 requires network controls that manage and protect access to systems. JIT limits management-port exposure to approved, time-boxed windows."
+    },
+    "AZ-CMP-005": {
+      "control_id": "A.12.5.1",
+      "control_name": "Installation of software on operational systems",
+      "description": "A Generation 2 virtual machine does not have Trusted Launch (Secure Boot and vTPM) fully enabled. A.12.5.1 requires procedures to control the installation of software on operational systems. Secure Boot enforces that only signed, trusted boot software executes, preventing unsigned or malicious boot-level code from loading beneath the operating system."
     },
     "AZ-CMP-003": {
       "control_id": "A.12.2.1",
@@ -293,6 +303,81 @@
       "control_id": "A.12.6.1",
       "control_name": "Management of technical vulnerabilities",
       "description": "Automatic AKS node OS upgrades help deploy tested security patches within a managed maintenance process."
+    },
+    "AZ-AKS-007": {
+      "control_id": "A.13.1.1",
+      "control_name": "Network controls",
+      "description": "Authorized IP ranges constrain public AKS API access to approved networks."
+    },
+    "AZ-AKS-008": {
+      "control_id": "A.13.1.3",
+      "control_name": "Segregation in networks",
+      "description": "A Kubernetes network policy engine enables workload network segregation."
+    },
+    "AZ-AKS-009": {
+      "control_id": "A.13.1.3",
+      "control_name": "Segregation in networks",
+      "description": "Namespace NetworkPolicy objects enforce workload communication boundaries."
+    },
+    "AZ-AKS-010": {
+      "control_id": "A.12.6.1",
+      "control_name": "Management of technical vulnerabilities",
+      "description": "Defender for Containers monitors workload threats and vulnerabilities."
+    },
+    "AZ-AKS-011": {
+      "control_id": "A.10.1.1",
+      "control_name": "Policy on cryptographic controls",
+      "description": "Key Vault or KMS-backed protection applies approved cryptographic controls to secrets."
+    },
+    "AZ-AKS-012": {
+      "control_id": "A.9.4.3",
+      "control_name": "Password management system",
+      "description": "CSI secret rotation maintains mounted credentials through an approved lifecycle."
+    },
+    "AZ-AKS-013": {
+      "control_id": "A.9.4.1",
+      "control_name": "Information access restriction",
+      "description": "Privileged container restrictions preserve the workload and node access boundary."
+    },
+    "AZ-AKS-014": {
+      "control_id": "A.13.1.3",
+      "control_name": "Segregation in networks",
+      "description": "Host network restrictions preserve workload network segregation."
+    },
+    "AZ-AKS-015": {
+      "control_id": "A.9.4.1",
+      "control_name": "Information access restriction",
+      "description": "Host PID restrictions prevent access to node process information."
+    },
+    "AZ-AKS-016": {
+      "control_id": "A.9.4.1",
+      "control_name": "Information access restriction",
+      "description": "Host IPC restrictions prevent access to node communication resources."
+    },
+    "AZ-AKS-017": {
+      "control_id": "A.9.4.1",
+      "control_name": "Information access restriction",
+      "description": "HostPath restrictions prevent direct access to node filesystems."
+    },
+    "AZ-AKS-018": {
+      "control_id": "A.9.2.3",
+      "control_name": "Management of privileged access rights",
+      "description": "A cluster-admin allowlist limits Kubernetes privileged access."
+    },
+    "AZ-AKS-019": {
+      "control_id": "A.14.2.5",
+      "control_name": "Secure system engineering principles",
+      "description": "Trusted image sources preserve the approved software supply boundary."
+    },
+    "AZ-AKS-020": {
+      "control_id": "A.12.1.2",
+      "control_name": "Change management",
+      "description": "Explicit image versions make deployment changes reviewable."
+    },
+    "AZ-AKS-021": {
+      "control_id": "A.14.2.5",
+      "control_name": "Secure system engineering principles",
+      "description": "Digest-pinned images provide immutable deployment inputs."
     },
     "AZ-IDN-010": {
       "control_id": "A.9.2.1",
