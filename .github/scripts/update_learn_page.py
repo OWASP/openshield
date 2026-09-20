@@ -176,6 +176,7 @@ def render(
     content: str,
     rule_count: int,
     playbook_count: int,
+    critical_count: int,
     high_count: int,
     medium_count: int,
     low_count: int,
@@ -193,6 +194,7 @@ def render(
     )
     section_title = r'(<h2 class="section-title">)\d+( Azure security rules</h2>)'
     hero_terminal = r'(<span class="dim">loading rules:</span> <span class="cyan">)\d+( dynamic checks</span></p>)'
+    severity_critical = r'(<div class="severity-box critical"><strong>)\d+(</strong><span>CRITICAL</span></div>)'
     severity_high = r'(<div class="severity-box high"><strong>)\d+(</strong><span>HIGH</span></div>)'
     severity_medium = r'(<div class="severity-box medium"><strong>)\d+(</strong><span>MEDIUM</span></div>)'
     severity_low = r'(<div class="severity-box low"><strong>)\d+(</strong><span>LOW</span></div>)'
@@ -207,6 +209,7 @@ def render(
         ("rules section title", section_title, rule_count),
         ("rules section intro paragraph", intro, rule_count),
         ("hero terminal: dynamic checks line", hero_terminal, rule_count),
+        ("severity box: CRITICAL", severity_critical, critical_count),
         ("severity box: HIGH", severity_high, high_count),
         ("severity box: MEDIUM", severity_medium, medium_count),
         ("severity box: LOW", severity_low, low_count),
@@ -232,12 +235,12 @@ def render_readme(content: str, rule_count: int, playbook_count: int) -> Tuple[s
     feature_row = (
         r"(\| \*\*Misconfiguration Scanner\*\* \| Runs )\d+"
         r"( Azure security rules across storage, network, identity, database, "
-        r"compute, Key Vault, AKS, post-quantum cryptography, backup, serverless, "
+        r"compute, Key Vault, AKS, Kubernetes workloads, post-quantum cryptography, backup, serverless, "
         r"private endpoint, and supply chain posture \|)"
     )
     playbook_row = (
-        r"(\| \*\*Remediation Playbooks\*\* \| Every rule ships with a matching "
-        r"Azure CLI remediation script \()\d+( playbooks\) \|)"
+        r"(\| \*\*Remediation Playbooks\*\* \| Every documented rule ships with a matching "
+        r"review-gated remediation script \()\d+( playbooks\) \|)"
     )
     mermaid_scanner = r'(C\["Scanner Engine\\n)\d+( Python rules"\])'
     mermaid_playbooks = r'(G\["Azure CLI Playbooks\\n)\d+( remediation scripts"\])'
@@ -313,7 +316,7 @@ def main() -> int:
             file=sys.stderr,
         )
 
-    chart_severities = {"HIGH", "MEDIUM", "LOW"}
+    chart_severities = {"CRITICAL", "HIGH", "MEDIUM", "LOW"}
     excluded_severities = {
         severity: count for severity, count in severities.items() if severity not in chart_severities and count
     }
@@ -322,7 +325,7 @@ def main() -> int:
         excluded_total = sum(excluded_severities.values())
         print(
             f"Warning: {excluded_total} rule(s) with severities outside the "
-            f"HIGH/MEDIUM/LOW chart are excluded from the severity boxes: {excluded_detail}",
+            f"CRITICAL/HIGH/MEDIUM/LOW chart are excluded from the severity boxes: {excluded_detail}",
             file=sys.stderr,
         )
 
@@ -333,6 +336,7 @@ def main() -> int:
         learn_original,
         rule_count,
         playbook_count,
+        severities["CRITICAL"],
         severities["HIGH"],
         severities["MEDIUM"],
         severities["LOW"],
@@ -369,7 +373,7 @@ def main() -> int:
 
     print(
         f"Updated {', '.join(changed)} - rules: {rule_count}, playbooks: {playbook_count}, "
-        f"severity HIGH: {severities['HIGH']}, MEDIUM: {severities['MEDIUM']}, LOW: {severities['LOW']}"
+        f"severity CRITICAL: {severities['CRITICAL']}, HIGH: {severities['HIGH']}, MEDIUM: {severities['MEDIUM']}, LOW: {severities['LOW']}"
     )
     return 0
 
