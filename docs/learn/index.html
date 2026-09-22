@@ -498,7 +498,7 @@
 
     .severity {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
       margin-top: 16px;
     }
@@ -523,6 +523,7 @@
       font-weight: 900;
     }
 
+    .critical strong { color: #f87171; }
     .high strong { color: #fecaca; }
     .medium strong { color: #fed7aa; }
     .low strong { color: #bbf7d0; }
@@ -871,6 +872,7 @@
           <h3>Severity distribution</h3>
           <p>Most checks are high severity. That makes validation important: high-severity false positives damage trust quickly.</p>
           <div class="severity" aria-label="Severity count summary">
+            <div class="severity-box critical"><strong>0</strong><span>CRITICAL</span></div>
             <div class="severity-box high"><strong>58</strong><span>HIGH</span></div>
             <div class="severity-box medium"><strong>31</strong><span>MEDIUM</span></div>
             <div class="severity-box low"><strong>4</strong><span>LOW</span></div>
