@@ -9,6 +9,14 @@ from typing import Any, Dict, List, Optional
 
 from api.observability import RULE_ERRORS_TOTAL
 from openshield.severity import CONTRACT_VERSION, SeverityContractError, normalize_severity, score_findings
+
+try:
+    import azure.core.exceptions as _azure_exc
+
+    _AzureHttpResponseError = _azure_exc.HttpResponseError
+except Exception:
+    _AzureHttpResponseError = None  # type: ignore[assignment,misc]
+
 from scanner.azure_client import AzureClient
 from scanner.evaluation import EvaluationStatus, RuleEvaluation, subscription_scope_id
 
@@ -104,16 +112,17 @@ class ScanEngine:
 
         Returns:
             dict with keys: scan_id, subscription_id, started_at,
-            completed_at, total_findings, findings.
+            completed_at, total_findings, findings, rule_outcomes.
         """
         scan_id = scan_id or str(uuid.uuid4())
         started_at = datetime.now(timezone.utc).isoformat()
         findings: List[Dict[str, Any]] = []
         evaluations: List[RuleEvaluation] = []
+        rule_outcomes: List[Dict[str, Any]] = []
         detected_at = datetime.now(timezone.utc).isoformat()
 
         logger.info(
-            "Scan %s starting against subscription %s — %d rules loaded",
+            "Scan %s starting against subscription %s - %d rules loaded",
             scan_id,
             self.subscription_id,
             len(self.rules),
@@ -121,32 +130,62 @@ class ScanEngine:
 
         for rule in self.rules:
             rule_id = getattr(rule, "RULE_ID", "UNKNOWN")
+            rule_started = datetime.now(timezone.utc).isoformat()
+            outcome_status = "FAILED"
             try:
                 rule_findings = rule.scan(self.client, self.subscription_id)
                 if not isinstance(rule_findings, list):
-                    logger.warning("Rule %s returned %s instead of list — skipped", rule_id, type(rule_findings))
-                    continue
-
-                validated_findings = []
-                for raw_finding in rule_findings:
-                    finding = raw_finding
-                    if not isinstance(finding, dict):
-                        logger.warning("Rule %s returned a non-object finding — skipped", rule_id)
-                        continue
-                    finding = dict(finding)
-                    finding["severity"] = normalize_severity(finding.get("severity"))
-                    finding.setdefault("detected_at", detected_at)
-                    finding.setdefault("scan_id", scan_id)
-                    validated_findings.append(finding)
-                findings.extend(validated_findings)
-                logger.info("Rule %s produced %d finding(s)", rule_id, len(validated_findings))
+                    logger.warning("Rule %s returned %s instead of list - skipped", rule_id, type(rule_findings))
+                    outcome_status = "FAILED"
+                else:
+                    validated_findings = []
+                    for raw_finding in rule_findings:
+                        finding = raw_finding
+                        if not isinstance(finding, dict):
+                            logger.warning("Rule %s returned a non-object finding - skipped", rule_id)
+                            continue
+                        finding = dict(finding)
+                        finding["severity"] = normalize_severity(finding.get("severity"))
+                        finding.setdefault("detected_at", detected_at)
+                        finding.setdefault("scan_id", scan_id)
+                        validated_findings.append(finding)
+                    findings.extend(validated_findings)
+                    outcome_status = "SUCCESS" if validated_findings else "EMPTY_SUCCESS"
+                    logger.info("Rule %s produced %d finding(s)", rule_id, len(validated_findings))
             except SeverityContractError:
                 RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
                 logger.exception("Rule %s returned an invalid severity", rule_id)
                 raise
+            except PermissionError:
+                RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
+                logger.error("Rule %s raised PermissionError", rule_id)
+                outcome_status = "PERMISSION_DENIED"
+            except TimeoutError:
+                RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
+                logger.error("Rule %s timed out", rule_id)
+                outcome_status = "TIMEOUT"
             except Exception as exc:
                 RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
-                logger.error("Rule %s raised an exception: %s", rule_id, exc, exc_info=True)
+                if _AzureHttpResponseError is not None and isinstance(exc, _AzureHttpResponseError):
+                    status_code = getattr(exc, "status_code", None)
+                    if status_code == 403:
+                        outcome_status = "PERMISSION_DENIED"
+                        logger.error("Rule %s got HTTP 403 from Azure", rule_id)
+                    else:
+                        outcome_status = "FAILED"
+                        logger.error("Rule %s raised an exception: %s", rule_id, exc, exc_info=True)
+                else:
+                    outcome_status = "FAILED"
+                    logger.error("Rule %s raised an exception: %s", rule_id, exc, exc_info=True)
+
+            rule_outcomes.append(
+                {
+                    "rule_id": rule_id,
+                    "status": outcome_status,
+                    "started_at": rule_started,
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
 
             evaluations.extend(self._evaluate_rule(rule, rule_id))
 
@@ -182,10 +221,14 @@ class ScanEngine:
             "score": score,
             "severity_contract_version": CONTRACT_VERSION,
             "findings": findings,
+<<<<<<< HEAD
             "evaluations": [e.to_dict() for e in evaluations],
+=======
+            "rule_outcomes": rule_outcomes,
+>>>>>>> c0155f9 (feat(lifecycle): implement finding lifecycle tracking (#311))
         }
 
-        logger.info("Scan %s complete — %d total finding(s). Normalising results...", scan_id, len(findings))
+        logger.info("Scan %s complete - %d total finding(s). Normalising results...", scan_id, len(findings))
 
         return make_serializable(result)
 
