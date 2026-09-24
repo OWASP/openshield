@@ -25,9 +25,22 @@ def _conn():
 
 
 def _tenant_id() -> str | None:
-    """Resolve tenant_id from JWT payload or query param (multi-tenant support)."""
+    """Resolve tenant_id from the verified principal.
+
+    OIDC mode: the 'tenant' field is populated from the 'tid' claim in the token.
+    Shared-secret mode: 'tenant' is always None; admins may supply
+    X-Tenant-Id as a request header (never a query param, which leaks into
+    logs and caches). Non-admin tokens cannot override the header.
+    """
     user = getattr(g, "user", {}) or {}
-    return user.get("tenant_id") or request.args.get("tenant_id")
+    # OIDC path: tid claim decoded by the verifier into user["tenant"]
+    tid = user.get("tenant")
+    if tid:
+        return tid
+    # Shared-secret path: admin-only header override for multi-tenant deployments
+    if user.get("role") == "admin":
+        return request.headers.get("X-Tenant-Id") or None
+    return None
 
 
 @attack_graph_bp.teardown_app_request
