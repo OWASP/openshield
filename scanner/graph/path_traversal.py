@@ -3,6 +3,7 @@
 Computes shortest paths from every finding-linked node to every reachable node
 and persists them in attack_paths for API consumption.
 """
+
 from __future__ import annotations
 
 import logging

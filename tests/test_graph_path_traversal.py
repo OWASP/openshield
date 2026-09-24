@@ -1,4 +1,5 @@
 """Unit tests for BFS path traversal (scanner/graph/path_traversal.py)."""
+
 from unittest.mock import MagicMock, patch
 
 from scanner.graph.path_traversal import _bfs_from, compute_attack_paths
