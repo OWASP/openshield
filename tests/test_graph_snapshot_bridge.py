@@ -1,6 +1,5 @@
 """Tests for the snapshot bridge that wraps ArgInventoryClient for use in ScanEngine."""
 from unittest.mock import MagicMock, patch
-import pytest
 
 from scanner.arg_inventory import InventorySnapshot, InventoryStatus, InventoryResource
 from scanner.graph.snapshot_bridge import collect_snapshot
