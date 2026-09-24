@@ -1,4 +1,5 @@
 """Orchestrate post-scan graph population: nodes, edges, finding links."""
+
 from __future__ import annotations
 
 import logging
@@ -50,15 +51,18 @@ def _write_edges(edges: list, snapshot_id: str, dsn: str) -> int:
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
             for edge in edges:
-                cur.execute(_UPSERT_EDGE_SQL, {
-                    "edge_id": str(uuid.uuid4()),
-                    "source_resource_id": edge.source_resource_id,
-                    "target_resource_id": edge.target_resource_id,
-                    "relationship_type": edge.relationship_type,
-                    "evidence_source": edge.evidence_source,
-                    "evidence_snapshot_id": snapshot_id,
-                    "confidence": edge.confidence,
-                })
+                cur.execute(
+                    _UPSERT_EDGE_SQL,
+                    {
+                        "edge_id": str(uuid.uuid4()),
+                        "source_resource_id": edge.source_resource_id,
+                        "target_resource_id": edge.target_resource_id,
+                        "relationship_type": edge.relationship_type,
+                        "evidence_source": edge.evidence_source,
+                        "evidence_snapshot_id": snapshot_id,
+                        "confidence": edge.confidence,
+                    },
+                )
                 written += 1
     return written
 
