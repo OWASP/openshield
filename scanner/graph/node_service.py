@@ -1,4 +1,5 @@
 """Upsert graph nodes from an InventorySnapshot and link findings to nodes."""
+
 from __future__ import annotations
 
 import json
@@ -55,18 +56,21 @@ def populate_nodes(snapshot: InventorySnapshot, dsn: str) -> int:
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
             for resource in snapshot.resources:
-                cur.execute(_UPSERT_NODE_SQL, {
-                    "node_id": str(uuid.uuid4()),
-                    "tenant_id": resource.tenant_id,
-                    "subscription_id": resource.subscription_id,
-                    "resource_id": resource.resource_id,
-                    "resource_type": resource.resource_type,
-                    "name": resource.name,
-                    "location": resource.location,
-                    "resource_group": resource.resource_group,
-                    "snapshot_id": resource.snapshot_id,
-                    "properties": json.dumps(resource.properties),
-                })
+                cur.execute(
+                    _UPSERT_NODE_SQL,
+                    {
+                        "node_id": str(uuid.uuid4()),
+                        "tenant_id": resource.tenant_id,
+                        "subscription_id": resource.subscription_id,
+                        "resource_id": resource.resource_id,
+                        "resource_type": resource.resource_type,
+                        "name": resource.name,
+                        "location": resource.location,
+                        "resource_group": resource.resource_group,
+                        "snapshot_id": resource.snapshot_id,
+                        "properties": json.dumps(resource.properties),
+                    },
+                )
                 written += 1
     return written
 
