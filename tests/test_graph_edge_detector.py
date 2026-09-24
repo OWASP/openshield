@@ -1,4 +1,5 @@
 """Tests for graph edge detectors."""
+
 from scanner.arg_inventory import InventorySnapshot, InventoryStatus, InventoryResource
 from scanner.graph.edge_detector import (
     GraphEdge,  # noqa: F401  — imported to verify public API surface
@@ -43,9 +44,7 @@ def _snapshot(*resources):
 def test_nsg_to_subnet_detects_protects_edge():
     subnet_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/default"
     nsg_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/networkSecurityGroups/nsg1"
-    nsg = _resource(nsg_id, "microsoft.network/networksecuritygroups", {
-        "subnets": [{"id": subnet_id}]
-    })
+    nsg = _resource(nsg_id, "microsoft.network/networksecuritygroups", {"subnets": [{"id": subnet_id}]})
     snapshot = _snapshot(nsg)
     edges = NsgToSubnetDetector().detect(snapshot)
     assert len(edges) == 1
@@ -64,9 +63,11 @@ def test_nsg_to_subnet_no_subnets_returns_empty():
 def test_public_ip_to_resource_detects_exposes_edge():
     vm_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm1"
     pip_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip1"
-    pip = _resource(pip_id, "microsoft.network/publicipaddresses", {
-        "ipConfiguration": {"id": vm_id + "/networkInterfaces/nic1/ipConfigurations/ipconfig1"}
-    })
+    pip = _resource(
+        pip_id,
+        "microsoft.network/publicipaddresses",
+        {"ipConfiguration": {"id": vm_id + "/networkInterfaces/nic1/ipConfigurations/ipconfig1"}},
+    )
     snapshot = _snapshot(pip)
     edges = PublicIpToResourceDetector().detect(snapshot)
     assert len(edges) == 1
@@ -78,11 +79,9 @@ def test_public_ip_to_resource_detects_exposes_edge():
 def test_identity_to_resource_detects_has_identity_edge():
     vm_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm1"
     identity_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id1"
-    vm = _resource(vm_id, "microsoft.compute/virtualmachines", {
-        "identity": {
-            "userAssignedIdentities": {identity_id: {}}
-        }
-    })
+    vm = _resource(
+        vm_id, "microsoft.compute/virtualmachines", {"identity": {"userAssignedIdentities": {identity_id: {}}}}
+    )
     snapshot = _snapshot(vm)
     edges = IdentityToResourceDetector().detect(snapshot)
     assert len(edges) == 1
@@ -94,9 +93,11 @@ def test_identity_to_resource_detects_has_identity_edge():
 def test_storage_private_endpoint_detects_reachable_via_edge():
     storage_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/sa1"
     pe_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/privateEndpoints/pe1"
-    storage = _resource(storage_id, "microsoft.storage/storageaccounts", {
-        "privateEndpointConnections": [{"properties": {"privateEndpoint": {"id": pe_id}}}]
-    })
+    storage = _resource(
+        storage_id,
+        "microsoft.storage/storageaccounts",
+        {"privateEndpointConnections": [{"properties": {"privateEndpoint": {"id": pe_id}}}]},
+    )
     snapshot = _snapshot(storage)
     edges = StoragePrivateEndpointDetector().detect(snapshot)
     assert len(edges) == 1
@@ -107,9 +108,7 @@ def test_storage_private_endpoint_detects_reachable_via_edge():
 def test_detect_all_edges_runs_all_detectors():
     nsg_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/networkSecurityGroups/nsg1"
     subnet_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/default"
-    nsg = _resource(nsg_id, "microsoft.network/networksecuritygroups", {
-        "subnets": [{"id": subnet_id}]
-    })
+    nsg = _resource(nsg_id, "microsoft.network/networksecuritygroups", {"subnets": [{"id": subnet_id}]})
     snapshot = _snapshot(nsg)
     edges = detect_all_edges(snapshot)
     assert any(e.relationship_type == "PROTECTS" for e in edges)
