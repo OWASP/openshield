@@ -1,4 +1,5 @@
 """Thin wrapper that collects an ARG InventorySnapshot for use inside ScanEngine."""
+
 from __future__ import annotations
 
 import logging
@@ -23,9 +24,7 @@ def collect_snapshot(client: AzureClient, subscription_id: str) -> InventorySnap
     credential = getattr(client, "credential", None)
 
     if not tenant_id or not credential:
-        logger.warning(
-            "snapshot_bridge: AzureClient missing tenant_id or credential — skipping ARG collection"
-        )
+        logger.warning("snapshot_bridge: AzureClient missing tenant_id or credential — skipping ARG collection")
         return None
 
     try:
