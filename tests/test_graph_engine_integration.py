@@ -1,4 +1,5 @@
 """Verify ScanEngine collects a snapshot and passes it to rules."""
+
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -67,8 +68,16 @@ def test_run_scan_existing_rule_without_snapshot_param_still_works(engine):
     snapshot = _make_snapshot()
 
     def legacy_scan(client, subscription_id):
-        return [{"rule_id": "AZ-LEGACY-001", "severity": "LOW", "resource_id": "r1",
-                 "rule_name": "Legacy", "description": "d", "remediation": "r"}]
+        return [
+            {
+                "rule_id": "AZ-LEGACY-001",
+                "severity": "LOW",
+                "resource_id": "r1",
+                "rule_name": "Legacy",
+                "description": "d",
+                "remediation": "r",
+            }
+        ]
 
     mock_rule = MagicMock()
     mock_rule.RULE_ID = "AZ-LEGACY-001"
