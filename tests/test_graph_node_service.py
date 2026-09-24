@@ -104,7 +104,7 @@ def test_link_findings_to_nodes_executes_insert():
     mock_cur.rowcount = 3
 
     with patch("scanner.graph.node_service.psycopg2.connect", return_value=mock_conn):
-        link_findings_to_nodes("scan-uuid-1", "postgresql://test/db")
+        link_findings_to_nodes("scan-uuid-1", "00000000-0000-0000-0000-000000000001", "postgresql://test/db")
 
     assert mock_cur.execute.called
     sql_called = mock_cur.execute.call_args[0][0]
