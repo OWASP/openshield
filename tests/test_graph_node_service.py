@@ -1,12 +1,16 @@
 """Tests for graph node upsert and finding-to-node linking."""
+
 from unittest.mock import MagicMock, patch
 
 from scanner.arg_inventory import InventorySnapshot, InventoryStatus, InventoryResource
 from scanner.graph.node_service import populate_nodes, link_findings_to_nodes
 
 
-def _make_resource(resource_id: str, resource_type: str = "microsoft.network/virtualnetworks",
-                   subscription_id: str = "00000000-0000-0000-0000-000000000002") -> InventoryResource:
+def _make_resource(
+    resource_id: str,
+    resource_type: str = "microsoft.network/virtualnetworks",
+    subscription_id: str = "00000000-0000-0000-0000-000000000002",
+) -> InventoryResource:
     return InventoryResource(
         snapshot_id="snap-1",
         tenant_id="00000000-0000-0000-0000-000000000001",
