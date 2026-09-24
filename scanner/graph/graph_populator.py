@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from scanner.arg_inventory import InventoryResource, InventoryStatus
 from scanner.graph.node_service import graph_connection, link_findings_to_nodes, lock_graph_scopes, populate_nodes
 from scanner.graph.edge_detector import detect_all_edges
+from scanner.graph.path_traversal import compute_attack_paths
 
 if TYPE_CHECKING:
     from scanner.arg_inventory import InventorySnapshot
@@ -189,3 +190,10 @@ def populate_graph(scan_id: str, snapshot: InventorySnapshot, dsn: str) -> None:
         )
     except Exception:
         logger.warning("graph: population failed for scan %s", scan_id, exc_info=True)
+        return
+
+    try:
+        path_count = compute_attack_paths(scan_id, snapshot.tenant_id, dsn)
+        logger.info("graph: computed %d attack paths for scan %s", path_count, scan_id)
+    except Exception as exc:
+        logger.warning("graph: path traversal failed for scan %s: %s", scan_id, exc)
