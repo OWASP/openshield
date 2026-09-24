@@ -40,13 +40,7 @@ INSERT INTO finding_graph_nodes (finding_id, node_id)
 SELECT f.id, n.node_id
 FROM findings f
 JOIN graph_nodes n ON lower(f.resource_id) = lower(n.resource_id)
-    AND n.tenant_id = (
-        SELECT tenant_id FROM graph_nodes
-        WHERE snapshot_id = (
-            SELECT snapshot_id FROM graph_nodes ORDER BY updated_at DESC LIMIT 1
-        )
-        LIMIT 1
-    )
+    AND n.tenant_id = %(tenant_id)s
 WHERE f.scan_id = %(scan_id)s
 ON CONFLICT DO NOTHING
 """
@@ -77,9 +71,9 @@ def populate_nodes(snapshot: InventorySnapshot, dsn: str) -> int:
     return written
 
 
-def link_findings_to_nodes(scan_id: str, dsn: str) -> int:
+def link_findings_to_nodes(scan_id: str, tenant_id: str, dsn: str) -> int:
     """Link findings from this scan to their graph nodes by resource_id."""
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
-            cur.execute(_LINK_FINDINGS_SQL, {"scan_id": scan_id})
+            cur.execute(_LINK_FINDINGS_SQL, {"scan_id": scan_id, "tenant_id": tenant_id})
             return cur.rowcount if cur.rowcount >= 0 else 0
