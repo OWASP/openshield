@@ -28,17 +28,21 @@ def upgrade() -> None:
         sa.Column("path_node_ids", postgresql.ARRAY(postgresql.UUID()), nullable=False),
         sa.Column("path_length", sa.Integer(), nullable=False),
         sa.Column("min_confidence", sa.Float(), nullable=False, server_default=sa.text("1.0")),
-        sa.Column("relationship_types", postgresql.ARRAY(sa.Text()), nullable=False,
-                  server_default=sa.text("ARRAY[]::text[]")),
-        sa.Column("computed_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
+        sa.Column(
+            "relationship_types", postgresql.ARRAY(sa.Text()), nullable=False, server_default=sa.text("ARRAY[]::text[]")
+        ),
+        sa.Column("computed_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
         sa.ForeignKeyConstraint(
-            ["source_node_id"], ["graph_nodes.node_id"],
-            name="attack_paths_source_fkey", ondelete="CASCADE",
+            ["source_node_id"],
+            ["graph_nodes.node_id"],
+            name="attack_paths_source_fkey",
+            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
-            ["target_node_id"], ["graph_nodes.node_id"],
-            name="attack_paths_target_fkey", ondelete="CASCADE",
+            ["target_node_id"],
+            ["graph_nodes.node_id"],
+            name="attack_paths_target_fkey",
+            ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("path_id", name="attack_paths_pkey"),
     )

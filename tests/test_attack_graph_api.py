@@ -1,4 +1,5 @@
 """Unit tests for the attack graph API routes."""
+
 import time
 from unittest.mock import MagicMock, patch
 
