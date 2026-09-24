@@ -70,24 +70,33 @@ def get_attack_graph():
 
     conn = _conn()
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        node_filter = "WHERE n.tenant_id = %(tenant_id)s"
-        params: dict = {"tenant_id": tenant_id, "limit": limit}
         if subscription_id:
-            node_filter += " AND n.subscription_id = %(subscription_id)s"
-            params["subscription_id"] = subscription_id
-
-        cur.execute(
-            f"""
-            SELECT n.node_id::text, n.resource_id, n.resource_type, n.name,
-                   n.location, n.resource_group, n.subscription_id, n.snapshot_id,
-                   n.updated_at
-            FROM graph_nodes n
-            {node_filter}
-            ORDER BY n.updated_at DESC
-            LIMIT %(limit)s
-            """,
-            params,
-        )
+            cur.execute(
+                """
+                SELECT n.node_id::text, n.resource_id, n.resource_type, n.name,
+                       n.location, n.resource_group, n.subscription_id, n.snapshot_id,
+                       n.updated_at
+                FROM graph_nodes n
+                WHERE n.tenant_id = %(tenant_id)s
+                  AND n.subscription_id = %(subscription_id)s
+                ORDER BY n.updated_at DESC
+                LIMIT %(limit)s
+                """,
+                {"tenant_id": tenant_id, "subscription_id": subscription_id, "limit": limit},
+            )
+        else:
+            cur.execute(
+                """
+                SELECT n.node_id::text, n.resource_id, n.resource_type, n.name,
+                       n.location, n.resource_group, n.subscription_id, n.snapshot_id,
+                       n.updated_at
+                FROM graph_nodes n
+                WHERE n.tenant_id = %(tenant_id)s
+                ORDER BY n.updated_at DESC
+                LIMIT %(limit)s
+                """,
+                {"tenant_id": tenant_id, "limit": limit},
+            )
         nodes = cur.fetchall()
 
         node_ids = [row["node_id"] for row in nodes]
