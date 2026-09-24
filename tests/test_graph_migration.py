@@ -1,4 +1,5 @@
 """Verify the graph schema migration applies and rolls back cleanly."""
+
 import os
 import pytest
 from alembic.config import Config
@@ -40,9 +41,18 @@ def test_graph_nodes_columns(engine):
     inspector = inspect(engine)
     cols = {c["name"] for c in inspector.get_columns("graph_nodes")}
     assert cols >= {
-        "node_id", "tenant_id", "subscription_id", "resource_id",
-        "resource_type", "name", "location", "resource_group",
-        "snapshot_id", "properties", "created_at", "updated_at",
+        "node_id",
+        "tenant_id",
+        "subscription_id",
+        "resource_id",
+        "resource_type",
+        "name",
+        "location",
+        "resource_group",
+        "snapshot_id",
+        "properties",
+        "created_at",
+        "updated_at",
     }
 
 
@@ -50,9 +60,15 @@ def test_graph_edges_columns(engine):
     inspector = inspect(engine)
     cols = {c["name"] for c in inspector.get_columns("graph_edges")}
     assert cols >= {
-        "edge_id", "source_node_id", "target_node_id",
-        "relationship_type", "evidence_source", "evidence_snapshot_id",
-        "confidence", "collected_at", "properties",
+        "edge_id",
+        "source_node_id",
+        "target_node_id",
+        "relationship_type",
+        "evidence_source",
+        "evidence_snapshot_id",
+        "confidence",
+        "collected_at",
+        "properties",
     }
 
 
