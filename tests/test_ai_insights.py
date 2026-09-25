@@ -95,10 +95,15 @@ def test_blank_api_key_returns_400(client, auth_headers):
     assert resp.status_code == 400
 
 
-def test_missing_findings_returns_400(client, auth_headers):
+def test_missing_findings_reads_scan_evidence_and_fails_closed_without_it(client, auth_headers, monkeypatch):
+    """Without findings in the body, insights reads the latest completed scan
+    (#357). When that evidence cannot be loaded it must fail closed, not answer
+    from nothing."""
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     payload = {k: v for k, v in VALID_PAYLOAD.items() if k != "findings"}
     resp = _post(client, payload, auth_headers)
-    assert resp.status_code == 400
+    assert resp.status_code == 503
+    assert resp.get_json() == {"error": "Scan evidence is not available"}
 
 
 def test_empty_findings_returns_400(client, auth_headers):

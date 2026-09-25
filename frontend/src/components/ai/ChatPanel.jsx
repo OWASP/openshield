@@ -15,7 +15,7 @@ ${finding.description}
 Ask me anything about this finding — remediation steps, risk impact, validation, or related compliance controls.`;
 }
 
-const ChatPanel = forwardRef(function ChatPanel({ initialMessages = [], contextFinding, suggestions = [], findings = [] }, ref) {
+const ChatPanel = forwardRef(function ChatPanel({ initialMessages = [], contextFinding, suggestions = [] }, ref) {
   const [messages, setMessages] = useState(initialMessages);
   const [thinking, setThinking] = useState(false);
   const bottomRef = useRef(null);
@@ -46,7 +46,7 @@ const ChatPanel = forwardRef(function ChatPanel({ initialMessages = [], contextF
     setThinking(true);
 
     try {
-      const result = await aiApi.chat({ question: text, contextFinding, findings });
+      const result = await aiApi.chat({ question: text });
       const aiMsg = {
         id: Date.now() + 1,
         role: 'assistant',
