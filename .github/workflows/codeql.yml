@@ -5,6 +5,10 @@ on:
     branches:
       - dev
       - main
+  push:
+    branches:
+      - dev
+      - main
   schedule:
     - cron: "0 3 * * 1" # weekly, Monday 03:00 UTC
 
