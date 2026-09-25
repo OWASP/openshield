@@ -125,7 +125,7 @@ def test_database_score_uses_the_same_critical_weight_as_engine():
     conn = MagicMock()
     conn.cursor.return_value = _cursor([("CRITICAL", 1)])
     with patch.object(db, "_get_conn", return_value=conn):
-        assert db.get_score() == 80
+        assert db.get_score() == {"status": "OK", "score": 80, "max_score": 100}
 
 
 def test_persistence_rejects_invalid_severity_before_opening_connection():

@@ -61,7 +61,7 @@ export default function Compliance() {
               Controls <span className="text-text-tertiary font-normal text-sm">({filteredControls.length})</span>
             </h2>
             <div className="flex gap-1">
-              {['All', 'PASS', 'FAIL'].map((s) => (
+              {['All', 'PASS', 'FAIL', 'UNREVIEWED_MAPPING'].map((s) => (
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
@@ -71,7 +71,7 @@ export default function Compliance() {
                       : 'text-text-secondary dark:text-text-dark-tertiary hover:bg-bg-secondary dark:hover:bg-bg-dark-tertiary'
                   }`}
                 >
-                  {s}
+                  {s === 'UNREVIEWED_MAPPING' ? 'Review pending' : s}
                 </button>
               ))}
             </div>

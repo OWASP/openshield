@@ -29,8 +29,13 @@ export default function Monitoring() {
     const counts = countBySeverity(findings);
 
     return {
-      score:    scoreData.score    ?? scoreData,
-      maxScore: scoreData.max_score ?? 100,
+      // scoreData is always normalizeScore()'s output ({status, score,
+      // max_score}) - score is preserved as-is (including null for
+      // NO_SCAN_DATA) rather than falling back to a truthy-looking
+      // default, so ScoreGauge can render "not assessed" correctly.
+      score:       scoreData.score,
+      scoreStatus: scoreData.status,
+      maxScore:    scoreData.max_score ?? 100,
       stats: {
         totalFindings:  findings.length,
         criticalIssues: counts.CRITICAL,

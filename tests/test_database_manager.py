@@ -162,30 +162,32 @@ class TestScoreCalculation:
     def test_get_score_returns_100_with_no_findings(self):
         """get_score() returns 100 when there are no findings."""
         db = self._make_db_with_score([])
-        assert db.get_score() == 100
+        assert db.get_score()["score"] == 100
 
     def test_get_score_deducts_high_severity(self):
         """get_score() deducts 10 per HIGH finding via SQL aggregation."""
         db = self._make_db_with_score([("HIGH", 2)])
-        assert db.get_score() == 80
+        assert db.get_score()["score"] == 80
 
     def test_get_score_deducts_multiple_severities(self):
         """get_score() deducts correct amounts for mixed severities."""
         db = self._make_db_with_score([("HIGH", 1), ("MEDIUM", 2)])
-        assert db.get_score() == 80
+        assert db.get_score()["score"] == 80
 
     def test_get_score_floors_at_zero(self):
         """get_score() floors at 0 — never returns negative."""
         db = self._make_db_with_score([("HIGH", 20)])
-        assert db.get_score() == 0
+        assert db.get_score()["score"] == 0
 
     def test_get_score_returns_integer(self):
-        """get_score() returns an integer."""
+        """get_score() reports an integer score once a completed scan exists."""
         db = self._make_db_with_score([("LOW", 1)])
-        assert isinstance(db.get_score(), int)
+        result = db.get_score()
+        assert result["status"] == "OK"
+        assert isinstance(result["score"], int)
 
     def test_get_score_calls_execute(self):
-        """get_score() calls cursor.execute — SQL actually runs."""
+        """get_score() looks up the latest completed scan, then aggregates its findings."""
         db = self._make_db_with_score([])
         db.get_score()
-        db.conn.cursor().__enter__().execute.assert_called_once()
+        assert db.conn.cursor().__enter__().execute.call_count == 2
