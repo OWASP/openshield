@@ -256,6 +256,7 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------ #
     from api.routes.ai import ai_bp
     from api.routes.assurance import assurance_bp
+    from api.routes.attack_graph import attack_graph_bp
     from api.routes.cbom import cbom_bp
     from api.routes.compliance import compliance_bp
     from api.routes.drift import drift_bp
@@ -267,6 +268,7 @@ def create_app() -> Flask:
 
     app.register_blueprint(ai_bp)
     app.register_blueprint(assurance_bp)
+    app.register_blueprint(attack_graph_bp)
     app.register_blueprint(cbom_bp)
     app.register_blueprint(compliance_bp)
     app.register_blueprint(drift_bp)
