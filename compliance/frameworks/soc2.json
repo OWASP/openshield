@@ -79,6 +79,18 @@
       "review_status": "pending_review",
       "review_date": null
     },
+    "AZ-STOR-010": {
+      "control_id": "CC6.6",
+      "control_name": "Restricts Access from Outside the Network Boundary",
+      "description": "A storage account reachable over the public network has no approved Private Endpoint, so it is reachable from outside the network boundary. CC6.6 requires that access from outside the network boundary is restricted; a Private Endpoint enforces that boundary at the network layer.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.6",
+      "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.6 ('Restricts Access from Outside the Network Boundary') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-STOR-010 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
     "AZ-DB-005": {
       "control_id": "CC6.3",
       "control_name": "Logical access security",

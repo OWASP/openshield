@@ -763,6 +763,26 @@ def test_build_compliance_mapping_snapshot_partial_failure_keeps_successful_fram
     assert len(snapshot["_capture_errors"]) == len(finding_module.FRAMEWORK_FILE_MAP) - 1
 
 
+def _scan_update_call(conn):
+    """Return (sql, params) of save_scan()'s fenced ``UPDATE scans`` statement.
+
+    save_scan() first re-checks the lease with a ``SELECT ... FOR UPDATE``, so
+    the scan write is no longer the first execute() on the cursor.
+    """
+    for call in conn.cursor.return_value.execute.call_args_list:
+        sql, params = call[0]
+        if "UPDATE scans" in sql:
+            return sql, params
+    raise AssertionError("save_scan() never issued UPDATE scans")
+
+
+def _snapshot_param(params):
+    """The mapping snapshot is bound twice (provenance fill, outcomes merge)
+    immediately before the trailing scan_id."""
+    assert params[-3] == params[-2]
+    return params[-3]
+
+
 def test_save_scan_persists_compliance_mapping_snapshot(tmp_path, monkeypatch):
     for key, filename in finding_module.FRAMEWORK_FILE_MAP.items():
         _write_framework(tmp_path, filename, {})
@@ -770,7 +790,7 @@ def test_save_scan_persists_compliance_mapping_snapshot(tmp_path, monkeypatch):
 
     db = _db()
     conn = MagicMock()
-    conn.cursor.return_value = _mock_cursor()
+    conn.cursor.return_value = _mock_cursor(fetchone_return=("scan-1",))
     with patch.object(db, "_get_conn", return_value=conn):
         db.save_scan(
             {
@@ -780,13 +800,14 @@ def test_save_scan_persists_compliance_mapping_snapshot(tmp_path, monkeypatch):
                 "completed_at": "2026-08-22T00:05:00Z",
                 "total_findings": 0,
                 "findings": [],
-            }
+            },
+            lease_owner="worker-1",
+            fencing_token=1,
         )
 
-    executed_sql, params = conn.cursor.return_value.execute.call_args_list[0][0]
+    executed_sql, params = _scan_update_call(conn)
     assert "compliance_mapping_snapshot" in executed_sql
-    snapshot_param = params[-1]
-    snapshot = json.loads(snapshot_param)
+    snapshot = json.loads(_snapshot_param(params))
     assert set(snapshot.keys()) == set(finding_module.FRAMEWORK_FILE_MAP.keys()) | {"_scan_rule_outcomes"}
 
 
@@ -800,7 +821,7 @@ def test_save_scan_records_failed_rule_ids_into_snapshot(tmp_path, monkeypatch):
 
     db = _db()
     conn = MagicMock()
-    conn.cursor.return_value = _mock_cursor()
+    conn.cursor.return_value = _mock_cursor(fetchone_return=("scan-1",))
     with patch.object(db, "_get_conn", return_value=conn):
         db.save_scan(
             {
@@ -812,11 +833,13 @@ def test_save_scan_records_failed_rule_ids_into_snapshot(tmp_path, monkeypatch):
                 "findings": [],
                 # Duplicates and unsorted input must not leak through verbatim.
                 "failed_rule_ids": ["AZ-TEST-002", "AZ-TEST-001", "AZ-TEST-002"],
-            }
+            },
+            lease_owner="worker-1",
+            fencing_token=1,
         )
 
-    executed_sql, params = conn.cursor.return_value.execute.call_args_list[0][0]
-    snapshot = json.loads(params[-1])
+    _, params = _scan_update_call(conn)
+    snapshot = json.loads(_snapshot_param(params))
     assert snapshot["_scan_rule_outcomes"] == {"failed_rule_ids": ["AZ-TEST-001", "AZ-TEST-002"]}
 
 
@@ -832,7 +855,7 @@ def test_save_scan_writes_empty_scan_rule_outcomes_when_nothing_failed(tmp_path,
 
     db = _db()
     conn = MagicMock()
-    conn.cursor.return_value = _mock_cursor()
+    conn.cursor.return_value = _mock_cursor(fetchone_return=("scan-1",))
     with patch.object(db, "_get_conn", return_value=conn):
         db.save_scan(
             {
@@ -843,11 +866,13 @@ def test_save_scan_writes_empty_scan_rule_outcomes_when_nothing_failed(tmp_path,
                 "total_findings": 0,
                 "findings": [],
                 "failed_rule_ids": [],
-            }
+            },
+            lease_owner="worker-1",
+            fencing_token=1,
         )
 
-    executed_sql, params = conn.cursor.return_value.execute.call_args_list[0][0]
-    snapshot = json.loads(params[-1])
+    _, params = _scan_update_call(conn)
+    snapshot = json.loads(_snapshot_param(params))
     assert snapshot["_scan_rule_outcomes"] == {"failed_rule_ids": []}
 
 
@@ -862,7 +887,7 @@ def test_save_scan_upsert_refreshes_scan_rule_outcomes_on_every_write(tmp_path, 
 
     db = _db()
     conn = MagicMock()
-    conn.cursor.return_value = _mock_cursor()
+    conn.cursor.return_value = _mock_cursor(fetchone_return=("scan-1",))
     with patch.object(db, "_get_conn", return_value=conn):
         db.save_scan(
             {
@@ -873,22 +898,24 @@ def test_save_scan_upsert_refreshes_scan_rule_outcomes_on_every_write(tmp_path, 
                 "total_findings": 0,
                 "findings": [],
                 "failed_rule_ids": [],
-            }
+            },
+            lease_owner="worker-1",
+            fencing_token=1,
         )
 
-    executed_sql = conn.cursor.return_value.execute.call_args_list[0][0][0]
+    executed_sql, _ = _scan_update_call(conn)
     # The base snapshot (framework provenance) is still COALESCE-protected...
     assert "COALESCE(" in executed_sql
-    assert "scans.compliance_mapping_snapshot, EXCLUDED.compliance_mapping_snapshot" in executed_sql
-    # ...but _scan_rule_outcomes is re-merged in from EXCLUDED on every write,
-    # not frozen inside that same COALESCE.
+    assert "compliance_mapping_snapshot, %s::jsonb" in executed_sql
+    # ...but _scan_rule_outcomes is re-merged in from this write on every
+    # save, not frozen inside that same COALESCE.
     assert "jsonb_build_object" in executed_sql
     assert "'_scan_rule_outcomes'," in executed_sql
-    assert "EXCLUDED.compliance_mapping_snapshot -> '_scan_rule_outcomes'" in executed_sql
+    assert "%s::jsonb -> '_scan_rule_outcomes'" in executed_sql
     # ...and that re-merge can never write a JSON null over stored outcomes:
     # a snapshot arriving without the key falls back to the stored value, then
     # to an explicit empty list.
-    assert "scans.compliance_mapping_snapshot -> '_scan_rule_outcomes'" in executed_sql
+    assert "compliance_mapping_snapshot -> '_scan_rule_outcomes'" in executed_sql
     assert """'{"failed_rule_ids": []}'::jsonb""" in executed_sql
 
 

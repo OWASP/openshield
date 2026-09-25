@@ -79,6 +79,18 @@
       "review_status": "pending_review",
       "review_date": null
     },
+    "AZ-STOR-010": {
+      "control_id": "PR.AC-5",
+      "control_name": "Network integrity is protected",
+      "description": "A storage account reachable over the public network has no approved Private Endpoint, so its data-plane endpoints stay internet-reachable. PR.AC-5 requires that network integrity is protected; a Private Endpoint keeps storage traffic on private IPs inside the VNet.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-5",
+      "rationale": "NIST CSF 1.1 subcategory PR.AC-5 ('Network integrity is protected') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-STOR-010 evaluates one Azure technical control that provides supporting automated evidence toward this outcome; it does not by itself fully satisfy the subcategory.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
     "AZ-DB-005": {
       "control_id": "PR.AC-6",
       "control_name": "Identity proofing and authentication",

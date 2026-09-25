@@ -60,10 +60,11 @@ def test_trigger_rejects_malformed_subscription_id(client, auth_headers):
 
 def test_trigger_accepts_canonical_subscription_uuid(client, auth_headers):
     db = MagicMock()
+    db.admit_scan.return_value = ({"scan_id": _SCAN_ID, "status": "pending"}, True)
     with patch.object(scans_route, "_get_db", return_value=db):
         response = client.post("/api/scans/trigger", json={"subscription_id": _SUBSCRIPTION_ID}, headers=auth_headers)
     assert response.status_code == 202
-    assert db.create_pending_scan.call_args.args[1] == _SUBSCRIPTION_ID
+    assert db.admit_scan.call_args.args[1] == _SUBSCRIPTION_ID
 
 
 @pytest.mark.parametrize(

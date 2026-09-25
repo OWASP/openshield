@@ -79,6 +79,18 @@
       "review_status": "pending_review",
       "review_date": null
     },
+    "AZ-STOR-010": {
+      "control_id": "N/A-STOR-010",
+      "control_name": "Storage Account Missing Private Endpoint",
+      "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "not_applicable",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-STOR-010",
+      "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-STOR-010: Storage Account Missing Private Endpoint is a service-specific Azure hardening check with no corresponding numbered CIS Azure Foundations 2.0.0 recommendation) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
     "AZ-DB-005": {
       "control_id": "N/A-DB-005",
       "control_name": "SQL Server Microsoft Entra-Only Authentication Not Enforced",
