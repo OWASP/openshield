@@ -158,18 +158,23 @@ def _refresh_pool_metrics() -> None:
 # --------------------------------------------------------------------------- #
 # Structured logging                                                           #
 # --------------------------------------------------------------------------- #
+_HANDLER_MARKER = "_openshield_json_handler"
+
+
 def configure_logging(level: int = logging.INFO) -> None:
     """Configure the root logger to emit structured JSON to stderr.
 
-    Safe to call multiple times — it replaces the root handlers each call so
-    repeated invocations (API import, worker start, tests) do not stack
-    duplicate handlers. Any ``extra={...}`` fields passed to log calls are
-    included as top-level JSON keys.
+    Safe to call multiple times — repeated invocations replace only the
+    handler installed by a previous call, preserving any handlers added by
+    the test framework (e.g. pytest's LogCaptureHandler). Any ``extra={...}``
+    fields passed to log calls are included as top-level JSON keys.
     """
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+    setattr(handler, _HANDLER_MARKER, True)
     root = logging.getLogger()
-    root.handlers = [handler]
+    root.handlers = [h for h in root.handlers if not getattr(h, _HANDLER_MARKER, False)]
+    root.handlers.append(handler)
     root.setLevel(level)
 
 
