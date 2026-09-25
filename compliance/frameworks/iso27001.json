@@ -33,6 +33,11 @@
       "control_name": "Required Blob Container Immutability Missing",
       "description": "OpenShield checks this service-specific control without claiming an unrelated ISO 27001 recommendation."
     },
+    "AZ-STOR-010": {
+      "control_id": "A.13.1.3",
+      "control_name": "Segregation in networks",
+      "description": "A storage account reachable over the public network has no approved Private Endpoint, leaving its blob/file/queue/table endpoints on the public internet. A.13.1.3 requires segregation of networks; a Private Endpoint isolates storage traffic within the private VNet."
+    },
     "AZ-DB-005": {"control_id": "A.9.4.2", "control_name": "Secure log-on procedures", "description": "SQL authentication is restricted to approved Entra identities."},
     "AZ-DB-006": {"control_id": "A.12.6.1", "control_name": "Management of technical vulnerabilities", "description": "Required SQL vulnerability assessment is configured."},
     "AZ-DB-007": {"control_id": "A.12.4.1", "control_name": "Event logging", "description": "SQL audit logs are retained according to policy."},

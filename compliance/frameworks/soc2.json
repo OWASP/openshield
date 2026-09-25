@@ -33,6 +33,11 @@
       "control_name": "Required Blob Container Immutability Missing",
       "description": "OpenShield checks this service-specific control without claiming an unrelated SOC 2 recommendation."
     },
+    "AZ-STOR-010": {
+      "control_id": "CC6.6",
+      "control_name": "Restricts Access from Outside the Network Boundary",
+      "description": "A storage account reachable over the public network has no approved Private Endpoint, so it is reachable from outside the network boundary. CC6.6 requires that access from outside the network boundary is restricted; a Private Endpoint enforces that boundary at the network layer."
+    },
     "AZ-DB-005": {"control_id": "CC6.3", "control_name": "Logical access security", "description": "SQL authentication is restricted to approved Entra identities."},
     "AZ-DB-006": {"control_id": "CC7.1", "control_name": "Detection of security events", "description": "Required SQL vulnerability assessment is configured."},
     "AZ-DB-007": {"control_id": "CC7.2", "control_name": "System monitoring", "description": "SQL audit logs are retained according to policy."},
