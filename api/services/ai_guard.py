@@ -43,9 +43,8 @@ _OUTPUT_LABEL_MAX = 300
 # C0/C1 control characters, plus the Unicode bidi overrides and zero-width
 # characters that can hide text from a human reviewer while the model still
 # reads it.
-_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f​-‏‪-‮⁠-⁤⁦-⁩﻿]")
+_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]")
 _WHITESPACE = re.compile(r"\s+")
-_CODE_FENCE = re.compile(r"^```[a-zA-Z0-9_-]*\s*\n?(.*?)\n?```\s*$", re.DOTALL)
 
 THREAT_STAGES = frozenset(
     {
@@ -81,7 +80,7 @@ def clean_text(value: Any, maximum: int) -> str:
     text = _CONTROL_CHARS.sub(" ", str(value))
     text = _WHITESPACE.sub(" ", text).strip()
     if len(text) > maximum:
-        text = text[: maximum - 1].rstrip() + "…"
+        text = text[: maximum - 1].rstrip() + "\u2026"
     return text
 
 
@@ -140,14 +139,29 @@ def untrusted_data_rules(boundary: str) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def _strip_code_fence(text: str) -> str:
+    """Remove one surrounding Markdown code fence, if present.
+
+    Done with plain string operations rather than a regex: the input is model
+    output steered by untrusted data, and a backtracking pattern over it is a
+    ReDoS risk.
+    """
+    if not text.startswith("```"):
+        return text
+    first_newline = text.find("\n")
+    if first_newline == -1:
+        return text
+    body = text[first_newline + 1 :].rstrip()
+    if body.endswith("```"):
+        body = body[:-3]
+    return body.strip()
+
+
 def parse_json_response(raw: Any) -> Any:
     """Parse a completion that should be JSON, tolerating a Markdown code fence."""
     if not isinstance(raw, str):
         raise AIResponseInvalid("model response is not text")
-    text = raw.strip()
-    fenced = _CODE_FENCE.match(text)
-    if fenced:
-        text = fenced.group(1).strip()
+    text = _strip_code_fence(raw.strip())
     try:
         return json.loads(text)
     except json.JSONDecodeError as exc:
