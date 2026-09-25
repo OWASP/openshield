@@ -4,7 +4,31 @@ import { url } from '../lib/base';
 import { repoData } from '../lib/repoData';
 
 const GITHUB = 'https://github.com/OWASP/openshield';
-const { contributors, docs, release } = repoData;
+const { contributors, docs, release, rules, ruleCount, playbookCount } = repoData;
+
+// Every count below is derived from scanner/rules/ and playbooks/cli/ at build
+// time, so the page cannot drift as rules land and nothing has to commit
+// regenerated numbers back to dev.
+const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
+const severityCounts = Object.fromEntries(
+  SEVERITIES.map((severity) => [severity, rules.filter((rule) => rule.severity === severity).length]),
+) as Record<(typeof SEVERITIES)[number], number>;
+const categoryCounts = new Map<string, number>();
+for (const rule of rules) categoryCounts.set(rule.category, (categoryCounts.get(rule.category) ?? 0) + 1);
+// Descending count, alphabetical tiebreak; bars are scaled to the largest category.
+const categories = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+const maxCategoryCount = categories.length ? categories[0][1] : 1;
+
+// Keep the display honest: every counted rule must appear exactly once in the
+// severity boxes and in the category chart, or the build fails loudly.
+const severityTotal = SEVERITIES.reduce((sum, severity) => sum + severityCounts[severity], 0);
+const categoryTotal = categories.reduce((sum, [, count]) => sum + count, 0);
+if (severityTotal !== ruleCount || categoryTotal !== ruleCount) {
+  throw new Error(
+    `Learn statistics do not reconcile with the rule total (rules: ${ruleCount}, ` +
+      `CRITICAL/HIGH/MEDIUM/LOW: ${severityTotal}, categories: ${categoryTotal}).`,
+  );
+}
 const learningDocs = docs.filter((doc) => [
   'architecture.md',
   'azure-setup.md',
@@ -33,7 +57,7 @@ const learningDocs = docs.filter((doc) => [
       </div>
       <aside class="terminal" aria-label="OpenShield scan pipeline summary">
         <p><span class="prompt">openshield</span> scan --subscription Azure</p>
-        <p><span class="dim">loading rules:</span> <span class="cyan">144 dynamic checks</span></p>
+        <p><span class="dim">loading rules:</span> <span class="cyan">{ruleCount} dynamic checks</span></p>
         <p><span class="dim">evidence:</span> Azure APIs and rule evaluations</p>
         <p><span class="dim">outputs:</span> findings, score, compliance, remediation</p>
         <p><span class="dim">release:</span> {release.tag}</p>
@@ -42,11 +66,11 @@ const learningDocs = docs.filter((doc) => [
   </div>
 
   <section class="metrics wrap" aria-label="OpenShield project metrics">
-    <div class="metric"><strong>144</strong><span>Azure scan rules</span></div>
-    <div class="metric"><strong>144</strong><span>CLI remediation playbooks</span></div>
+    <div class="metric"><strong>{ruleCount}</strong><span>Azure scan rules</span></div>
+    <div class="metric"><strong>{playbookCount}</strong><span>CLI remediation playbooks</span></div>
     <div class="metric"><strong>4</strong><span>Compliance frameworks</span></div>
     <div class="metric"><strong>8</strong><span>AI security skills</span></div>
-    <div class="metric"><strong>95</strong><span>High-severity checks</span></div>
+    <div class="metric"><strong>{severityCounts.HIGH}</strong><span>High-severity checks</span></div>
   </section>
 
   <div class="wrap learn-content">
@@ -68,7 +92,7 @@ const learningDocs = docs.filter((doc) => [
       <div class="pipeline" aria-label="OpenShield platform pipeline">
         <div class="pipeline-step"><strong>Azure subscription</strong><span>Resource configuration</span></div>
         <div class="pipeline-step"><strong>Scanner engine</strong><span>Python rule execution</span></div>
-        <div class="pipeline-step"><strong>Rule Evaluation</strong><span>144 dynamic checks</span></div>
+        <div class="pipeline-step"><strong>Rule Evaluation</strong><span>{ruleCount} dynamic checks</span></div>
         <div class="pipeline-step"><strong>Flask API</strong><span>Findings and posture data</span></div>
         <div class="pipeline-step"><strong>React dashboard</strong><span>Human review and action</span></div>
       </div>
@@ -76,35 +100,25 @@ const learningDocs = docs.filter((doc) => [
 
     <section class="learn-section" id="rules" data-search="rules coverage category critical high medium low severity">
       <p class="kicker">Rule coverage</p>
-      <h2 class="section-title">144 Azure security rules</h2>
-      <p class="section-intro">OpenShield currently has 144 dynamic rules. The strongest contributor work improves rule accuracy, reduces false positives, strengthens validation, or improves remediation quality.</p>
+      <h2 class="section-title">{ruleCount} Azure security rules</h2>
+      <p class="section-intro">OpenShield currently has {ruleCount} dynamic rules. The strongest contributor work improves rule accuracy, reduces false positives, strengthens validation, or improves remediation quality.</p>
       <div class="rule-layout">
         <article class="chart-card">
           <h3>Coverage by category</h3>
           <div class="rule-chart" aria-label="Rule count by category">
-            <div class="bar-row"><span>Network</span><div class="bar"><span style="width: 100%;"></span></div><span>35</span></div>
-            <div class="bar-row"><span>Identity</span><div class="bar"><span style="width: 71%;"></span></div><span>25</span></div>
-            <div class="bar-row"><span>Kubernetes</span><div class="bar"><span style="width: 60%;"></span></div><span>21</span></div>
-            <div class="bar-row"><span>Security Operations</span><div class="bar"><span style="width: 29%;"></span></div><span>10</span></div>
-            <div class="bar-row"><span>Storage</span><div class="bar"><span style="width: 29%;"></span></div><span>10</span></div>
-            <div class="bar-row"><span>Database</span><div class="bar"><span style="width: 23%;"></span></div><span>8</span></div>
-            <div class="bar-row"><span>Supply Chain</span><div class="bar"><span style="width: 23%;"></span></div><span>8</span></div>
-            <div class="bar-row"><span>Compute</span><div class="bar"><span style="width: 20%;"></span></div><span>7</span></div>
-            <div class="bar-row"><span>KeyVault</span><div class="bar"><span style="width: 17%;"></span></div><span>6</span></div>
-            <div class="bar-row"><span>Serverless</span><div class="bar"><span style="width: 14%;"></span></div><span>5</span></div>
-            <div class="bar-row"><span>Backup</span><div class="bar"><span style="width: 11%;"></span></div><span>4</span></div>
-            <div class="bar-row"><span>PostQuantum</span><div class="bar"><span style="width: 9%;"></span></div><span>3</span></div>
-            <div class="bar-row"><span>Data Link</span><div class="bar"><span style="width: 6%;"></span></div><span>2</span></div>
+            {categories.map(([name, count]) => (
+              <div class="bar-row"><span>{name}</span><div class="bar"><span style={`width: ${Math.round((count / maxCategoryCount) * 100)}%;`}></span></div><span>{count}</span></div>
+            ))}
           </div>
         </article>
         <article class="chart-card">
           <h3>Severity distribution</h3>
           <p>Severity counts are generated from rule metadata and must reconcile with the headline rule total.</p>
           <div class="severity" aria-label="Severity count summary">
-            <div class="severity-box critical"><strong>5</strong><span>CRITICAL</span></div>
-            <div class="severity-box high"><strong>95</strong><span>HIGH</span></div>
-            <div class="severity-box medium"><strong>40</strong><span>MEDIUM</span></div>
-            <div class="severity-box low"><strong>4</strong><span>LOW</span></div>
+            <div class="severity-box critical"><strong>{severityCounts.CRITICAL}</strong><span>CRITICAL</span></div>
+            <div class="severity-box high"><strong>{severityCounts.HIGH}</strong><span>HIGH</span></div>
+            <div class="severity-box medium"><strong>{severityCounts.MEDIUM}</strong><span>MEDIUM</span></div>
+            <div class="severity-box low"><strong>{severityCounts.LOW}</strong><span>LOW</span></div>
           </div>
         </article>
       </div>

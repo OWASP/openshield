@@ -31,6 +31,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Learn page statistics are computed at site build time, and the post-merge stats workflow no longer pushes to the protected `dev` branch (it failed on every merge); README count drift is now reported as a warning
 - High-severity CodeQL findings in Python and JavaScript code
 - Security findings identified during Semgrep analysis
 - Sensitive identity metadata removed from scanner debug logging
