@@ -38,6 +38,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- AI endpoints read findings from a completed scan instead of the request body, fence untrusted finding text against prompt injection, and validate JSON output against the scan evidence instead of returning raw model text (#357)
 - Dashboard no longer embeds a build-time bearer token or a `dev-local-token` fallback, keeps tokens in memory only, and purges legacy `localStorage` tokens; CI fails if a JWT-shaped value reaches the public bundle (#294)
 - Upgraded cryptography to 50.0.0 to address CVE-2026-69247
 - AI provider errors no longer expose upstream response details
