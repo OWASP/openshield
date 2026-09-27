@@ -199,6 +199,23 @@ def render(
     severity_medium = r'(<div class="severity-box medium"><strong>)\d+(</strong><span>MEDIUM</span></div>)'
     severity_low = r'(<div class="severity-box low"><strong>)\d+(</strong><span>LOW</span></div>)'
 
+    if not re.search(severity_critical, content):
+        severity_start = (
+            r'(<div class="severity" aria-label="Severity count summary">\n)'
+            r'(\s*<div class="severity-box high">)'
+        )
+        critical_box = (
+            f'            <div class="severity-box critical"><strong>{critical_count}</strong>'
+            "<span>CRITICAL</span></div>\n"
+        )
+        content, count = re.subn(
+            severity_start,
+            lambda match: match.group(1) + critical_box + match.group(2),
+            content,
+        )
+        if count == 0:
+            return content, ["severity box: CRITICAL"]
+
     replacements: Tuple[Tuple[str, str, int], ...] = (
         ("headline metric: Azure scan rules", _metric("Azure scan rules"), rule_count),
         ("headline metric: CLI remediation playbooks", _metric("CLI remediation playbooks"), playbook_count),
@@ -371,10 +388,10 @@ def main() -> int:
         print("Learn page and README statistics already current; nothing to do.")
         return 0
 
-    sev = severities
     print(
         f"Updated {', '.join(changed)} - rules: {rule_count}, playbooks: {playbook_count}, "
-        f"severity CRITICAL: {sev['CRITICAL']}, HIGH: {sev['HIGH']}, MEDIUM: {sev['MEDIUM']}, LOW: {sev['LOW']}"
+        f"severity CRITICAL: {severities['CRITICAL']}, HIGH: {severities['HIGH']}, "
+        f"MEDIUM: {severities['MEDIUM']}, LOW: {severities['LOW']}"
     )
     return 0
 
