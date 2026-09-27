@@ -1,6 +1,6 @@
 """Tests for post-scan graph population wiring in ScanEngine and worker."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import pytest
 
 from scanner.engine import ScanEngine
