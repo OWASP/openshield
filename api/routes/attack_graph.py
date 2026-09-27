@@ -3,10 +3,10 @@
 import logging
 import os
 
-import psycopg2
 import psycopg2.extras
 from flask import Blueprint, g, jsonify, request
 
+from api.models.finding import DatabaseManager
 from api.validation import ValidationError, positive_integer, uuid_string
 
 attack_graph_bp = Blueprint("attack_graph", __name__)
@@ -16,12 +16,11 @@ _DEFAULT_LIMIT = 100
 _MAX_LIMIT = 500
 
 
-def _conn():
-    if "graph_conn" not in g:
-        g.graph_conn = psycopg2.connect(os.environ["DATABASE_URL"])
-        g.graph_conn.autocommit = True
-        psycopg2.extras.register_uuid(g.graph_conn)
-    return g.graph_conn
+def _get_db() -> DatabaseManager:
+    if "db" not in g:
+        g.db = DatabaseManager(os.environ["DATABASE_URL"])
+        g.db.connect()
+    return g.db
 
 
 def _tenant_id() -> str | None:
@@ -44,10 +43,10 @@ def _tenant_id() -> str | None:
 
 
 @attack_graph_bp.teardown_app_request
-def _close_conn(exc):
-    conn = g.pop("graph_conn", None)
-    if conn is not None:
-        conn.close()
+def _close_db(exc):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
 
 
 @attack_graph_bp.get("/api/attack-graph")
@@ -68,7 +67,7 @@ def get_attack_graph():
     if not tenant_id:
         return jsonify({"error": "tenant_id not available"}), 400
 
-    conn = _conn()
+    conn = _get_db().conn
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         if subscription_id:
             cur.execute(
@@ -138,7 +137,7 @@ def list_attack_paths():
     if not tenant_id:
         return jsonify({"error": "tenant_id not available"}), 400
 
-    conn = _conn()
+    conn = _get_db().conn
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
             """
@@ -174,7 +173,7 @@ def get_attack_path(path_id: str):
     if not tenant_id:
         return jsonify({"error": "tenant_id not available"}), 400
 
-    conn = _conn()
+    conn = _get_db().conn
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
             """
