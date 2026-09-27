@@ -9,6 +9,8 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Branch protection declared as versioned GitHub rulesets for `dev` and `main`, with a scheduled drift audit that retains evidence (#298)
+- CI and CodeQL post-merge runs on `dev` and `main` (#298)
 - Ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate
 - Fifteen enterprise AKS and Kubernetes workload rules covering API restrictions, network policy, Defender, secrets, workload isolation, RBAC, and image trust
 - OIDC bearer-token verification (`OPENSHIELD_AUTH_MODE=oidc`) with JWKS signature, issuer, audience, tenant and IdP app-role enforcement (#294)
@@ -35,6 +37,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- AI endpoints read findings from a completed scan instead of the request body, fence untrusted finding text against prompt injection, and validate JSON output against the scan evidence instead of returning raw model text (#357)
 - Dashboard no longer embeds a build-time bearer token or a `dev-local-token` fallback, keeps tokens in memory only, and purges legacy `localStorage` tokens; CI fails if a JWT-shaped value reaches the public bundle (#294)
 - Upgraded cryptography to 50.0.0 to address CVE-2026-69247
 - AI provider errors no longer expose upstream response details
