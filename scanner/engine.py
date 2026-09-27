@@ -3,7 +3,6 @@
 import importlib.util
 import inspect
 import logging
-import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,7 +12,6 @@ from api.observability import RULE_ERRORS_TOTAL
 from openshield.severity import CONTRACT_VERSION, SeverityContractError, normalize_severity, score_findings
 from scanner.azure_client import AzureClient
 from scanner.evaluation import EvaluationStatus, RuleEvaluation, subscription_scope_id
-from scanner.graph.graph_populator import populate_graph
 from scanner.graph.snapshot_bridge import collect_snapshot
 
 logger = logging.getLogger(__name__)
@@ -63,6 +61,7 @@ class ScanEngine:
         self.subscription_id = subscription_id
         self.client = AzureClient(subscription_id)
         self.rules: List[Any] = []
+        self.snapshot: Optional[Any] = None
         self.load_rules()
 
     # ------------------------------------------------------------------ #
@@ -119,6 +118,7 @@ class ScanEngine:
         # Collect an ARG inventory snapshot for graph population and rule enrichment.
         # Failure is non-fatal: rules fall back to direct SDK calls.
         snapshot = collect_snapshot(self.client, self.subscription_id)
+        self.snapshot = snapshot
 
         logger.info(
             "Scan %s starting against subscription %s — %d rules loaded",
@@ -211,14 +211,6 @@ class ScanEngine:
         }
 
         logger.info("Scan %s complete — %d total finding(s). Normalising results...", scan_id, len(findings))
-
-        # Populate the attack graph as a non-fatal post-scan step.
-        dsn = os.environ.get("DATABASE_URL")
-        if snapshot and dsn:
-            try:
-                populate_graph(scan_id, snapshot, dsn)
-            except Exception as exc:
-                logger.warning("run_scan: graph population raised unexpectedly: %s", exc)
 
         return make_serializable(result)
 
