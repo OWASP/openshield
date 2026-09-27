@@ -555,6 +555,50 @@ Not found response:
 
 ---
 
+## AI endpoints
+
+`POST /api/ai/summary`, `/api/ai/insights`, `/api/ai/prioritise`, `/api/ai/ask` and `/api/ai/threat-simulation` send scan findings to the caller's chosen LLM provider. Every request carries `provider` (`anthropic`, `groq` or `gemini`) and `api_key`; `model` is optional, and `/ask` and `/insights` also accept `question`.
+
+### Evidence
+
+Findings are read on the server, never trusted from the browser:
+
+- `scan_id` (optional, UUID) selects a completed scan. An unknown or not-yet-completed scan returns `404`.
+- Without `scan_id`, the latest completed scan is used, the same data `GET /api/findings` returns by default.
+- `findings` (a client-supplied array) is **deprecated** and kept only for compatibility. It cannot be combined with `scan_id` (`400`).
+
+Every response includes an `evidence` object saying what the answer was built from:
+
+```json
+{
+  "evidence": {
+    "source": "scan",
+    "scan_id": "11111111-2222-4333-8444-555555555555",
+    "verified": true,
+    "finding_count": 37,
+    "findings_in_prompt": 37
+  }
+}
+```
+
+`source` is `scan`, `client_supplied` (`verified: false`) or `none` (no completed scan, only possible on endpoints where findings are optional). At most the 200 most severe findings go into one prompt; `finding_count` is the scan total.
+
+`/insights` and `/threat-simulation` need findings: no completed scan returns `404`, a scan with no findings returns `422`, and an evidence lookup failure returns `503`.
+
+### Prompt safety
+
+Finding fields such as `resource_name` and `description` can contain text written by whoever controls the scanned resource. Before anything reaches the model, each field is stripped of control, bidi and zero-width characters, collapsed to one line, length-capped, JSON-encoded, and placed in a data block whose delimiters carry a per-request random boundary. The instructions tell the model to treat those blocks as evidence only (OWASP Top 10 for LLM Applications, LLM01).
+
+### Validated output
+
+`/prioritise` and `/threat-simulation` ask the model for JSON and validate what comes back (LLM05):
+
+- Items citing a `rule_id`, or a rule/resource pair, that is not in the evidence are dropped and counted in `discarded_items`.
+- `/prioritise` items need a positive integer `priority` and a contract severity. `/threat-simulation` stages must use the documented stage names and cite at least one rule from the evidence.
+- Output that is not valid JSON, or has the wrong shape, returns `502 {"error": "AI response failed validation"}`. Raw model text is never passed through.
+
+---
+
 ## Deferred endpoints
 
 The following endpoints are called by the frontend but have no backend implementation yet. The frontend falls back to static mock data when these return 404.

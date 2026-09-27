@@ -1,0 +1,54 @@
+name: Branch Protection Audit
+
+# Proves that dev and main enforce the rulesets declared in
+# .github/branch-protection/ instead of trusting documentation (issue #298).
+# Pull requests only validate the declared files; the live comparison runs on
+# a schedule and on demand, and a drift result fails the run.
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - ".github/branch-protection/**"
+      - "scripts/check_branch_protection.py"
+      - ".github/workflows/branch-protection-audit.yml"
+  schedule:
+    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Branch protection audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.11"
+
+      - name: Validate declared rulesets
+        run: python scripts/check_branch_protection.py --validate-only
+
+      - name: Compare effective rules with declared rulesets
+        if: github.event_name != 'pull_request'
+        env:
+          # A read-only token can read effective branch rules. Bypass actors are
+          # only visible to a token that can administer rulesets; without
+          # BRANCH_PROTECTION_AUDIT_TOKEN they are reported as unverified.
+          GITHUB_TOKEN: ${{ secrets.BRANCH_PROTECTION_AUDIT_TOKEN || github.token }}
+        run: python scripts/check_branch_protection.py --repo "$GITHUB_REPOSITORY" --evidence branch-protection-evidence.json
+
+      - name: Retain evidence
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: branch-protection-evidence
+          path: branch-protection-evidence.json
+          if-no-files-found: warn
+          retention-days: 90
