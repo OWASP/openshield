@@ -34,7 +34,9 @@ SELECT
     '{}'::jsonb
 FROM graph_nodes src, graph_nodes tgt
 WHERE lower(src.resource_id) = lower(%(source_resource_id)s)
+  AND src.tenant_id = %(tenant_id)s
   AND lower(tgt.resource_id) = lower(%(target_resource_id)s)
+  AND tgt.tenant_id = %(tenant_id)s
 ON CONFLICT (source_node_id, target_node_id, relationship_type) DO UPDATE SET
     confidence = EXCLUDED.confidence,
     evidence_source = EXCLUDED.evidence_source,
@@ -43,7 +45,7 @@ ON CONFLICT (source_node_id, target_node_id, relationship_type) DO UPDATE SET
 """
 
 
-def _write_edges(edges: list, snapshot_id: str, dsn: str) -> int:
+def _write_edges(edges: list, snapshot_id: str, tenant_id: str, dsn: str) -> int:
     if not edges:
         return 0
     written = 0
@@ -59,6 +61,7 @@ def _write_edges(edges: list, snapshot_id: str, dsn: str) -> int:
                         "relationship_type": edge.relationship_type,
                         "evidence_source": edge.evidence_source,
                         "evidence_snapshot_id": snapshot_id,
+                        "tenant_id": tenant_id,
                         "confidence": edge.confidence,
                     },
                 )
@@ -77,7 +80,7 @@ def populate_graph(scan_id: str, snapshot: InventorySnapshot, dsn: str) -> None:
 
     try:
         edges = detect_all_edges(snapshot)
-        edge_count = _write_edges(edges, snapshot.snapshot_id, dsn)
+        edge_count = _write_edges(edges, snapshot.snapshot_id, snapshot.tenant_id, dsn)
         logger.info("graph: wrote %d edges for scan %s", edge_count, scan_id)
     except Exception as exc:
         logger.warning("graph: edge population failed for scan %s: %s", scan_id, exc)

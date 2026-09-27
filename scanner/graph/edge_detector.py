@@ -68,20 +68,31 @@ class SubnetToResourceDetector(EdgeDetector):
         edges = []
         resource_ids = {r.resource_id.lower() for r in snapshot.resources}
         for resource in snapshot.resources:
-            subnet_id = (resource.properties.get("subnet") or {}).get("id")
-            if not subnet_id:
-                continue
-            if subnet_id.lower() not in resource_ids:
-                continue
-            edges.append(
-                GraphEdge(
-                    source_resource_id=resource.resource_id,
-                    target_resource_id=subnet_id,
-                    relationship_type="MEMBER_OF",
-                    evidence_source="arg:properties.subnet.id",
-                    confidence=0.8,
+            subnet_ids: list[str] = []
+
+            # Direct subnet property (VMs attached directly)
+            direct = (resource.properties.get("subnet") or {}).get("id")
+            if direct:
+                subnet_ids.append(direct)
+
+            # NIC ipConfigurations pattern (most common path for NICs)
+            for ip_cfg in resource.properties.get("ipConfigurations", []):
+                sid = (ip_cfg.get("properties", {}).get("subnet") or {}).get("id")
+                if sid:
+                    subnet_ids.append(sid)
+
+            for subnet_id in subnet_ids:
+                if not subnet_id or subnet_id.lower() not in resource_ids:
+                    continue
+                edges.append(
+                    GraphEdge(
+                        source_resource_id=resource.resource_id,
+                        target_resource_id=subnet_id,
+                        relationship_type="MEMBER_OF",
+                        evidence_source="arg:properties.subnet.id",
+                        confidence=0.8,
+                    )
                 )
-            )
         return edges
 
 
