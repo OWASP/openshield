@@ -9,7 +9,9 @@ const { contributors, docs, release, rules, ruleCount, playbookCount } = repoDat
 // Every count below is derived from scanner/rules/ and playbooks/cli/ at build
 // time, so the page cannot drift as rules land and nothing has to commit
 // regenerated numbers back to dev.
-const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
+// Every level in contracts/severity.v1.json, INFO included: CI accepts INFO rules,
+// so leaving it out here would fail the whole site build on the first one.
+const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'] as const;
 const severityCounts = Object.fromEntries(
   SEVERITIES.map((severity) => [severity, rules.filter((rule) => rule.severity === severity).length]),
 ) as Record<(typeof SEVERITIES)[number], number>;
@@ -26,7 +28,7 @@ const categoryTotal = categories.reduce((sum, [, count]) => sum + count, 0);
 if (severityTotal !== ruleCount || categoryTotal !== ruleCount) {
   throw new Error(
     `Learn statistics do not reconcile with the rule total (rules: ${ruleCount}, ` +
-      `CRITICAL/HIGH/MEDIUM/LOW: ${severityTotal}, categories: ${categoryTotal}).`,
+      `CRITICAL/HIGH/MEDIUM/LOW/INFO: ${severityTotal}, categories: ${categoryTotal}).`,
   );
 }
 const learningDocs = docs.filter((doc) => [
@@ -119,6 +121,7 @@ const learningDocs = docs.filter((doc) => [
             <div class="severity-box high"><strong>{severityCounts.HIGH}</strong><span>HIGH</span></div>
             <div class="severity-box medium"><strong>{severityCounts.MEDIUM}</strong><span>MEDIUM</span></div>
             <div class="severity-box low"><strong>{severityCounts.LOW}</strong><span>LOW</span></div>
+            <div class="severity-box info"><strong>{severityCounts.INFO}</strong><span>INFO</span></div>
           </div>
         </article>
       </div>
@@ -175,7 +178,7 @@ const learningDocs = docs.filter((doc) => [
   .card-grid h3, .chart-card h3 { margin-bottom: 8px; } .card-grid p, .chart-card p { color: var(--muted); line-height: 1.6; }
   .pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; } .pipeline-step { min-height: 110px; padding: 16px; border: 1px solid var(--line); background: #f3f7fc; } .pipeline-step strong, .pipeline-step span { display: block; } .pipeline-step span { color: var(--muted); font-size: 13px; margin-top: 8px; }
   .rule-layout { align-items: stretch; } .rule-chart { display: grid; gap: 9px; margin-top: 18px; } .bar-row { display: grid; grid-template-columns: 120px 1fr 28px; gap: 9px; align-items: center; font-size: 13px; } .bar { height: 8px; background: #e7edf5; } .bar span { display: block; height: 100%; background: var(--accent); }
-  .severity { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px; } .severity-box { padding: 15px 8px; text-align: center; border: 1px solid var(--line); } .severity-box strong, .severity-box span { display: block; } .severity-box strong { font-size: 24px; } .severity-box span { font: 11px var(--mono); margin-top: 4px; } .critical { background: #fff0ee; color: #9e1c18; } .high { background: #fff5e9; color: #a04a10; } .medium { background: #fff9df; color: #795d05; } .low { background: #edf5ff; color: #245e94; }
+  .severity { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 18px; } .severity-box { padding: 15px 8px; text-align: center; border: 1px solid var(--line); } .severity-box strong, .severity-box span { display: block; } .severity-box strong { font-size: 24px; } .severity-box span { font: 11px var(--mono); margin-top: 4px; } .critical { background: #fff0ee; color: #9e1c18; } .high { background: #fff5e9; color: #a04a10; } .medium { background: #fff9df; color: #795d05; } .low { background: #edf5ff; color: #245e94; } .info { background: #f1f5f9; color: #334155; }
   .text-link { display: inline-block; margin-top: 20px; font-weight: 700; } .roadmap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; } .roadmap a, .resource-list a { border: 1px solid var(--line); text-decoration: none; padding: 18px; background: #fff; } .roadmap strong, .roadmap span { display: block; } .roadmap span { color: var(--muted); margin-top: 8px; font-size: 14px; }
   .resource-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } .resource-list a { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; }
   @media (max-width: 900px) { .metrics { grid-template-columns: repeat(2, 1fr); } .learn-hero-grid, .rule-layout { grid-template-columns: 1fr; } .card-grid, .roadmap { grid-template-columns: repeat(2, 1fr); } .pipeline { grid-template-columns: repeat(2, 1fr); } .resource-list { grid-template-columns: repeat(2, 1fr); } }

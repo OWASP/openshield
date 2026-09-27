@@ -5,9 +5,9 @@ import { repoData, domainOrder } from '../lib/repoData';
 const { rules, ruleCount, domainCount, playbookCount, domains } = repoData;
 const GITHUB = 'https://github.com/OWASP/openshield';
 
-const SEV_TEXT: Record<string, string> = { HIGH: '#a03a1e', MEDIUM: '#7a5310', LOW: '#3d5a75' };
-const SEV_DOT: Record<string, string> = { HIGH: '#c73a17', MEDIUM: '#a06f10', LOW: '#5d6c80' };
-const SEV_LABEL: Record<string, string> = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' };
+const SEV_TEXT: Record<string, string> = { CRITICAL: '#8f1414', HIGH: '#a03a1e', MEDIUM: '#7a5310', LOW: '#3d5a75', INFO: '#4b5563' };
+const SEV_DOT: Record<string, string> = { CRITICAL: '#b91c1c', HIGH: '#c73a17', MEDIUM: '#a06f10', LOW: '#5d6c80', INFO: '#6b7280' };
+const SEV_LABEL: Record<string, string> = { CRITICAL: 'Critical', HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low', INFO: 'Info' };
 
 /* stable pastel per domain so one domain reads as one color */
 const domainSwatch: Record<string, string> = {};
@@ -36,6 +36,7 @@ domains.forEach((d) => {
       <div class="rules-toolbar">
         <input type="search" id="ruleSearch" placeholder="Search by ID, name or control..." aria-label="Search rules">
         <button class="sevbtn" data-sev="ALL" aria-pressed="true" type="button">ALL</button>
+        <button class="sevbtn" data-sev="CRITICAL" aria-pressed="false" type="button">CRITICAL</button>
         <button class="sevbtn" data-sev="HIGH" aria-pressed="false" type="button">HIGH</button>
         <button class="sevbtn" data-sev="MEDIUM" aria-pressed="false" type="button">MEDIUM</button>
         <button class="sevbtn" data-sev="LOW" aria-pressed="false" type="button">LOW</button>
@@ -138,7 +139,7 @@ domains.forEach((d) => {
   const initialDomain = initial.get('domain');
   if (initialDomain && Array.from(domainSel.options).some((option) => option.value === initialDomain)) domainSel.value = initialDomain;
   const initialSeverity = initial.get('severity');
-  if (initialSeverity && ['HIGH', 'MEDIUM', 'LOW'].includes(initialSeverity)) sev = initialSeverity;
+  if (initialSeverity && ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'].includes(initialSeverity)) sev = initialSeverity;
   sevBtns.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.sev === sev)));
 
   search.addEventListener('input', apply);
