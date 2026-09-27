@@ -6,7 +6,7 @@
 # Mergify reads pull-request state and operates the queue; it does not
 # run CI, replace existing workflows, or bypass GitHub branch protection.
 #
-# Related: https://github.com/openshield-org/openshield/issues/334
+# Related: https://github.com/OWASP/openshield/issues/334
 
 # Limit speculative checks globally so at most one PR is tested at a time.
 # This enforces serial behaviour across the queue.
