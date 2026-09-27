@@ -1,6 +1,7 @@
 """Azure SDK wrapper providing typed accessors for all CSPM scan operations."""
 
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -54,8 +55,6 @@ class AzureClient:
         credential: Optional[Any] = None,
         tenant_id: Optional[str] = None,
     ) -> None:
-        import os
-
         self.subscription_id = subscription_id
         self.credential = credential or DefaultAzureCredential()
         self.tenant_id = tenant_id or os.environ.get("AZURE_TENANT_ID")
@@ -82,8 +81,6 @@ class AzureClient:
         subscription has an associated Azure DevOps organization), so rules
         that depend on this must treat None as "not configured, skip" rather
         than "unknown, indeterminate"."""
-        import os
-
         org_url = os.environ.get("AZURE_DEVOPS_ORG_URL")
         project = os.environ.get("AZURE_DEVOPS_PROJECT")
         if not org_url or not project:
