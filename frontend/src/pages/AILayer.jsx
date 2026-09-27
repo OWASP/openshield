@@ -105,11 +105,11 @@ export default function AILayer() {
       .then((scans) => {
         setFindings(scans);
         if (initialFinding) setSelectedFinding(initialFinding);
-        aiApi.getSummary(scans).then(setSummary).finally(() => setSummaryLoading(false));
+        aiApi.getSummary().then(setSummary).finally(() => setSummaryLoading(false));
       })
       .catch(() => {
         setFindings(null);
-        aiApi.getSummary([]).then(setSummary).finally(() => setSummaryLoading(false));
+        aiApi.getSummary().then(setSummary).finally(() => setSummaryLoading(false));
       });
     aiApi.getCVEAnalysis().then(setCveData).finally(() => setCveLoading(false));
   }, [initialFinding]);
@@ -119,7 +119,7 @@ export default function AILayer() {
 
   const refreshSummary = () => {
     setSummaryLoading(true);
-    aiApi.getSummary(findings ?? []).then(setSummary).finally(() => setSummaryLoading(false));
+    aiApi.getSummary().then(setSummary).finally(() => setSummaryLoading(false));
   };
 
   return (
@@ -166,7 +166,6 @@ export default function AILayer() {
               initialMessages={initialMessages}
               contextFinding={selectedFinding}
               suggestions={suggestions}
-              findings={findings}
             />
           </div>
         </div>
