@@ -697,3 +697,17 @@ The following endpoints are called by the frontend but have no backend implement
 | Endpoint | Used by | Status |
 |---|---|---|
 | `GET /api/monitoring` | Monitoring page — score trend chart, category distribution | Deferred. Score and findings data come from `GET /api/score` and `GET /api/findings` instead. |
+
+---
+
+## Attack graph endpoints
+
+`GET /api/attack-graph`, `GET /api/attack-paths`, and `GET /api/attack-paths/<path_id>` expose the attack graph computed from the most recent scan for the caller's tenant.
+
+### Authentication requirement
+
+These endpoints are **OIDC-only**. In `shared_secret` mode no tenant claim is present in the token, so the endpoints return `403 {"error": "tenant_id not available; OIDC authentication required"}`. This is intentional: the graph is strictly scoped per tenant and there is no safe way to infer a tenant from a shared-secret token.
+
+### Attack-path retention
+
+Attack paths are written per scan and are not automatically pruned. In long-running deployments, old scan paths accumulate in `attack_paths`. Retention policy (e.g. keep only the N most recent scans per tenant) is tracked in issue #333 and will be addressed in a follow-up.

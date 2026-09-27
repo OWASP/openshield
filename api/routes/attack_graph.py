@@ -65,7 +65,10 @@ def get_attack_graph():
 
     tenant_id = _tenant_id()
     if not tenant_id:
-        return jsonify({"error": "tenant_id not available"}), 400
+        # Shared-secret callers have no tenant claim; OIDC is required for
+        # tenant-scoped graph endpoints. Return 403 (not 400) since the
+        # request is well-formed but the auth method is insufficient.
+        return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
     conn = _get_db().conn
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -135,7 +138,10 @@ def list_attack_paths():
 
     tenant_id = _tenant_id()
     if not tenant_id:
-        return jsonify({"error": "tenant_id not available"}), 400
+        # Shared-secret callers have no tenant claim; OIDC is required for
+        # tenant-scoped graph endpoints. Return 403 (not 400) since the
+        # request is well-formed but the auth method is insufficient.
+        return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
     conn = _get_db().conn
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -171,7 +177,10 @@ def get_attack_path(path_id: str):
 
     tenant_id = _tenant_id()
     if not tenant_id:
-        return jsonify({"error": "tenant_id not available"}), 400
+        # Shared-secret callers have no tenant claim; OIDC is required for
+        # tenant-scoped graph endpoints. Return 403 (not 400) since the
+        # request is well-formed but the auth method is insufficient.
+        return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
     conn = _get_db().conn
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
