@@ -108,7 +108,7 @@ def get_attack_graph():
                        e.relationship_type, e.confidence, e.evidence_source, e.collected_at
                 FROM graph_edges e
                 WHERE e.source_node_id = ANY(%(node_ids)s::uuid[])
-                   OR e.target_node_id = ANY(%(node_ids)s::uuid[])
+                  AND e.target_node_id = ANY(%(node_ids)s::uuid[])
                 """,
                 {"node_ids": node_ids},
             )

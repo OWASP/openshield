@@ -37,6 +37,10 @@ def _load_adjacency(conn: Any, tenant_id: str) -> dict[str, list[tuple[str, str,
         adj: dict[str, list[tuple[str, str, float]]] = {}
         for src, tgt, rel, conf in cur.fetchall():
             adj.setdefault(src, []).append((tgt, rel, conf))
+            # Add reverse direction so BFS from a finding can reach nodes that
+            # point TO it (e.g. PublicIP -EXPOSES-> VM: starting from the flagged
+            # VM can now reach the PublicIP that exposes it).
+            adj.setdefault(tgt, []).append((src, rel + "_REV", conf))
     return adj
 
 
