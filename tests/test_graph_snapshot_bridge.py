@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from scanner.arg_inventory import InventorySnapshot, InventoryStatus, InventoryResource
+from scanner.azure_client import AzureClient
 from scanner.graph.snapshot_bridge import collect_snapshot
 
 
@@ -83,3 +84,33 @@ def test_collect_snapshot_returns_partial_snapshot():
 
     assert result is not None
     assert result.status == InventoryStatus.PARTIAL
+
+
+def test_azure_client_tenant_id_from_env(monkeypatch):
+    monkeypatch.setenv("AZURE_TENANT_ID", "env-tenant-abc")
+    with patch("scanner.azure_client.DefaultAzureCredential"):
+        client = AzureClient(subscription_id="sub-123")
+    assert client.tenant_id == "env-tenant-abc"
+
+
+def test_azure_client_explicit_tenant_id_overrides_env(monkeypatch):
+    monkeypatch.setenv("AZURE_TENANT_ID", "env-tenant")
+    with patch("scanner.azure_client.DefaultAzureCredential"):
+        client = AzureClient(subscription_id="sub-123", tenant_id="explicit-tenant")
+    assert client.tenant_id == "explicit-tenant"
+
+
+def test_azure_client_tenant_id_none_when_env_unset(monkeypatch):
+    monkeypatch.delenv("AZURE_TENANT_ID", raising=False)
+    with patch("scanner.azure_client.DefaultAzureCredential"):
+        client = AzureClient(subscription_id="sub-123")
+    assert client.tenant_id is None
+
+
+def test_collect_snapshot_skips_when_no_tenant_id(monkeypatch):
+    monkeypatch.delenv("AZURE_TENANT_ID", raising=False)
+    with patch("scanner.azure_client.DefaultAzureCredential"):
+        client = AzureClient(subscription_id="sub-123")
+    assert client.tenant_id is None
+    result = collect_snapshot(client, "sub-123")
+    assert result is None

@@ -48,9 +48,17 @@ class AzureClient:
     crash the scan engine.
     """
 
-    def __init__(self, subscription_id: str, credential: Optional[Any] = None) -> None:
+    def __init__(
+        self,
+        subscription_id: str,
+        credential: Optional[Any] = None,
+        tenant_id: Optional[str] = None,
+    ) -> None:
+        import os
+
         self.subscription_id = subscription_id
         self.credential = credential or DefaultAzureCredential()
+        self.tenant_id = tenant_id or os.environ.get("AZURE_TENANT_ID")
         self._managed_clusters_cache: Any = _UNSET
         self._aks_security_posture_cache: Any = _UNSET
         self._function_apps_cache: Any = _UNSET

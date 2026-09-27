@@ -1,6 +1,7 @@
 """Scan engine: loads rules dynamically and orchestrates a full subscription scan."""
 
 import importlib.util
+import inspect
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -136,10 +137,9 @@ class ScanEngine:
         for rule in self.rules:
             rule_id = getattr(rule, "RULE_ID", "UNKNOWN")
             try:
-                try:
+                if len(inspect.signature(rule.scan).parameters) >= 3:
                     rule_findings = rule.scan(self.client, self.subscription_id, snapshot)
-                except TypeError:
-                    # Legacy rule does not accept snapshot parameter.
+                else:
                     rule_findings = rule.scan(self.client, self.subscription_id)
                 if not isinstance(rule_findings, list):
                     logger.warning("Rule %s returned %s instead of list — skipped", rule_id, type(rule_findings))
