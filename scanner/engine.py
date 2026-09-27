@@ -21,7 +21,6 @@ except Exception:
 
 from scanner.azure_client import AzureClient
 from scanner.evaluation import EvaluationStatus, RuleEvaluation, subscription_scope_id
-from scanner.graph.graph_populator import populate_graph
 from scanner.graph.snapshot_bridge import collect_snapshot
 
 logger = logging.getLogger(__name__)
@@ -284,14 +283,6 @@ class ScanEngine:
         }
 
         logger.info("Scan %s complete - %d total finding(s). Normalising results...", scan_id, len(findings))
-
-        # Populate the attack graph as a non-fatal post-scan step.
-        dsn = os.environ.get("DATABASE_URL")
-        if snapshot and dsn:
-            try:
-                populate_graph(scan_id, snapshot, dsn)
-            except Exception as exc:
-                logger.warning("run_scan: graph population raised unexpectedly: %s", exc)
 
         return make_serializable(result)
 

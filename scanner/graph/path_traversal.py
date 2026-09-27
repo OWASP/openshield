@@ -34,13 +34,16 @@ def _load_adjacency(conn: Any, tenant_id: str) -> dict[str, list[tuple[str, str,
             """,
             {"tenant_id": tenant_id},
         )
+        # Only traverse in reverse for relationships where the reverse direction
+        # is semantically meaningful. MEMBER_OF and PROTECTS are not reversed:
+        # reversing MEMBER_OF would let any two VMs in the same subnet reach
+        # each other via the subnet node, producing spurious lateral-movement paths.
+        _REVERSE_RELS = {"EXPOSES", "HAS_IDENTITY"}
         adj: dict[str, list[tuple[str, str, float]]] = {}
         for src, tgt, rel, conf in cur.fetchall():
             adj.setdefault(src, []).append((tgt, rel, conf))
-            # Add reverse direction so BFS from a finding can reach nodes that
-            # point TO it (e.g. PublicIP -EXPOSES-> VM: starting from the flagged
-            # VM can now reach the PublicIP that exposes it).
-            adj.setdefault(tgt, []).append((src, rel + "_REV", conf))
+            if rel in _REVERSE_RELS:
+                adj.setdefault(tgt, []).append((src, rel + "_REV", conf))
     return adj
 
 
@@ -132,7 +135,7 @@ def _write_paths(
             rows,
             template="(%s, %s, %s, %s::uuid, %s::uuid, %s::uuid[], %s, %s, %s)",
         )
-    return len(rows)
+    return cur.rowcount
 
 
 def compute_attack_paths(scan_id: str, tenant_id: str, dsn: str) -> int:
