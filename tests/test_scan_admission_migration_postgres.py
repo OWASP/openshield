@@ -30,10 +30,12 @@ _ADMISSION = "a7c5e9d2f1b4"
 _ACTIVE_INDEX = "uq_scans_one_active_per_subscription"
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
 def _resolve_head() -> str:
     cfg = Config(os.path.join(_REPO_ROOT, "alembic.ini"))
     cfg.set_main_option("script_location", os.path.join(_REPO_ROOT, "alembic"))
     return ScriptDirectory.from_config(cfg).get_current_head()
+
 
 _HEAD = _resolve_head()
 
