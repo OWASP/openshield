@@ -78,7 +78,7 @@ def test_get_attack_graph_viewer_cannot_supply_tenant_header(client, app):
         "X-Tenant-Id": _TENANT,
     }
     resp = client.get("/api/attack-graph", headers=headers)
-    assert resp.status_code == 400
+    assert resp.status_code == 403
 
 
 def test_list_attack_paths_missing_scan_id_returns_400(client, tenant_auth_headers):
