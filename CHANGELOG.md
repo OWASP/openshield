@@ -1,9 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- Add all ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate.
-
 All notable changes to OpenShield are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -13,6 +9,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add all ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate.
 - Branch protection declared as versioned GitHub rulesets for `dev` and `main`, with a scheduled drift audit that retains evidence (#298)
 - CI and CodeQL post-merge runs on `dev` and `main` (#298)
 - Fifteen enterprise AKS and Kubernetes workload rules covering API restrictions, network policy, Defender, secrets, workload isolation, RBAC, and image trust
