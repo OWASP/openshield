@@ -175,7 +175,7 @@ class RemediationGate:
                     FROM old
                     WHERE a.action_id = old.action_id AND a.status = ANY(%s){extra_where}
                     RETURNING a.*, old.status AS previous_status
-                    """,
+                    """,  # nosec B608 - assignments/extra_where are fixed fragments chosen by this module's own steps
                     (action_id, to_status, *params, list(from_statuses), *where_params),
                 )
                 row = cur.fetchone()

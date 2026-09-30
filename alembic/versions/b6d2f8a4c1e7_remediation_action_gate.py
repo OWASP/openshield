@@ -85,12 +85,14 @@ def upgrade() -> None:
     op.create_index("idx_remediation_actions_status", "remediation_actions", ["status"], unique=False)
     # The database, not the caller, guarantees one live action per finding, so
     # two concurrent proposals cannot both win.
-    op.create_index(
-        _OPEN_INDEX,
-        "remediation_actions",
-        ["finding_id"],
-        unique=True,
-        postgresql_where=sa.text(f"status IN ({_in_list(_OPEN_STATUSES)})"),
+    # The table was created empty two statements ago, so a plain (blocking)
+    # index build costs nothing and keeps this revision transactional.
+    op.execute(
+        f"""
+        CREATE UNIQUE INDEX {_OPEN_INDEX}
+        ON remediation_actions (finding_id)
+        WHERE status IN ({_in_list(_OPEN_STATUSES)})
+        """
     )
 
     op.create_table(
