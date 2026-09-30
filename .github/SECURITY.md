@@ -2,82 +2,92 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in OpenShield, please **do not open a public GitHub issue**.
-Opening a public issue exposes the vulnerability to bad actors before a fix is available.
+**Do not open a public GitHub issue for security vulnerabilities.**
 
+Report security vulnerabilities privately using
+[GitHub's private security advisory feature](https://github.com/OWASP/openshield/security/advisories/new).
 
-We will acknowledge your report within 48 hours and work with you to coordinate a fix and responsible disclosure timeline.
+> **Note for reporters:** Private vulnerability reporting must be enabled by an
+> organisation owner (Settings > Code security > Private vulnerability reporting)
+> before this link accepts reports from outside collaborators. If the link does
+> not work, email **vishnu.ajith@owasp.org** directly.
 
-### What to include in your report
-
-To help us triage quickly, please include:
+Please include:
 
 - A description of the vulnerability and its potential impact
-- The affected component (scanner engine, REST API, auth logic, playbooks)
-- Steps to reproduce the issue
-- Any relevant logs, proof-of-concept code, or screenshots
-- The version of OpenShield you were testing (check `git log --oneline -1`)
+- The affected component (scanner engine, REST API, auth logic, playbooks, sentinel)
+- Steps to reproduce or a proof-of-concept (if available)
+- Affected versions or components
+- Any suggested fix (optional)
 
-The more detail you provide, the faster we can respond.
+### Response timeline
+
+| Stage | Target |
+|---|---|
+| Acknowledgement | Within 48 hours |
+| Initial triage and severity assessment | Within 5 business days |
+| Fix or mitigation | Depends on severity; critical issues within 14 days |
+| Public disclosure | Coordinated with reporter after fix is merged |
+
+We follow coordinated disclosure. We will credit reporters in
+[`SECURITY_ACKNOWLEDGEMENTS.md`](../SECURITY_ACKNOWLEDGEMENTS.md)
+unless they prefer to remain anonymous.
 
 ---
 
 ## Supported Versions
 
+We actively maintain the latest release on the `main` branch. Security fixes are
+applied to the current release only. We do not backport fixes to older versions.
+
 | Version | Supported |
-|---------|-----------|
-| 0.3.x   | Yes       |
-| 0.1.x   | No        |
-
-Older versions are not patched unless a GitHub Security Advisory explicitly says otherwise. Upgrade to the latest release before filing a report.
+|---|---|
+| Latest (`main`) | Yes |
+| Older releases | No |
 
 ---
 
-## Disclosure Process
+## Security Scope
 
-We follow a coordinated disclosure model:
-
-1. **Report received** -- you email the vulnerability privately
-2. **Acknowledgement** -- we respond within 48 hours to confirm receipt
-3. **Investigation** -- we reproduce and assess the impact
-4. **Fix developed** -- we write and test a patch
-5. **Coordinated release** -- we agree a disclosure date with you (typically 7-14 days after fix)
-6. **Public advisory** -- we publish a GitHub Security Advisory and release the fix
-
-We ask that you do not publicly disclose the vulnerability until step 6 is complete.
-
----
-
-## Scope
+OpenShield is a multi-component security tool. Understanding what each component
+does helps reporters accurately scope their findings.
 
 ### In scope
 
-- Scanner engine (`scanner/`) -- rule logic, Azure SDK calls, output handling
-- REST API (`api/`) -- authentication, authorisation, input validation, JWT handling
-- Compliance framework mappings (`compliance/`) -- data integrity
-- Sentinel integration (`sentinel/`) -- HMAC signing, data upload logic
-- Hardcoded secrets or credentials anywhere in the codebase
+| Component | What it does | Security relevance |
+|---|---|---|
+| `api/` | REST API with JWT/OIDC authentication and role-based access control | Auth bypass, privilege escalation, input validation, JWT handling |
+| `scanner/` | Reads Azure resource configuration via the Azure SDK; does not write | Credential handling, cross-tenant isolation, output integrity |
+| `playbooks/cli/` | Remediation scripts that modify Azure resources when run manually | Command injection, privilege escalation, unsafe Azure mutations |
+| `sentinel/` | Signs and uploads scan data to Azure Log Analytics via HMAC | HMAC signing, credential handling, data integrity |
+| `api/` AI endpoints | Process untrusted finding text through LLM calls | Prompt injection, data leakage |
+| Hardcoded secrets | Anywhere in the codebase | Any real credential committed to the repo |
 
 ### Out of scope
 
-- Vulnerabilities in third-party dependencies -- report those to the upstream maintainer
+- Vulnerabilities in third-party dependencies — report those to the upstream maintainer
 - Security issues in infrastructure you deploy OpenShield to (your Azure environment, your PostgreSQL instance)
+- False-positive scan findings due to unsupported Azure API versions or preview features
+- Rate limiting or throttling by the Azure ARM API
 - Social engineering attacks
 - Physical security
 
----
+### Clarification on read-only behaviour
 
-## Recognition
-
-We value responsible disclosure. Researchers who report valid vulnerabilities will be:
-
-- Acknowledged by name (or pseudonym if preferred) in the release notes for the fix
-- Listed in [`SECURITY_ACKNOWLEDGEMENTS.md`](../SECURITY_ACKNOWLEDGEMENTS.md)
-
-We do not currently offer a bug bounty programme, but we are grateful for every report.
+The `scanner/` component is read-only: it reads Azure configuration and does not
+modify resources. The `playbooks/cli/` scripts are separate executables that a
+human operator runs manually; they do modify Azure resources. The REST API and
+sentinel components are active network services.
 
 ---
 
-## Contact
+## Security Controls in This Repository
 
-**Email: vishnu.ajith@owasp.org**
+| Control | Implementation |
+|---|---|
+| Static analysis (SAST) | Semgrep, Bandit, CodeQL on every PR |
+| Dependency scanning | Dependabot alerts + pip-audit in CI |
+| Secret scanning | Gitleaks in CI |
+| Container scanning | Trivy in CI |
+| SBOM generation | Syft in CI |
+| DCO sign-off | Enforced on every commit |
