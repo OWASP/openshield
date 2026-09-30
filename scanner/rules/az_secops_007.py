@@ -18,7 +18,7 @@ RULE_ID = "AZ-SECOPS-007"
 RULE_NAME = "High-Risk Defender Recommendation Unresolved Beyond SLA"
 SEVERITY = "HIGH"
 CATEGORY = "Security Operations"
-FRAMEWORKS = {"CIS": "2.1.13", "NIST": "RS.MI-3", "ISO27001": "A.12.6.1", "SOC2": "CC7.1"}
+FRAMEWORKS = {"CIS": "2.1.13", "NIST": "RS.MI-3", "ISO27001": "A.8.8", "SOC2": "CC7.1"}
 DESCRIPTION = (
     "A Microsoft Defender for Cloud security assessment with High severity is Unhealthy and has "
     "remained unresolved longer than the organisation's remediation SLA. The Defender assessment "

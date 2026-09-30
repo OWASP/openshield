@@ -17,7 +17,7 @@ RULE_ID = "AZ-SECOPS-006"
 RULE_NAME = "Required Microsoft Defender for Cloud Plan Not Enabled"
 SEVERITY = "HIGH"
 CATEGORY = "Security Operations"
-FRAMEWORKS = {"CIS": "N/A-SECOPS-006", "NIST": "DE.CM-8", "ISO27001": "A.12.6.1", "SOC2": "CC7.1"}
+FRAMEWORKS = {"CIS": "N/A-SECOPS-006", "NIST": "DE.CM-8", "ISO27001": "A.8.8", "SOC2": "CC7.1"}
 
 # The CIS Azure Foundations Benchmark maps each Defender plan to its own leaf
 # control (e.g. 2.1.1 Servers, 2.1.7 Storage, 2.1.5 SQL Servers on Machines,

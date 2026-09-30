@@ -6,7 +6,7 @@ RULE_ID = "AZ-NET-011"
 RULE_NAME = "Network Watcher Not Enabled in All Regions"
 SEVERITY = "LOW"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "6.5", "NIST": "DE.CM-7", "ISO27001": "A.12.4.1", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "6.5", "NIST": "DE.CM-7", "ISO27001": "A.8.15", "SOC2": "CC7.2"}
 DESCRIPTION = (
     "Network Watcher is not enabled in one or more Azure regions where resources "
     "are deployed. Network Watcher provides network monitoring, diagnostics, and "

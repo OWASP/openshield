@@ -8,7 +8,7 @@ RULE_ID = "AZ-AKS-009"
 RULE_NAME = "Kubernetes Namespace Has No NetworkPolicy"
 SEVERITY = "HIGH"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-009", "NIST": "PR.AC-5", "ISO27001": "A.13.1.3", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-AKS-009", "NIST": "PR.AC-5", "ISO27001": "A.8.22", "SOC2": "CC6.6"}
 DESCRIPTION = "An eligible application namespace contains no NetworkPolicy and has no workload traffic boundary."
 REMEDIATION = (
     "Apply tested default-deny ingress and egress policies, then add explicit workload communication allowances."

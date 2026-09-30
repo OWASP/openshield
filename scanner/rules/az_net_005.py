@@ -7,7 +7,7 @@ RULE_ID = "AZ-NET-005"
 RULE_NAME = "Virtual network with no DDoS protection enabled"
 SEVERITY = "LOW"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "9.4", "NIST": "SC-5", "ISO27001": "A.13.1.1"}
+FRAMEWORKS = {"CIS": "9.4", "NIST": "SC-5", "ISO27001": "A.8.20"}
 DESCRIPTION = (
     "The virtual network does not have Azure DDoS Protection Standard enabled. "
     "Without DDoS protection, the network is vulnerable to volumetric attacks "

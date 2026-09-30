@@ -9,7 +9,7 @@ RULE_ID = "AZ-SC-002"
 RULE_NAME = "Container Registry Public Network Access Enabled"
 SEVERITY = "HIGH"
 CATEGORY = "Supply Chain"
-FRAMEWORKS = {"CIS": "N/A-SC-002", "NIST": "PR.AC-5", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-SC-002", "NIST": "PR.AC-5", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 
 DESCRIPTION = (
     "The Azure Container Registry is reachable from the public internet. A registry that holds "

@@ -7,7 +7,7 @@ RULE_ID = "AZ-IDN-005"
 RULE_NAME = "Guest User with High Privilege Role in Entra ID"
 SEVERITY = "HIGH"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "1.3", "NIST": "PR.AC-4", "ISO27001": "A.9.2.3", "SOC2": "CC6.3"}
+FRAMEWORKS = {"CIS": "1.3", "NIST": "PR.AC-4", "ISO27001": "A.8.2", "SOC2": "CC6.3"}
 DESCRIPTION = (
     "One or more guest user accounts (userType = Guest) have been assigned high "
     "privilege roles in Entra ID. Guest accounts originate from outside the "

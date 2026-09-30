@@ -6,7 +6,7 @@ RULE_ID = "AZ-DB-004"
 RULE_NAME = "SQL Server Firewall Allows All Azure Services"
 SEVERITY = "HIGH"
 CATEGORY = "Database"
-FRAMEWORKS = {"CIS": "4.1.2", "NIST": "PR.AC-3", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "4.1.2", "NIST": "PR.AC-3", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "Azure SQL Server has the 'Allow access to Azure services' firewall setting "
     "enabled. This creates a firewall rule that permits any resource hosted in "

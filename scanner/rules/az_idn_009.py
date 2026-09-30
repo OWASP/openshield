@@ -7,7 +7,7 @@ RULE_ID = "AZ-IDN-009"
 RULE_NAME = "No Activity Log Alert for Role Assignment Changes"
 SEVERITY = "MEDIUM"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "5.2.1", "NIST": "DE.CM-3", "ISO27001": "A.12.4.1", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "5.2.1", "NIST": "DE.CM-3", "ISO27001": "A.8.16", "SOC2": "CC7.2"}
 DESCRIPTION = (
     "The subscription has no activity log alert configured for role assignment "
     "changes (Microsoft.Authorization/roleAssignments/write). Without alerting on "

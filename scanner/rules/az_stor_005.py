@@ -12,7 +12,7 @@ CATEGORY = "Storage"
 FRAMEWORKS = {
     "CIS": "3.8",
     "NIST": "PR.IP-4",
-    "ISO27001": "A.17.2.1",
+    "ISO27001": "A.8.14",
     "SOC2": "A1.2",
 }
 DESCRIPTION = (

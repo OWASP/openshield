@@ -19,7 +19,7 @@ RULE_ID = "AZ-DL-002"
 RULE_NAME = "High-Speed ExpressRoute Direct Link Uses Non-XPN MACsec"
 SEVERITY = "MEDIUM"
 CATEGORY = "Data Link"
-FRAMEWORKS = {"CIS": "N/A-DL-002", "NIST": "PR.DS-2", "ISO27001": "A.13.1.1", "SOC2": "CC6.7"}
+FRAMEWORKS = {"CIS": "N/A-DL-002", "NIST": "PR.DS-2", "ISO27001": "A.8.20", "SOC2": "CC6.7"}
 DESCRIPTION = "An enabled ExpressRoute Direct port of 40 Gbps or greater uses a MACsec cipher without XPN."
 REMEDIATION = (
     "Confirm both peer devices support an XPN cipher, schedule a maintenance window, update the MACsec "
