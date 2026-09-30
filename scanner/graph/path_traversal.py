@@ -135,7 +135,9 @@ def _write_paths(
             rows,
             template="(%s, %s, %s, %s::uuid, %s::uuid, %s::uuid[], %s, %s, %s)",
         )
-    return cur.rowcount
+    # execute_values returns -1 for rowcount with ON CONFLICT DO NOTHING;
+    # return the number of rows attempted instead.
+    return len(rows)
 
 
 def compute_attack_paths(scan_id: str, tenant_id: str, dsn: str) -> int:
