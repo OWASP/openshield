@@ -1,5 +1,6 @@
 """PostgreSQL-backed tests for the remediation approval/idempotency/audit/rescan gate (#266)."""
 
+import hashlib
 import os
 import threading
 import uuid
@@ -22,6 +23,8 @@ from api.models.remediation import (
     VERIFIED,
     InvalidTransition,
     NotAllowlisted,
+    PlaybookChanged,
+    PlaybookUnavailable,
     RemediationError,
     RemediationGate,
     RemediationNotFound,
@@ -32,13 +35,23 @@ pytestmark = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"), reason="DATABASE_URL is required for PostgreSQL tests"
 )
 
-PLAYBOOK = "fix_az_test_001.sh"
+PLAYBOOK = "playbooks/cli/fix_az_test_001.sh"
+SCRIPT_BODY = b"#!/usr/bin/env bash\nset -euo pipefail\naz storage account update --help\n"
 RULE_ID = "AZ-TEST-001"
 
 
 @pytest.fixture()
 def dsn() -> str:
     return os.environ["DATABASE_URL"]
+
+
+@pytest.fixture()
+def playbook_root(tmp_path):
+    """A throwaway repo root holding the one playbook the tests propose."""
+    script = tmp_path / PLAYBOOK
+    script.parent.mkdir(parents=True)
+    script.write_bytes(SCRIPT_BODY)
+    return tmp_path
 
 
 @pytest.fixture()
@@ -89,22 +102,25 @@ def world(dsn):
     yield w
 
     with psycopg2.connect(dsn) as conn, conn.cursor() as cur:
-        # TRUNCATE does not fire the append-only row trigger, which is the
-        # point of it: only test teardown is allowed to discard audit rows.
-        cur.execute("TRUNCATE remediation_audit_log, remediation_actions")
+        # The audit log rejects UPDATE, DELETE and TRUNCATE on purpose. Only this
+        # teardown switches its triggers off, inside one transaction, to tidy up.
+        cur.execute("ALTER TABLE remediation_audit_log DISABLE TRIGGER USER")
+        cur.execute("DELETE FROM remediation_audit_log")
+        cur.execute("ALTER TABLE remediation_audit_log ENABLE TRIGGER USER")
+        cur.execute("DELETE FROM remediation_actions")
         cur.execute("DELETE FROM rule_evaluations WHERE scan_id = ANY(%s::uuid[])", (created["scans"],))
         cur.execute("DELETE FROM findings WHERE id = ANY(%s)", (created["findings"],))
         cur.execute("DELETE FROM scans WHERE scan_id = ANY(%s::uuid[])", (created["scans"],))
 
 
 @pytest.fixture()
-def gate(dsn):
+def gate(dsn, playbook_root):
     db = DatabaseManager(dsn)
-    yield RemediationGate(db, allowlist={PLAYBOOK})
+    yield RemediationGate(db, allowlist={PLAYBOOK}, playbook_root=playbook_root)
     db.close()
 
 
-def _run_concurrently(dsn: str, n: int, fn):
+def _run_concurrently(dsn: str, n: int, fn, playbook_root):
     """Run fn(gate, index) on n threads, each with its own connection, released together."""
     barrier = threading.Barrier(n)
     results: list = [None] * n
@@ -113,7 +129,7 @@ def _run_concurrently(dsn: str, n: int, fn):
         db = DatabaseManager(dsn)
         try:
             barrier.wait(timeout=10)
-            results[i] = ("ok", fn(RemediationGate(db, allowlist={PLAYBOOK}), i))
+            results[i] = ("ok", fn(RemediationGate(db, allowlist={PLAYBOOK}, playbook_root=playbook_root), i))
         except Exception as exc:  # noqa: BLE001 - the exception type is the result under test
             results[i] = ("err", exc)
         finally:
@@ -174,10 +190,10 @@ def test_repeated_propose_returns_the_same_action(gate, world):
     assert len(gate.get_audit_trail(str(first["action_id"]))) == 1
 
 
-def test_concurrent_proposals_create_exactly_one_action(dsn, gate, world):
+def test_concurrent_proposals_create_exactly_one_action(dsn, gate, world, playbook_root):
     finding_id = world.finding(world.scan())
 
-    results = _run_concurrently(dsn, 8, lambda g, i: g.propose(finding_id, f"agent-{i}"))
+    results = _run_concurrently(dsn, 8, lambda g, i: g.propose(finding_id, f"agent-{i}"), playbook_root)
 
     assert all(kind == "ok" for kind, _ in results), results
     assert sorted(outcome for _, (_, outcome) in results) == ["created"] + ["existing"] * 7
@@ -220,11 +236,11 @@ def test_execution_is_refused_without_approval(gate, world):
     assert gate.get_action(str(action["action_id"]))["status"] == PROPOSED
 
 
-def test_concurrent_approvals_have_exactly_one_winner(dsn, gate, world):
+def test_concurrent_approvals_have_exactly_one_winner(dsn, gate, world, playbook_root):
     action, _ = gate.propose(world.finding(world.scan()), "agent")
     action_id = str(action["action_id"])
 
-    results = _run_concurrently(dsn, 8, lambda g, i: g.approve(action_id, f"approver-{i}"))
+    results = _run_concurrently(dsn, 8, lambda g, i: g.approve(action_id, f"approver-{i}"), playbook_root)
 
     winners = [r for kind, r in results if kind == "ok"]
     losers = [r for kind, r in results if kind == "err"]
@@ -257,10 +273,10 @@ def test_reject_records_the_real_predecessor_status(gate, world):
 # --------------------------------------------------------------------------- #
 
 
-def test_default_gate_refuses_every_playbook_and_audits_the_refusal(dsn, world):
+def test_default_gate_refuses_every_playbook_and_audits_the_refusal(dsn, world, playbook_root):
     db = DatabaseManager(dsn)
     try:
-        strict = RemediationGate(db)
+        strict = RemediationGate(db, playbook_root=playbook_root)
         action, _ = strict.propose(world.finding(world.scan()), "agent")
         strict.approve(str(action["action_id"]), "alice")
 
@@ -287,11 +303,11 @@ def test_a_retried_execution_never_gets_a_second_grant(gate, world):
     assert [e["event"] for e in gate.get_audit_trail(action_id)].count("execution_started") == 1
 
 
-def test_concurrent_execution_requests_yield_exactly_one_grant(dsn, gate, world):
+def test_concurrent_execution_requests_yield_exactly_one_grant(dsn, gate, world, playbook_root):
     action = _approved_action(gate, world)
     action_id = str(action["action_id"])
 
-    results = _run_concurrently(dsn, 8, lambda g, i: g.begin_execution(action_id, f"runner-{i}"))
+    results = _run_concurrently(dsn, 8, lambda g, i: g.begin_execution(action_id, f"runner-{i}"), playbook_root)
 
     grants = [r for kind, r in results if kind == "ok"]
     refusals = [r for kind, r in results if kind == "err"]
@@ -437,13 +453,13 @@ def test_verification_requires_a_pending_action(gate, world):
     assert excinfo.value.current == APPROVED
 
 
-def test_concurrent_verification_of_one_action_settles_once(dsn, gate, world):
+def test_concurrent_verification_of_one_action_settles_once(dsn, gate, world, playbook_root):
     action = _executed_action(gate, world)
     action_id = str(action["action_id"])
     rescan = _rescan(world)
     world.evaluation(rescan, "PASS")
 
-    results = _run_concurrently(dsn, 6, lambda g, i: g.verify(action_id, rescan))
+    results = _run_concurrently(dsn, 6, lambda g, i: g.verify(action_id, rescan), playbook_root)
 
     outcomes = [r[1] for kind, r in results if kind == "ok"]
     assert outcomes.count("verified") == 1
@@ -496,3 +512,111 @@ def test_unknown_action_is_reported_as_not_found(gate):
     with pytest.raises(RemediationNotFound):
         gate.approve(missing, "alice")
     assert gate.get_action(missing) is None
+
+
+# --------------------------------------------------------------------------- #
+# Audit trail cannot be wiped                                                  #
+# --------------------------------------------------------------------------- #
+
+
+def test_audit_log_cannot_be_truncated(dsn, gate, world):
+    action, _ = gate.propose(world.finding(world.scan()), "agent")
+    action_id = str(action["action_id"])
+
+    with psycopg2.connect(dsn) as conn, conn.cursor() as cur:
+        with pytest.raises(psycopg2.Error, match="append-only"):
+            cur.execute("TRUNCATE remediation_audit_log")
+
+    assert [e["event"] for e in gate.get_audit_trail(action_id)] == ["proposed"]
+
+
+# --------------------------------------------------------------------------- #
+# Approval covers exactly what will run                                        #
+# --------------------------------------------------------------------------- #
+
+
+def test_proposal_pins_the_script_hash_and_the_target(gate, world):
+    resource = "/subscriptions/x/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/acct"
+    finding_id = world.finding(world.scan(), resource_id=resource)
+
+    action, _ = gate.propose(finding_id, "agent")
+
+    assert action["playbook_sha256"] == hashlib.sha256(SCRIPT_BODY).hexdigest()
+    assert action["resource_id"] == resource
+    assert action["subscription_id"] == world.subscription_id
+
+
+def test_approval_audit_row_records_what_the_approver_approved(gate, world):
+    action = _approved_action(gate, world)
+
+    approved = [e for e in gate.get_audit_trail(str(action["action_id"])) if e["event"] == "approved"]
+
+    assert len(approved) == 1
+    detail = approved[0]["detail"]
+    assert detail["playbook"] == PLAYBOOK
+    assert detail["playbook_sha256"] == hashlib.sha256(SCRIPT_BODY).hexdigest()
+    assert detail["resource_id"] == action["resource_id"]
+    assert detail["subscription_id"] == world.subscription_id
+
+
+def test_a_script_edited_after_approval_is_never_granted(gate, world, playbook_root):
+    action = _approved_action(gate, world)
+    action_id = str(action["action_id"])
+    (playbook_root / PLAYBOOK).write_bytes(SCRIPT_BODY + b"az group delete --name production --yes\n")
+
+    with pytest.raises(PlaybookChanged):
+        gate.begin_execution(action_id, "runner-1")
+
+    assert gate.get_action(action_id)["status"] == APPROVED
+    refusal = gate.get_audit_trail(action_id)[-1]
+    assert refusal["event"] == "execution_refused"
+    assert refusal["detail"]["reason"] == "playbook_changed"
+    assert refusal["detail"]["approved_sha256"] == hashlib.sha256(SCRIPT_BODY).hexdigest()
+    assert refusal["detail"]["current_sha256"] != refusal["detail"]["approved_sha256"]
+
+
+def test_restoring_the_approved_script_makes_the_action_grantable_again(gate, world, playbook_root):
+    action = _approved_action(gate, world)
+    action_id = str(action["action_id"])
+    script = playbook_root / PLAYBOOK
+    script.write_bytes(SCRIPT_BODY + b"# tampered\n")
+    with pytest.raises(PlaybookChanged):
+        gate.begin_execution(action_id, "runner-1")
+
+    script.write_bytes(SCRIPT_BODY)
+
+    assert gate.begin_execution(action_id, "runner-1")["status"] == EXECUTING
+
+
+def test_a_script_removed_after_approval_is_never_granted(gate, world, playbook_root):
+    action = _approved_action(gate, world)
+    action_id = str(action["action_id"])
+    (playbook_root / PLAYBOOK).unlink()
+
+    with pytest.raises(PlaybookChanged):
+        gate.begin_execution(action_id, "runner-1")
+
+    assert gate.get_action(action_id)["status"] == APPROVED
+    assert gate.get_audit_trail(action_id)[-1]["detail"]["current_sha256"] is None
+
+
+@pytest.mark.parametrize(
+    "playbook",
+    [
+        "playbooks/cli/does_not_exist.sh",
+        "../outside.sh",
+        "playbooks/../../outside.sh",
+        "/etc/passwd",
+        "playbooks/cli",
+    ],
+)
+def test_propose_refuses_a_playbook_that_is_missing_or_outside_playbooks(gate, world, playbook_root, playbook):
+    (playbook_root.parent / "outside.sh").write_text("echo outside")
+    finding_id = world.finding(world.scan(), playbook=playbook)
+
+    with pytest.raises(PlaybookUnavailable):
+        gate.propose(finding_id, "agent")
+
+    with psycopg2.connect(os.environ["DATABASE_URL"]) as conn, conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM remediation_actions WHERE finding_id = %s", (finding_id,))
+        assert cur.fetchone()[0] == 0

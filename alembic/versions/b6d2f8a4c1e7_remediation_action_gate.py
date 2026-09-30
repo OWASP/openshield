@@ -20,6 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 _STATUS_CONSTRAINT = "ck_remediation_actions_status_v1"
 _OPEN_INDEX = "uq_remediation_actions_one_open_per_finding"
 _APPEND_ONLY_TRIGGER = "trg_remediation_audit_log_append_only"
+_NO_TRUNCATE_TRIGGER = "trg_remediation_audit_log_no_truncate"
 _APPEND_ONLY_FUNCTION = "remediation_audit_log_append_only"
 
 _STATUSES = (
@@ -56,6 +57,12 @@ def upgrade() -> None:
         sa.Column("action_id", postgresql.UUID(), nullable=False),
         sa.Column("finding_id", sa.Integer(), nullable=False),
         sa.Column("playbook", sa.Text(), nullable=False),
+        # What the approver is actually approving: the script's bytes at proposal
+        # time and the exact target. begin_execution recomputes the hash and
+        # refuses to run if the script changed after approval.
+        sa.Column("playbook_sha256", sa.Text(), nullable=False),
+        sa.Column("resource_id", sa.Text(), nullable=True),
+        sa.Column("subscription_id", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False, server_default=sa.text("'PROPOSED'")),
         sa.Column("proposed_by", sa.Text(), nullable=False),
         sa.Column("approved_by", sa.Text(), nullable=True),
@@ -133,9 +140,19 @@ def upgrade() -> None:
         FOR EACH ROW EXECUTE FUNCTION {_APPEND_ONLY_FUNCTION}()
         """
     )
+    # Row-level triggers never fire for TRUNCATE, which would otherwise empty the
+    # trail in one statement, so it needs its own statement-level trigger.
+    op.execute(
+        f"""
+        CREATE TRIGGER {_NO_TRUNCATE_TRIGGER}
+        BEFORE TRUNCATE ON remediation_audit_log
+        FOR EACH STATEMENT EXECUTE FUNCTION {_APPEND_ONLY_FUNCTION}()
+        """
+    )
 
 
 def downgrade() -> None:
+    op.execute(f"DROP TRIGGER IF EXISTS {_NO_TRUNCATE_TRIGGER} ON remediation_audit_log")
     op.execute(f"DROP TRIGGER IF EXISTS {_APPEND_ONLY_TRIGGER} ON remediation_audit_log")
     op.execute(f"DROP FUNCTION IF EXISTS {_APPEND_ONLY_FUNCTION}()")
     op.drop_index("idx_remediation_audit_log_action_id", table_name="remediation_audit_log")

@@ -35,8 +35,22 @@ plus an audit row in the same transaction.
 | A retry never executes twice | `APPROVED -> EXECUTING` can be won by exactly one caller; every other call raises `InvalidTransition` and gets no grant. |
 | Race-free approval | Two concurrent approvals of one `PROPOSED` row cannot both succeed. |
 | One live action per finding | Partial unique index `uq_remediation_actions_one_open_per_finding`. Only `VERIFIED` and `REJECTED` release a finding. |
-| Full audit log | `remediation_audit_log` records proposal, approval, execution and verification. A trigger rejects `UPDATE` and `DELETE`. |
+| Full audit log | `remediation_audit_log` records proposal, approval, execution and verification. Triggers reject `UPDATE`, `DELETE` and `TRUNCATE`. |
+| Approval covers exactly what runs | `propose` stores the playbook's SHA-256 and the target (`resource_id`, `subscription_id`). The `approved` audit row records all of it. `begin_execution` recomputes the hash and refuses, with an audited `playbook_changed` refusal, if the script changed or disappeared. |
 | Done means rescanned | `complete_execution(succeeded=True)` moves to `PENDING_VERIFICATION`, never `VERIFIED`. See below. |
+
+## What the audit trail does and does not prove
+
+Triggers stop the application, and anyone using normal SQL, from editing,
+deleting or truncating audit rows. They do not stop the table owner or a
+superuser, who can drop the trigger. If the trail must also be evidence against
+a database operator, it needs a hash chain whose head is published outside the
+database, and the application's database role should not hold
+`UPDATE`/`DELETE`/`TRUNCATE` on the table. Both depend on how OpenShield is
+deployed and are left out of phase one.
+
+Playbook paths come from the database, so they are never trusted as paths:
+`propose` only accepts a regular file that resolves under `playbooks/`.
 
 ## Execution is at-most-once
 

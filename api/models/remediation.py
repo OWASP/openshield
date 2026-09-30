@@ -24,6 +24,9 @@ constraint rather than a check-then-write in Python:
   retried automatically: at-most-once, because an unknown outcome on customer
   infrastructure needs a human, not a second attempt.
 * **Nothing runs unless allowlisted.** ``EXECUTION_ALLOWLIST`` starts empty.
+* **Approval covers exactly what will run.** ``propose`` stores the script's
+  SHA-256 and the target; the ``approved`` audit row records both, and
+  ``begin_execution`` recomputes the hash and refuses if the script changed.
 * **Approval is race-free.** Two concurrent approvals of one ``PROPOSED`` row
   cannot both transition it; the loser is told the row already moved on.
 * **One live action per finding.** A partial unique index backs ``propose``.
@@ -35,10 +38,12 @@ constraint rather than a check-then-write in Python:
   as the state change it describes.
 """
 
+import hashlib
 import json
 import logging
 import uuid
-from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Tuple
+from pathlib import Path
+from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Tuple, Union
 
 import psycopg2.extras
 
@@ -69,6 +74,9 @@ _VERIFIABLE = (PENDING_VERIFICATION, VERIFICATION_FAILED)
 # configuration, so the set of things an agent may ever run stays auditable.
 EXECUTION_ALLOWLIST: FrozenSet[str] = frozenset()
 
+# Repository root that playbook paths (``playbooks/cli/fix_<rule>.sh``) are relative to.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 class RemediationError(RuntimeError):
     """Base class for gate refusals."""
@@ -92,6 +100,14 @@ class NotAllowlisted(RemediationError):
     """The playbook is not eligible for automated execution."""
 
 
+class PlaybookUnavailable(RemediationError):
+    """The playbook file is missing, not a regular file, or outside ``playbooks/``."""
+
+
+class PlaybookChanged(RemediationError):
+    """The playbook's contents differ from what was approved."""
+
+
 def _require_actor(actor: str, role: str) -> str:
     actor = (actor or "").strip()
     if not actor:
@@ -99,11 +115,41 @@ def _require_actor(actor: str, role: str) -> str:
     return actor
 
 
+def _action_detail(action: Dict[str, Any]) -> Dict[str, Any]:
+    """What an approver is approving, recorded verbatim in the audit trail."""
+    return {
+        "finding_id": action["finding_id"],
+        "playbook": action["playbook"],
+        "playbook_sha256": action["playbook_sha256"],
+        "resource_id": action["resource_id"],
+        "subscription_id": action["subscription_id"],
+    }
+
+
+def playbook_sha256(playbook: str, root: Path = _REPO_ROOT) -> str:
+    """Return the SHA-256 of a playbook's bytes.
+
+    The stored playbook value comes from the database, so it is never trusted
+    as a path: it must resolve to a regular file under ``<root>/playbooks``.
+    """
+    playbooks_dir = (root / "playbooks").resolve()
+    candidate = (root / playbook).resolve()
+    if not candidate.is_relative_to(playbooks_dir) or not candidate.is_file():
+        raise PlaybookUnavailable(f"Playbook {playbook!r} is not a file under playbooks/")
+    return hashlib.sha256(candidate.read_bytes()).hexdigest()
+
+
 class RemediationGate:
     """Durable state machine for remediation actions, backed by PostgreSQL."""
 
-    def __init__(self, db: DatabaseManager, allowlist: Optional[Iterable[str]] = None) -> None:
+    def __init__(
+        self,
+        db: DatabaseManager,
+        allowlist: Optional[Iterable[str]] = None,
+        playbook_root: Optional[Path] = None,
+    ) -> None:
         self._db = db
+        self._playbook_root = _REPO_ROOT if playbook_root is None else Path(playbook_root)
         self._allowlist: FrozenSet[str] = EXECUTION_ALLOWLIST if allowlist is None else frozenset(allowlist)
 
     def is_allowlisted(self, playbook: str) -> bool:
@@ -151,7 +197,7 @@ class RemediationGate:
         params: Tuple[Any, ...] = (),
         extra_where: str = "",
         where_params: Tuple[Any, ...] = (),
-        detail: Optional[Dict[str, Any]] = None,
+        detail: Union[Dict[str, Any], Callable[[Dict[str, Any]], Dict[str, Any]], None] = None,
     ) -> Dict[str, Any]:
         """Move one action between statuses atomically and audit it.
 
@@ -185,7 +231,9 @@ class RemediationGate:
                     raise InvalidTransition(action_id, event, current)
                 row = dict(row)
                 previous = row.pop("previous_status")
-                self._audit(cur, action_id, event, actor, previous, to_status, detail)
+                self._audit(
+                    cur, action_id, event, actor, previous, to_status, detail(row) if callable(detail) else detail
+                )
             conn.commit()
             return row
         except Exception:
@@ -207,23 +255,44 @@ class RemediationGate:
         conn = self._db._get_conn()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute("SELECT id, playbook FROM findings WHERE id = %s", (finding_id,))
+                cur.execute(
+                    """
+                    SELECT f.id, f.playbook, f.resource_id, s.subscription_id
+                    FROM findings f JOIN scans s ON s.scan_id = f.scan_id
+                    WHERE f.id = %s
+                    """,
+                    (finding_id,),
+                )
                 finding = cur.fetchone()
                 if finding is None:
                     raise RemediationNotFound(f"Finding {finding_id} not found")
                 playbook = (finding["playbook"] or "").strip()
                 if not playbook:
                     raise RemediationError(f"Finding {finding_id} has no playbook to propose")
+                # Hashed here, before any row exists, so an unreadable or
+                # out-of-tree script can never be proposed, let alone approved.
+                digest = playbook_sha256(playbook, self._playbook_root)
 
                 open_statuses = sorted(OPEN_STATUSES)
                 cur.execute(
                     """
-                    INSERT INTO remediation_actions (action_id, finding_id, playbook, status, proposed_by)
-                    VALUES (%s, %s, %s, 'PROPOSED', %s)
+                    INSERT INTO remediation_actions
+                        (action_id, finding_id, playbook, playbook_sha256, resource_id, subscription_id,
+                         status, proposed_by)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'PROPOSED', %s)
                     ON CONFLICT (finding_id) WHERE status = ANY(%s) DO NOTHING
                     RETURNING *
                     """,
-                    (str(uuid.uuid4()), finding_id, playbook, proposed_by, open_statuses),
+                    (
+                        str(uuid.uuid4()),
+                        finding_id,
+                        playbook,
+                        digest,
+                        finding["resource_id"],
+                        finding["subscription_id"],
+                        proposed_by,
+                        open_statuses,
+                    ),
                 )
                 created = cur.fetchone()
                 if created is not None:
@@ -234,7 +303,7 @@ class RemediationGate:
                         proposed_by,
                         None,
                         PROPOSED,
-                        {"finding_id": finding_id, "playbook": playbook},
+                        _action_detail(created),
                     )
                     conn.commit()
                     return dict(created), "created"
@@ -263,6 +332,7 @@ class RemediationGate:
             to_status=APPROVED,
             assignments=", approved_by = %s, approved_at = CURRENT_TIMESTAMP",
             params=(approved_by,),
+            detail=_action_detail,
         )
 
     def reject(self, action_id: str, rejected_by: str, reason: str = "") -> Dict[str, Any]:
@@ -288,7 +358,10 @@ class RemediationGate:
         conn = self._db._get_conn()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute("SELECT playbook, status FROM remediation_actions WHERE action_id = %s", (action_id,))
+                cur.execute(
+                    "SELECT playbook, playbook_sha256, status FROM remediation_actions WHERE action_id = %s",
+                    (action_id,),
+                )
                 row = cur.fetchone()
                 if row is None:
                     raise RemediationNotFound(f"Remediation action {action_id} not found")
@@ -304,6 +377,30 @@ class RemediationGate:
                     )
                     conn.commit()
                     raise NotAllowlisted(f"Playbook {row['playbook']} is not eligible for automated execution")
+
+                # The approval covers the script the approver's audit row shows.
+                # If it changed since, or vanished, nothing is granted.
+                try:
+                    current = playbook_sha256(row["playbook"], self._playbook_root)
+                except PlaybookUnavailable:
+                    current = None
+                if current != row["playbook_sha256"]:
+                    self._audit(
+                        cur,
+                        action_id,
+                        "execution_refused",
+                        executor,
+                        row["status"],
+                        row["status"],
+                        {
+                            "reason": "playbook_changed",
+                            "playbook": row["playbook"],
+                            "approved_sha256": row["playbook_sha256"],
+                            "current_sha256": current,
+                        },
+                    )
+                    conn.commit()
+                    raise PlaybookChanged(f"Playbook {row['playbook']} changed after it was proposed")
             conn.rollback()
         except Exception:
             self._db.rollback(conn)
