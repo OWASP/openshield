@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import logging
 import uuid
+from dataclasses import replace as dc_replace
 from typing import TYPE_CHECKING
 
 import psycopg2
 import psycopg2.extras
 
+from scanner.arg_inventory import InventoryResource
 from scanner.graph.node_service import link_findings_to_nodes, populate_nodes
 from scanner.graph.edge_detector import detect_all_edges
 
@@ -69,17 +71,64 @@ def _write_edges(edges: list, snapshot_id: str, tenant_id: str, dsn: str) -> int
     return written
 
 
+_VNET_TYPE = "microsoft.network/virtualnetworks"
+_SUBNET_TYPE = "microsoft.network/virtualnetworks/subnets"
+
+
+def _synthesise_subnet_resources(snapshot: InventorySnapshot) -> list[InventoryResource]:
+    """Return synthetic InventoryResource entries for subnets nested inside VNets.
+
+    ARG Resources has no top-level rows for subnets; they appear only as
+    properties.subnets on the parent VNet. Without this step, SubnetToResourceDetector
+    and NsgToSubnetDetector produce edges whose target has no matching graph_node,
+    and _UPSERT_EDGE_SQL silently drops them (INSERT ... SELECT JOIN graph_nodes).
+    """
+    subnets: list[InventoryResource] = []
+    for resource in snapshot.resources:
+        if resource.resource_type.lower() != _VNET_TYPE:
+            continue
+        for subnet in resource.properties.get("subnets") or []:
+            subnet_id = subnet.get("id") if isinstance(subnet, dict) else None
+            if not subnet_id:
+                continue
+            subnet_name = subnet.get("name", subnet_id.split("/")[-1])
+            subnets.append(
+                InventoryResource(
+                    snapshot_id=resource.snapshot_id,
+                    tenant_id=resource.tenant_id,
+                    subscription_id=resource.subscription_id,
+                    resource_id=subnet_id,
+                    resource_type=_SUBNET_TYPE,
+                    name=subnet_name,
+                    location=resource.location,
+                    resource_group=resource.resource_group,
+                    tags={},
+                    properties=subnet.get("properties") or {},
+                )
+            )
+    return subnets
+
+
 def populate_graph(scan_id: str, snapshot: InventorySnapshot, dsn: str) -> None:
     """Populate nodes, edges, and finding links for one scan. Failure is non-fatal."""
+    subnet_resources = _synthesise_subnet_resources(snapshot)
+    if subnet_resources:
+        logger.debug("graph: synthesised %d subnet nodes from VNet properties", len(subnet_resources))
+
+    augmented_snapshot = dc_replace(
+        snapshot,
+        resources=snapshot.resources + tuple(subnet_resources),
+    )
+
     try:
-        node_count = populate_nodes(snapshot, dsn)
+        node_count = populate_nodes(augmented_snapshot, dsn)
         logger.info("graph: upserted %d nodes for scan %s", node_count, scan_id)
     except Exception as exc:
         logger.warning("graph: node population failed for scan %s: %s", scan_id, exc)
         return
 
     try:
-        edges = detect_all_edges(snapshot)
+        edges = detect_all_edges(augmented_snapshot)
         edge_count = _write_edges(edges, snapshot.snapshot_id, snapshot.tenant_id, dsn)
         logger.info("graph: wrote %d edges for scan %s", edge_count, scan_id)
     except Exception as exc:
