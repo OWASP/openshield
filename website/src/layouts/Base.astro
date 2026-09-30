@@ -98,11 +98,16 @@ const siteJsonLd = {
 {breadcrumbs && <script type="application/ld+json" set:html={JSON.stringify(breadcrumbs)} is:inline></script>}
 
 <!--
-  GitHub Pages cannot configure response headers. This meta policy covers the
-  directives browsers support in document metadata. Hosting-level directives
-  must be added if the deployment moves to a configurable edge.
+  GitHub Pages cannot configure response headers, so this policy ships in a
+  <meta http-equiv> tag. Per the CSP spec, a meta policy enforces only the
+  directives below; frame-ancestors, report-uri/report-to, and sandbox are
+  ignored when delivered this way. Clickjacking protection therefore requires
+  a real Content-Security-Policy (or X-Frame-Options) HTTP response header and
+  must be added at the edge if this site ever moves to configurable hosting;
+  a frame-ancestors directive here would only give a false sense of coverage
+  (verify-site.mjs intentionally does not check for it).
 -->
-<meta http-equiv="Content-Security-Policy" content={`default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self'`}>
+<meta http-equiv="Content-Security-Policy" content={`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'self'`}>
 <meta name="referrer" content="strict-origin-when-cross-origin">
 </head>
 <body>
