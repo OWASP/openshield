@@ -213,7 +213,7 @@ There is no standing bypass. If a production incident requires merging without t
 
 CI and CodeQL also run on every push to `dev` and `main`, so each merged commit has its own result instead of relying only on a PR run against an older base. Post-merge runs are never cancelled.
 
-The **Update Learn Page and README Stats** workflow no longer pushes to `dev`. When statistics change it force-updates the `docs/refresh-learn-page-stats` branch and opens (or refreshes) a pull request, which goes through the same protected flow. Pull requests opened with the default `GITHUB_TOKEN` do not start workflows, so administrators should provide a `STATS_BOT_TOKEN` secret (GitHub App token or fine-grained token with contents and pull-requests write) and allow GitHub Actions to create pull requests in repository settings.
+Nothing pushes statistics to `dev` or opens bot pull requests. The website, including the Learn page, computes every rule, playbook, severity and category count at build time from `website/src/lib/repoData.ts`, so it cannot drift. `README.md` is the only file that still states counts: the **README Stats Drift** workflow (`readme-stats.yml`, `contents: read`) runs `python .github/scripts/update_readme_stats.py --check` after rule or playbook changes land and reports stale counts as a warning with a job summary. The fix is an ordinary PR with the script's output, reviewed through the same protected flow. No `STATS_BOT_TOKEN` secret is needed.
 
 ---
 

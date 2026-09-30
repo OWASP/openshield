@@ -13,7 +13,7 @@ import '../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
-  /** which nav tab is active: start | rules | architecture | docs | blog | community | evidence */
+  /** which nav tab is active: start | learn | rules | architecture | docs | blog | community | evidence */
   active?: string;
   /** page-level structured data (SoftwareApplication, BlogPosting, ...) */
   jsonLd?: Record<string, unknown>;
@@ -117,6 +117,7 @@ const siteJsonLd = {
     </button>
     <div class="navlinks" id="primary-navigation">
       <a href={url('/#start')} aria-current={active === 'start' ? 'page' : undefined}>Start here</a>
+      <a href={url('/learn/')} aria-current={active === 'learn' ? 'page' : undefined}>Learn</a>
       <a href={url('/rules/')} aria-current={active === 'rules' ? 'page' : undefined}>Rules</a>
       <a href={url('/architecture/')} aria-current={active === 'architecture' ? 'page' : undefined}>Architecture</a>
       <a href={url('/docs/')} aria-current={active === 'docs' ? 'page' : undefined}>Docs</a>
