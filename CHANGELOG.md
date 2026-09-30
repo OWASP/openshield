@@ -12,6 +12,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Add all ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate.
 - Branch protection declared as versioned GitHub rulesets for `dev` and `main`, with a scheduled drift audit that retains evidence (#298)
 - CI and CodeQL post-merge runs on `dev` and `main` (#298)
+- Ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate
 - Fifteen enterprise AKS and Kubernetes workload rules covering API restrictions, network policy, Defender, secrets, workload isolation, RBAC, and image trust
 - OIDC bearer-token verification (`OPENSHIELD_AUTH_MODE=oidc`) with JWKS signature, issuer, audience, tenant and IdP app-role enforcement (#294)
 - Azure Network Layer Assurance API with 20-domain coverage, network-rule classification, and authoritative IP forwarding and direct Internet route checks
