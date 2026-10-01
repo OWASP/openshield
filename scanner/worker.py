@@ -27,6 +27,7 @@ from api.observability import (
 )
 from scanner.engine import ScanEngine
 from scanner.enrichment_worker import process_enrichment_job
+from scanner.graph.graph_populator import populate_graph
 
 configure_logging()
 logger = logging.getLogger("scanner.worker")
@@ -216,6 +217,20 @@ def run_worker():
                 if heartbeat.lost.is_set():
                     raise LostLease(f"Scan {scan_id} lost its lease before completion")
                 db.save_scan(result, worker_id, fencing_token)
+
+                # Graph population runs after findings are persisted so
+                # link_findings_to_nodes can join against the saved rows.
+                dsn = os.environ.get("DATABASE_URL")
+                if engine.snapshot and dsn:
+                    try:
+                        populate_graph(scan_id, engine.snapshot, dsn)
+                    except Exception as exc:
+                        logger.warning(
+                            "worker: graph population raised unexpectedly for scan %s: %s",
+                            scan_id,
+                            exc,
+                        )
+
                 SCANS_TOTAL.labels(status="completed").inc()
                 logger.info(
                     "Successfully completed scan %s",

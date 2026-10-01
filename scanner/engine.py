@@ -61,6 +61,7 @@ class ScanEngine:
         self.subscription_id = subscription_id
         self.client = AzureClient(subscription_id)
         self.rules: List[Any] = []
+        self.snapshot: Optional[Any] = None
         self.load_rules()
 
     # ------------------------------------------------------------------ #
@@ -117,6 +118,7 @@ class ScanEngine:
         # Collect an ARG inventory snapshot for graph population and rule enrichment.
         # Failure is non-fatal: rules fall back to direct SDK calls.
         snapshot = collect_snapshot(self.client, self.subscription_id)
+        self.snapshot = snapshot
 
         logger.info(
             "Scan %s starting against subscription %s — %d rules loaded",
