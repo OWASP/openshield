@@ -9,7 +9,7 @@ RULE_ID = "AZ-DB-003"
 RULE_NAME = "PostgreSQL Flexible Server SSL Enforcement Disabled"
 SEVERITY = "HIGH"
 CATEGORY = "Database"
-FRAMEWORKS = {"CIS": "4.3.6", "NIST": "PR.DS-2", "ISO27001": "A.10.1.1", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "4.3.6", "NIST": "PR.DS-2", "ISO27001": "A.8.24", "SOC2": "CC6.1"}
 DESCRIPTION = (
     "The Azure Database for PostgreSQL Flexible Server has SSL enforcement disabled. "
     "Without SSL, data in transit between the application and database is transmitted "

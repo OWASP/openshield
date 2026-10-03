@@ -57,7 +57,7 @@ RULE_ID = "AZ-STOR-001"
 RULE_NAME = "Public Blob Access Enabled on Storage Account"
 SEVERITY = "HIGH"  # CRITICAL / HIGH / MEDIUM / LOW / INFO
 CATEGORY = "Storage"  # Storage / Network / Identity / Database / Compute / Key Vault / Kubernetes
-FRAMEWORKS = {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.9.4.1"}
+FRAMEWORKS = {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.8.3"}
 DESCRIPTION = (
     "Storage accounts with public blob access enabled allow anyone on the "
     "internet to read data without authentication. This can lead to data "
@@ -158,7 +158,7 @@ Adds scan rule AZ-STOR-001 - detects storage accounts with public blob access en
 - Rule ID: AZ-STOR-001
 - Severity: HIGH
 - Category: Storage
-- Frameworks mapped: CIS 3.5, NIST PR.AC-3, ISO 27001 A.9.4.1, SOC 2 CC6.6
+- Frameworks mapped: CIS 3.5, NIST PR.AC-3, ISO 27001 A.8.3, SOC 2 CC6.6
 
 ## Tested against
 - [ ] Azure free trial subscription

@@ -18,7 +18,7 @@ RULE_ID = "AZ-SECOPS-002"
 RULE_NAME = "Required Activity Log Categories Missing From Central Export"
 SEVERITY = "HIGH"
 CATEGORY = "Security Operations"
-FRAMEWORKS = {"CIS": "5.1.2", "NIST": "PR.PT-1", "ISO27001": "A.12.4.1", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "5.1.2", "NIST": "PR.PT-1", "ISO27001": "A.8.15", "SOC2": "CC7.2"}
 DESCRIPTION = (
     "The subscription's Activity Log diagnostic setting(s) exporting to an approved destination "
     "do not enable every organisation-required log category (e.g. Administrative, Security, "

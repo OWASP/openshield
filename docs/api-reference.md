@@ -103,7 +103,7 @@ Example response:
       "frameworks": {
         "CIS": "3.5",
         "NIST": "PR.AC-3",
-        "ISO27001": "A.9.4.1"
+        "ISO27001": "A.8.3"
       },
       "metadata": {},
       "detected_at": "2026-05-09T12:00:00Z"
@@ -139,7 +139,7 @@ Example response:
   "frameworks": {
     "CIS": "3.5",
     "NIST": "PR.AC-3",
-    "ISO27001": "A.9.4.1"
+    "ISO27001": "A.8.3"
   },
   "metadata": {},
   "detected_at": "2026-05-09T12:00:00Z"

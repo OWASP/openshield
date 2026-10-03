@@ -8,7 +8,7 @@ RULE_ID = "AZ-AKS-012"
 RULE_NAME = "Secrets Store CSI Secret Rotation Disabled"
 SEVERITY = "MEDIUM"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-012", "NIST": "PR.AC-1", "ISO27001": "A.9.4.3", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "N/A-AKS-012", "NIST": "PR.AC-1", "ISO27001": "A.5.17", "SOC2": "CC6.1"}
 DESCRIPTION = "The enabled Key Vault Secrets Store CSI provider does not automatically rotate mounted secret material."
 REMEDIATION = (
     "Enable secret rotation for the AKS Key Vault Secrets Store CSI provider and test application reload behavior."

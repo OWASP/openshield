@@ -10,7 +10,7 @@ CATEGORY = "Compute"
 FRAMEWORKS = {
     "CIS": "N/A-CMP-007",
     "NIST": "PR.AC-3",
-    "ISO27001": "A.13.1.1",
+    "ISO27001": "A.8.20",
     "SOC2": "CC6.6",
 }
 DESCRIPTION = (

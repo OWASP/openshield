@@ -8,7 +8,7 @@ RULE_ID = "AZ-SC-005"
 RULE_NAME = "Terraform State Storage Container Publicly Readable"
 SEVERITY = "CRITICAL"
 CATEGORY = "Supply Chain"
-FRAMEWORKS = {"CIS": "N/A-SC-005", "NIST": "PR.AC-5", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-SC-005", "NIST": "PR.AC-5", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 
 DESCRIPTION = (
     "A blob container that appears to hold Terraform remote state (matched by name) allows "

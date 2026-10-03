@@ -9,7 +9,7 @@ RULE_ID = "AZ-NET-021"
 RULE_NAME = "Private Endpoint DNS Configuration Reports Only Public Addresses"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-021", "NIST": "PR.AC-5", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-NET-021", "NIST": "PR.AC-5", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "Azure's Private Endpoint custom DNS configuration reports an FQDN with only public IP addresses. "
     "This control validates ARM configuration evidence; it does not test effective DNS resolution from a VNet "

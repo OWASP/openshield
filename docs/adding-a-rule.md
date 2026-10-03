@@ -31,7 +31,7 @@ CATEGORY = "Storage"  # Storage | Network | Identity | Database | Compute | Key 
 FRAMEWORKS = {
     "CIS": "3.5",  # CIS Azure Benchmark control ID
     "NIST": "PR.AC-3",  # NIST CSF subcategory
-    "ISO27001": "A.9.4.1",  # ISO 27001 Annex A control
+    "ISO27001": "A.8.3",  # ISO 27001 Annex A control
 }
 DESCRIPTION = (
     "Explain WHY this is a security risk. One or two sentences. "

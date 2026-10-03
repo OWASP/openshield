@@ -10,7 +10,7 @@ RULE_ID = "AZ-NET-024"
 RULE_NAME = "Application Gateway WAF Is Not in Prevention Mode"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-024", "NIST": "PR.PT-4", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-NET-024", "NIST": "PR.PT-4", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = "An enabled Application Gateway WAF is operating in Detection rather than Prevention mode."
 REMEDIATION = (
     "Tune exclusions in a non-production environment, then set the inline WAF "

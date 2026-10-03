@@ -6,7 +6,7 @@ RULE_ID = "AZ-STOR-001"
 RULE_NAME = "Public Blob Access Enabled on Storage Account"
 SEVERITY = "HIGH"
 CATEGORY = "Storage"
-FRAMEWORKS = {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.9.4.1"}
+FRAMEWORKS = {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.8.3"}
 DESCRIPTION = (
     "Storage accounts with public blob access enabled allow unauthenticated "
     "read access to blob data over the internet. This setting can expose "

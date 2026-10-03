@@ -9,7 +9,7 @@ RULE_ID = "AZ-AKS-002"
 RULE_NAME = "AKS Local Accounts Enabled"
 SEVERITY = "HIGH"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-002", "NIST": "PR.AC-1", "ISO27001": "A.9.2.1", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "N/A-AKS-002", "NIST": "PR.AC-1", "ISO27001": "A.5.16", "SOC2": "CC6.1"}
 DESCRIPTION = (
     "Local AKS accounts bypass centralized Microsoft Entra identity controls and can provide "
     "long-lived cluster access outside normal conditional-access and lifecycle processes."

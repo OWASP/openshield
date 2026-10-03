@@ -17,7 +17,7 @@ RULE_ID = "AZ-SECOPS-001"
 RULE_NAME = "Subscription Activity Log Not Exported to an Approved Central Destination"
 SEVERITY = "HIGH"
 CATEGORY = "Security Operations"
-FRAMEWORKS = {"CIS": "5.1.1", "NIST": "PR.PT-1", "ISO27001": "A.12.4.1", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "5.1.1", "NIST": "PR.PT-1", "ISO27001": "A.8.15", "SOC2": "CC7.2"}
 DESCRIPTION = (
     "The subscription's Azure Activity Log has no diagnostic setting exporting it to an "
     "organisation-approved central destination (Log Analytics workspace, Storage Account, or "

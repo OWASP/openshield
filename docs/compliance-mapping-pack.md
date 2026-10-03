@@ -13,17 +13,37 @@ implements for compliance reporting specifically.
 |---|---|---|---|
 | `cis` | CIS Microsoft Azure Foundations Benchmark | 2.0.0 (2023-02) | `compliance/frameworks/cis_azure_benchmark.json` |
 | `nist` | NIST Cybersecurity Framework | 1.1 | `compliance/frameworks/nist_csf.json` |
-| `iso27001` | ISO/IEC 27001 | 2013 | `compliance/frameworks/iso27001.json` |
+| `iso27001` | ISO/IEC 27001 (Annex A) | 2022 | `compliance/frameworks/iso27001.json` |
 | `soc2` | AICPA SOC 2 Type II (Trust Services Criteria) | 2017 | `compliance/frameworks/soc2.json` |
 | `ncsc_pqc` | NCSC UK PQC Migration Guidance | 2025 | `compliance/frameworks/ncsc_pqc.json` |
 | `enisa_pqc` | ENISA Post-Quantum Cryptography Recommendations | 2021 | `compliance/frameworks/enisa_pqc.json` |
 
 These are the only editions OpenShield currently maps. Newer editions (for
-example CIS Azure Benchmark 3.x, NIST CSF 2.0, or ISO/IEC 27001:2022) are not
-mapped yet — do not present a report generated against an older edition as
-coverage of a newer one. When a newer edition is added, the older mapping
-pack must be kept and explicitly marked `"mapping_pack_status": "legacy"`
-rather than overwritten, so a report generated under it stays interpretable.
+example CIS Azure Benchmark 3.x or NIST CSF 2.0) are not mapped yet — do not
+present a report generated against an older edition as coverage of a newer
+one. When a newer edition is added, the older mapping pack is normally kept
+and explicitly marked `"mapping_pack_status": "legacy"` rather than overwritten,
+so a report generated under it stays interpretable.
+
+### ISO/IEC 27001: 2013 is superseded, not retained
+
+The ISO/IEC 27001:2013 pack was replaced in place by the 2022 pack (mapping pack
+`2.0.0`) instead of being kept as a `legacy` file. The transition period to the
+2022 edition ended on 31 October 2025, so certificates against 2013 are no longer
+valid and a 2013 pack would only double the maintenance for a withdrawn standard.
+Reports do not lose their meaning: every scan stores the mapping-pack snapshot it
+was produced with (`compliance_mapping_snapshot`), so a scan made before this
+change keeps reporting against the 2013 controls it was scored with, and only
+scans made after it report against the 2022 Annex A. A scan saved before full
+snapshots existed has no stored controls, so it is scored against the pack on
+disk and its `mapping_provenance` says so rather than claiming a snapshot.
+
+The 2022 pack was derived from the published ISO/IEC 27001:2013 to 2022 control
+correspondence. Most rules land in the new `A.8` Technological controls. Rules
+about detection, alerting and monitoring coverage map to `A.8.16` (Monitoring
+activities), and Azure Policy driven configuration governance for Kubernetes maps
+to `A.8.9` (Configuration management), both new in 2022. Every entry stays
+`pending_review` until a maintainer reviews it, so none counts towards a score yet.
 
 ## The mapping-pack schema
 

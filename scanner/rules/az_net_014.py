@@ -6,7 +6,7 @@ RULE_ID = "AZ-NET-014"
 RULE_NAME = "VNet Peering Configured Without Gateway Transit Restrictions"
 SEVERITY = "MEDIUM"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "6.6", "NIST": "PR.AC-5", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "6.6", "NIST": "PR.AC-5", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "A Virtual Network peering connection has gateway transit enabled. "
     "Enabling allowGatewayTransit or useRemoteGateways on a peering "

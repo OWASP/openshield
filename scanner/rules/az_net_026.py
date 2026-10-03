@@ -10,7 +10,7 @@ RULE_ID = "AZ-NET-026"
 RULE_NAME = "WAF Lacks Current Managed Rules or Bot Protection"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-026", "NIST": "PR.PT-4", "ISO27001": "A.14.2.5", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-NET-026", "NIST": "PR.PT-4", "ISO27001": "A.8.27", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "An Application Gateway WAF lacks both an approved current base managed rule set and Microsoft bot protection."
 )

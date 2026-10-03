@@ -7,7 +7,7 @@ RULE_ID = "AZ-NET-006"
 RULE_NAME = "Public IP address unassociated with any resource"
 SEVERITY = "LOW"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "9.1", "NIST": "CM-7", "ISO27001": "A.13.1.1"}
+FRAMEWORKS = {"CIS": "9.1", "NIST": "CM-7", "ISO27001": "A.8.20"}
 DESCRIPTION = (
     "A public IP address exists in the subscription but is not associated "
     "with any resource such as a VM, load balancer or application gateway. "

@@ -9,7 +9,7 @@ CATEGORY = "Identity"
 FRAMEWORKS = {
     "CIS": "N/A-IDN-022",
     "NIST": "PR.AC-4",
-    "ISO27001": "A.9.4.1",
+    "ISO27001": "A.8.3",
     "SOC2": "CC6.6",
 }
 DESCRIPTION = (
