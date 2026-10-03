@@ -22,9 +22,20 @@ if [[ -z "$SERVERS" ]]; then
   exit 0
 fi
 
+READ_FAILURES=0
+
 while IFS=$'\t' read -r SERVER_NAME RESOURCE_GROUP; do
   echo "Checking $SERVER_NAME in $RESOURCE_GROUP..."
-  TLS_VERSION=$(az sql server show --name "$SERVER_NAME" --resource-group "$RESOURCE_GROUP" --query "minimalTlsVersion" --output tsv 2>/dev/null || echo "")
+
+  # A failed read (permissions, transient API error) says nothing about the
+  # server's TLS setting, so it must never fall through to the update below.
+  # Only a successful read returning an unset/"None"/below-1.2 value is
+  # treated as non-compliant.
+  if ! TLS_VERSION=$(az sql server show --name "$SERVER_NAME" --resource-group "$RESOURCE_GROUP" --query "minimalTlsVersion" --output tsv 2>/dev/null); then
+    echo "ERROR: could not read minimalTlsVersion for $SERVER_NAME, skipping (no change made)." >&2
+    READ_FAILURES=$((READ_FAILURES + 1))
+    continue
+  fi
 
   if [[ "$TLS_VERSION" != "1.2" && "$TLS_VERSION" != "1.3" ]]; then
     echo "Setting minimum TLS version to 1.2 on $SERVER_NAME..."
@@ -34,6 +45,11 @@ while IFS=$'\t' read -r SERVER_NAME RESOURCE_GROUP; do
     echo "$SERVER_NAME already enforces TLS $TLS_VERSION, skipping."
   fi
 done <<< "$SERVERS"
+
+if [[ "$READ_FAILURES" -gt 0 ]]; then
+  echo "$READ_FAILURES server(s) could not be read and were left unchanged. Re-run after fixing access." >&2
+  exit 1
+fi
 
 echo "Done. Verify with:"
 echo "  az sql server show --name <name> --resource-group <rg> --query minimalTlsVersion"
