@@ -61,6 +61,8 @@ does helps reporters accurately scope their findings.
 | `playbooks/cli/` | Remediation scripts that modify Azure resources when run manually | Command injection, privilege escalation, unsafe Azure mutations |
 | `sentinel/` | Signs and uploads scan data to Azure Log Analytics via HMAC | HMAC signing, credential handling, data integrity |
 | `api/` AI endpoints | Process untrusted finding text through LLM calls | Prompt injection, data leakage |
+| `frontend/` | React dashboard that displays scan results and compliance reports | XSS, CSRF, insecure API consumption, auth state handling |
+| `website/` | Astro project website and documentation | XSS, content injection, dependency vulnerabilities |
 | Hardcoded secrets | Anywhere in the codebase | Any real credential committed to the repo |
 
 ### Out of scope
