@@ -33,7 +33,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- The scan engine runs a rule that exposes `evaluate()` through `evaluate()` only and takes its findings from the FAIL evaluations, instead of also calling `scan()`. A rule whose `evaluate()` crashes, returns malformed data, or reports any `ERROR` evaluation (such as `INVENTORY_UNAVAILABLE`) is listed in `failed_rule_ids` (#369).
+- The scan engine runs a rule that exposes `evaluate()` through `evaluate()` only and takes its findings from the FAIL evaluations, instead of also calling `scan()`. A rule whose `evaluate()` crashes, returns malformed data, or reports at least one `ERROR` evaluation (such as `INVENTORY_UNAVAILABLE`) is listed in `failed_rule_ids`; a per-resource gap is `UNKNOWN` and does not list the rule. Items that are not `RuleEvaluation` objects are dropped individually, keeping the rule's valid evaluations and findings, and recorded as one `MALFORMED_EVALUATION` error (#369).
 - Migrate the ISO 27001 mapping pack from ISO/IEC 27001:2013 to ISO/IEC 27001:2022 Annex A (mapping pack 2.0.0) and each rule's own `ISO27001` value, for issue #358. Rules about monitoring coverage use the new A.8.16 and Kubernetes policy governance uses A.8.9. All entries stay `pending_review`. Scans saved with a mapping snapshot keep reporting against the 2013 controls.
 
 ### Fixed

@@ -16,6 +16,7 @@ import scanner.engine as engine_mod
 from api.models.finding import DatabaseManager
 from scanner.engine import ScanEngine
 from scanner.evaluation import (
+    EVIDENCE_UNAVAILABLE,
     INVENTORY_UNAVAILABLE,
     NO_RESOURCES_FOUND,
     EvaluationStatus,
@@ -317,24 +318,83 @@ def test_engine_records_an_error_evaluation_as_a_failed_rule(monkeypatch):
     assert result["failed_rule_ids"] == ["AZ-TEST-025"]
 
 
-def test_engine_records_a_partial_error_as_a_failed_rule(monkeypatch):
+def test_engine_lists_a_rule_with_any_error_even_when_other_resources_passed(monkeypatch):
+    """A rule reading two inventories can evaluate one and fail to read the
+    other; one ERROR lists the rule, and its PASS rows are still kept."""
     _patch_engine_client(monkeypatch, MagicMock())
 
     def _evaluate(*_args):
         return [
             RuleEvaluation(rule_id="AZ-TEST-026", resource_id="/r/1", resource_type="t", status=EvaluationStatus.PASS),
-            RuleEvaluation(
-                rule_id="AZ-TEST-026",
-                resource_id="/r/2",
-                resource_type="t",
-                status=EvaluationStatus.ERROR,
-                reason_code="EVIDENCE_UNAVAILABLE",
-            ),
+            inventory_unavailable("AZ-TEST-026", "Microsoft.Test/second", _SUB),
         ]
 
     result = _engine([SimpleNamespace(RULE_ID="AZ-TEST-026", scan=lambda *_: [], evaluate=_evaluate)]).run_scan()
 
     assert result["failed_rule_ids"] == ["AZ-TEST-026"]
+    assert [e["status"] for e in result["evaluations"]] == [EvaluationStatus.PASS, EvaluationStatus.ERROR]
+
+
+def test_engine_does_not_list_a_rule_for_per_resource_unknown(monkeypatch):
+    """Evidence missing for some resources is UNKNOWN, not ERROR: a rule that
+    evaluated 8 resources and could not read 2 completed and is not listed."""
+    _patch_engine_client(monkeypatch, MagicMock())
+
+    def _evaluate(*_args):
+        passed = [
+            RuleEvaluation(
+                rule_id="AZ-TEST-027", resource_id=f"/r/{i}", resource_type="t", status=EvaluationStatus.PASS
+            )
+            for i in range(8)
+        ]
+        unknown = [
+            RuleEvaluation(
+                rule_id="AZ-TEST-027",
+                resource_id=f"/r/{i}",
+                resource_type="t",
+                status=EvaluationStatus.UNKNOWN,
+                reason_code=EVIDENCE_UNAVAILABLE,
+            )
+            for i in range(8, 10)
+        ]
+        return passed + unknown
+
+    result = _engine([SimpleNamespace(RULE_ID="AZ-TEST-027", scan=lambda *_: [], evaluate=_evaluate)]).run_scan()
+
+    assert result["failed_rule_ids"] == []
+    assert len(result["evaluations"]) == 10
+
+
+def test_engine_keeps_valid_evaluations_and_findings_when_some_items_are_malformed(monkeypatch):
+    """Dropping the whole list on one bad item would also drop real FAIL
+    findings; keep the valid evaluations and add one ERROR naming the bad items."""
+    _patch_engine_client(monkeypatch, MagicMock())
+    resource_id = "/subscriptions/x/resource/1"
+
+    def _evaluate(*_args):
+        return [
+            RuleEvaluation(
+                rule_id="AZ-TEST-028",
+                resource_id=resource_id,
+                resource_type="Microsoft.Test/resources",
+                status=EvaluationStatus.FAIL,
+                finding=_finding("AZ-TEST-028", resource_id),
+            ),
+            {"status": "PASS"},
+            RuleEvaluation(rule_id="AZ-TEST-028", resource_id="/r/2", resource_type="t", status=EvaluationStatus.PASS),
+            None,
+        ]
+
+    result = _engine([SimpleNamespace(RULE_ID="AZ-TEST-028", scan=lambda *_: [], evaluate=_evaluate)]).run_scan()
+
+    statuses = [e["status"] for e in result["evaluations"]]
+    assert statuses == [EvaluationStatus.FAIL, EvaluationStatus.PASS, EvaluationStatus.ERROR]
+    error = result["evaluations"][-1]
+    assert error["reason_code"] == "MALFORMED_EVALUATION"
+    assert "#1 (dict)" in error["reason"] and "#3 (NoneType)" in error["reason"]
+    assert result["total_findings"] == 1
+    assert result["findings"][0]["resource_id"] == resource_id
+    assert result["failed_rule_ids"] == ["AZ-TEST-028"]
 
 
 def test_engine_rejects_evaluate_items_that_are_not_rule_evaluations(monkeypatch):
@@ -345,8 +405,9 @@ def test_engine_rejects_evaluate_items_that_are_not_rule_evaluations(monkeypatch
 
     result = _engine([rule]).run_scan()
 
+    assert len(result["evaluations"]) == 1
     assert result["evaluations"][0]["status"] == EvaluationStatus.ERROR
-    assert result["evaluations"][0]["reason_code"] == "EVALUATOR_EXCEPTION"
+    assert result["evaluations"][0]["reason_code"] == "MALFORMED_EVALUATION"
     assert result["failed_rule_ids"] == ["AZ-TEST-022"]
 
 

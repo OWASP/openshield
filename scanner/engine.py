@@ -106,7 +106,10 @@ class ScanEngine:
 
         Returns:
             dict with keys: scan_id, subscription_id, started_at,
-            completed_at, total_findings, findings.
+            completed_at, total_findings, findings, evaluations, and
+            failed_rule_ids (rules that raised, returned malformed data, or
+            reported at least one ERROR evaluation; not a statement that the
+            rule produced no valid results).
         """
         scan_id = scan_id or str(uuid.uuid4())
         started_at = datetime.now(timezone.utc).isoformat()
@@ -126,9 +129,12 @@ class ScanEngine:
         # PASS/FAIL from absence of findings (get_compliance_score()) must be
         # able to tell the two apart, or a crashed rule reads as a clean
         # pass. A rule is listed here when it raised, returned malformed
-        # data, or reported any ERROR evaluation (for example
-        # INVENTORY_UNAVAILABLE), so this list and the evaluations never
-        # disagree about whether a rule completed.
+        # data, or reported at least one ERROR evaluation, so this list and
+        # the evaluations never disagree. ERROR is reserved for "the rule
+        # could not evaluate" (INVENTORY_UNAVAILABLE, evaluator bugs); a
+        # per-resource gap such as EVIDENCE_UNAVAILABLE is UNKNOWN and does
+        # not list the rule. A listed rule may still have produced valid
+        # evaluations and findings for other resources.
         failed_rule_ids: List[str] = []
 
         for rule in self.rules:
@@ -243,29 +249,42 @@ class ScanEngine:
     def _run_evaluate(self, rule: Any, rule_id: str) -> Tuple[List[RuleEvaluation], bool]:
         """Run a rule's evaluate() and report whether it completed.
 
-        A raised exception, a non-list return, or a list containing anything
-        other than RuleEvaluation objects is recorded as a single ERROR at the
-        subscription scope; a malformed item must not reach result
-        serialisation, where it would fail the whole scan.
+        A raised exception or a non-list return is recorded as a single ERROR
+        at the subscription scope. Items that are not RuleEvaluation objects
+        are dropped (they must not reach result serialisation, where they
+        would fail the whole scan), the valid evaluations are kept so their
+        FAIL findings still surface, and one ERROR naming the malformed
+        positions is added so the rule cannot read as clean.
         """
         try:
             rule_evaluations = rule.evaluate(self.client, self.subscription_id)
             if not isinstance(rule_evaluations, list):
                 raise TypeError(f"evaluate() must return a list, got {type(rule_evaluations)}")
-            for item in rule_evaluations:
-                if not isinstance(item, RuleEvaluation):
-                    raise TypeError(f"evaluate() must return RuleEvaluation items, got {type(item)}")
-            return rule_evaluations, True
         except Exception as exc:
             RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
             logger.error("Rule %s evaluate() raised an exception: %s", rule_id, exc, exc_info=True)
-            return [
-                RuleEvaluation(
-                    rule_id=rule_id,
-                    resource_id=subscription_scope_id(self.subscription_id),
-                    resource_type="",
-                    status=EvaluationStatus.ERROR,
-                    reason_code="EVALUATOR_EXCEPTION",
-                    reason=str(exc),
-                )
-            ], False
+            return [self._evaluator_error(rule_id, "EVALUATOR_EXCEPTION", str(exc))], False
+
+        valid = [item for item in rule_evaluations if isinstance(item, RuleEvaluation)]
+        malformed = [
+            f"#{index} ({type(item).__name__})"
+            for index, item in enumerate(rule_evaluations)
+            if not isinstance(item, RuleEvaluation)
+        ]
+        if not malformed:
+            return rule_evaluations, True
+
+        RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
+        reason = f"evaluate() returned {len(malformed)} item(s) that are not RuleEvaluation: {', '.join(malformed)}"
+        logger.error("Rule %s %s", rule_id, reason)
+        return valid + [self._evaluator_error(rule_id, "MALFORMED_EVALUATION", reason)], False
+
+    def _evaluator_error(self, rule_id: str, reason_code: str, reason: str) -> RuleEvaluation:
+        return RuleEvaluation(
+            rule_id=rule_id,
+            resource_id=subscription_scope_id(self.subscription_id),
+            resource_type="",
+            status=EvaluationStatus.ERROR,
+            reason_code=reason_code,
+            reason=reason,
+        )
