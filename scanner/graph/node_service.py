@@ -8,7 +8,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 import psycopg2
-import psycopg2.extras
+
 
 if TYPE_CHECKING:
     from scanner.arg_inventory import InventorySnapshot
@@ -53,7 +53,8 @@ def populate_nodes(snapshot: InventorySnapshot, dsn: str) -> int:
         return 0
 
     written = 0
-    with psycopg2.connect(dsn) as conn:
+    conn = psycopg2.connect(dsn)
+    try:
         with conn.cursor() as cur:
             for resource in snapshot.resources:
                 cur.execute(
@@ -71,13 +72,27 @@ def populate_nodes(snapshot: InventorySnapshot, dsn: str) -> int:
                         "properties": json.dumps(resource.properties),
                     },
                 )
-                written += 1
+                written += max(cur.rowcount, 0)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     return written
 
 
 def link_findings_to_nodes(scan_id: str, tenant_id: str, dsn: str) -> int:
     """Link findings from this scan to their graph nodes by resource_id."""
-    with psycopg2.connect(dsn) as conn:
+    conn = psycopg2.connect(dsn)
+    try:
         with conn.cursor() as cur:
             cur.execute(_LINK_FINDINGS_SQL, {"scan_id": scan_id, "tenant_id": tenant_id})
-            return cur.rowcount if cur.rowcount >= 0 else 0
+            result = cur.rowcount if cur.rowcount >= 0 else 0
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
