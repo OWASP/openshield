@@ -125,9 +125,10 @@ class ScanEngine:
         # equivalent to "the rule ran and found nothing" - a caller scoring
         # PASS/FAIL from absence of findings (get_compliance_score()) must be
         # able to tell the two apart, or a crashed rule reads as a clean
-        # pass. Full per-resource evaluation persistence is issue #263;
-        # tracking which rules failed to complete at all is the minimum this
-        # scan result can honestly report without it.
+        # pass. A rule is listed here when it raised, returned malformed
+        # data, or reported any ERROR evaluation (for example
+        # INVENTORY_UNAVAILABLE), so this list and the evaluations never
+        # disagree about whether a rule completed.
         failed_rule_ids: List[str] = []
 
         for rule in self.rules:
@@ -137,7 +138,7 @@ class ScanEngine:
                 # findings (collected below), so also calling scan() would only
                 # repeat the same Azure list calls and let the two paths drift.
                 rule_evaluations, completed = self._run_evaluate(rule, rule_id)
-                if not completed:
+                if not completed or any(e.status == EvaluationStatus.ERROR for e in rule_evaluations):
                     failed_rule_ids.append(rule_id)
                 evaluations.extend(rule_evaluations)
                 logger.info("Rule %s produced %d evaluation(s)", rule_id, len(rule_evaluations))

@@ -301,6 +301,42 @@ def test_engine_records_a_crashed_evaluate_as_a_failed_rule(monkeypatch):
     assert result["failed_rule_ids"] == ["AZ-TEST-021"]
 
 
+def test_engine_records_an_error_evaluation_as_a_failed_rule(monkeypatch):
+    """A rule whose inventory call failed inspected nothing; failed_rule_ids
+    must agree with its ERROR evaluation instead of reading as completed."""
+    _patch_engine_client(monkeypatch, MagicMock())
+    rule = SimpleNamespace(
+        RULE_ID="AZ-TEST-025",
+        scan=lambda *_: [],
+        evaluate=lambda *_: [inventory_unavailable("AZ-TEST-025", "Microsoft.Test/resources", _SUB)],
+    )
+
+    result = _engine([rule]).run_scan()
+
+    assert result["evaluations"][0]["reason_code"] == INVENTORY_UNAVAILABLE
+    assert result["failed_rule_ids"] == ["AZ-TEST-025"]
+
+
+def test_engine_records_a_partial_error_as_a_failed_rule(monkeypatch):
+    _patch_engine_client(monkeypatch, MagicMock())
+
+    def _evaluate(*_args):
+        return [
+            RuleEvaluation(rule_id="AZ-TEST-026", resource_id="/r/1", resource_type="t", status=EvaluationStatus.PASS),
+            RuleEvaluation(
+                rule_id="AZ-TEST-026",
+                resource_id="/r/2",
+                resource_type="t",
+                status=EvaluationStatus.ERROR,
+                reason_code="EVIDENCE_UNAVAILABLE",
+            ),
+        ]
+
+    result = _engine([SimpleNamespace(RULE_ID="AZ-TEST-026", scan=lambda *_: [], evaluate=_evaluate)]).run_scan()
+
+    assert result["failed_rule_ids"] == ["AZ-TEST-026"]
+
+
 def test_engine_rejects_evaluate_items_that_are_not_rule_evaluations(monkeypatch):
     """A malformed item must become an ERROR for that rule instead of failing
     the whole scan when results are serialised."""
