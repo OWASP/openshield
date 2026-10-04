@@ -70,51 +70,55 @@ def get_attack_graph():
         # request is well-formed but the auth method is insufficient.
         return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
-    conn = _get_db().conn
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        if subscription_id:
-            cur.execute(
-                """
-                SELECT n.node_id::text, n.resource_id, n.resource_type, n.name,
-                       n.location, n.resource_group, n.subscription_id, n.snapshot_id,
-                       n.updated_at
-                FROM graph_nodes n
-                WHERE n.tenant_id = %(tenant_id)s
-                  AND n.subscription_id = %(subscription_id)s
-                ORDER BY n.updated_at DESC
-                LIMIT %(limit)s
-                """,
-                {"tenant_id": tenant_id, "subscription_id": subscription_id, "limit": limit},
-            )
-        else:
-            cur.execute(
-                """
-                SELECT n.node_id::text, n.resource_id, n.resource_type, n.name,
-                       n.location, n.resource_group, n.subscription_id, n.snapshot_id,
-                       n.updated_at
-                FROM graph_nodes n
-                WHERE n.tenant_id = %(tenant_id)s
-                ORDER BY n.updated_at DESC
-                LIMIT %(limit)s
-                """,
-                {"tenant_id": tenant_id, "limit": limit},
-            )
-        nodes = cur.fetchall()
+    try:
+        conn = _get_db().conn
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            if subscription_id:
+                cur.execute(
+                    """
+                    SELECT n.node_id::text, n.resource_id, n.resource_type, n.name,
+                           n.location, n.resource_group, n.subscription_id, n.snapshot_id,
+                           n.updated_at
+                    FROM graph_nodes n
+                    WHERE n.tenant_id = %(tenant_id)s
+                      AND n.subscription_id = %(subscription_id)s
+                    ORDER BY n.updated_at DESC
+                    LIMIT %(limit)s
+                    """,
+                    {"tenant_id": tenant_id, "subscription_id": subscription_id, "limit": limit},
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT n.node_id::text, n.resource_id, n.resource_type, n.name,
+                           n.location, n.resource_group, n.subscription_id, n.snapshot_id,
+                           n.updated_at
+                    FROM graph_nodes n
+                    WHERE n.tenant_id = %(tenant_id)s
+                    ORDER BY n.updated_at DESC
+                    LIMIT %(limit)s
+                    """,
+                    {"tenant_id": tenant_id, "limit": limit},
+                )
+            nodes = cur.fetchall()
 
-        node_ids = [row["node_id"] for row in nodes]
-        edges: list = []
-        if node_ids:
-            cur.execute(
-                """
-                SELECT e.edge_id::text, e.source_node_id::text, e.target_node_id::text,
-                       e.relationship_type, e.confidence, e.evidence_source, e.collected_at
-                FROM graph_edges e
-                WHERE e.source_node_id = ANY(%(node_ids)s::uuid[])
-                  AND e.target_node_id = ANY(%(node_ids)s::uuid[])
-                """,
-                {"node_ids": node_ids},
-            )
-            edges = cur.fetchall()
+            node_ids = [row["node_id"] for row in nodes]
+            edges: list = []
+            if node_ids:
+                cur.execute(
+                    """
+                    SELECT e.edge_id::text, e.source_node_id::text, e.target_node_id::text,
+                           e.relationship_type, e.confidence, e.evidence_source, e.collected_at
+                    FROM graph_edges e
+                    WHERE e.source_node_id = ANY(%(node_ids)s::uuid[])
+                      AND e.target_node_id = ANY(%(node_ids)s::uuid[])
+                    """,
+                    {"node_ids": node_ids},
+                )
+                edges = cur.fetchall()
+    except Exception:
+        logger.exception("get_attack_graph failed for tenant %s", tenant_id)
+        return jsonify({"error": "internal server error"}), 500
 
     return jsonify({"nodes": [dict(r) for r in nodes], "edges": [dict(r) for r in edges]})
 
@@ -143,26 +147,30 @@ def list_attack_paths():
         # request is well-formed but the auth method is insufficient.
         return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
-    conn = _get_db().conn
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(
-            """
-            SELECT ap.path_id::text, ap.source_node_id::text, ap.target_node_id::text,
-                   ap.path_node_ids, ap.path_length, ap.min_confidence,
-                   ap.relationship_types, ap.computed_at,
-                   src.resource_type AS source_type, src.name AS source_name,
-                   tgt.resource_type AS target_type, tgt.name AS target_name
-            FROM attack_paths ap
-            JOIN graph_nodes src ON src.node_id = ap.source_node_id
-            JOIN graph_nodes tgt ON tgt.node_id = ap.target_node_id
-            WHERE ap.scan_id = %(scan_id)s
-              AND ap.tenant_id = %(tenant_id)s
-            ORDER BY ap.path_length ASC, ap.min_confidence DESC
-            LIMIT %(limit)s
-            """,
-            {"scan_id": scan_id, "tenant_id": tenant_id, "limit": limit},
-        )
-        rows = cur.fetchall()
+    try:
+        conn = _get_db().conn
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT ap.path_id::text, ap.source_node_id::text, ap.target_node_id::text,
+                       ap.path_node_ids, ap.path_length, ap.min_confidence,
+                       ap.relationship_types, ap.computed_at,
+                       src.resource_type AS source_type, src.name AS source_name,
+                       tgt.resource_type AS target_type, tgt.name AS target_name
+                FROM attack_paths ap
+                JOIN graph_nodes src ON src.node_id = ap.source_node_id
+                JOIN graph_nodes tgt ON tgt.node_id = ap.target_node_id
+                WHERE ap.scan_id = %(scan_id)s
+                  AND ap.tenant_id = %(tenant_id)s
+                ORDER BY ap.path_length ASC, ap.min_confidence DESC
+                LIMIT %(limit)s
+                """,
+                {"scan_id": scan_id, "tenant_id": tenant_id, "limit": limit},
+            )
+            rows = cur.fetchall()
+    except Exception:
+        logger.exception("list_attack_paths failed for scan %s", scan_id)
+        return jsonify({"error": "internal server error"}), 500
 
     return jsonify({"scan_id": scan_id, "paths": [dict(r) for r in rows]})
 
@@ -182,42 +190,46 @@ def get_attack_path(path_id: str):
         # request is well-formed but the auth method is insufficient.
         return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
-    conn = _get_db().conn
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(
-            """
-            SELECT ap.path_id::text, ap.scan_id, ap.source_node_id::text,
-                   ap.target_node_id::text, ap.path_node_ids, ap.path_length,
-                   ap.min_confidence, ap.relationship_types, ap.computed_at
-            FROM attack_paths ap
-            WHERE ap.path_id = %(path_id)s::uuid
-              AND ap.tenant_id = %(tenant_id)s
-            """,
-            {"path_id": path_id, "tenant_id": tenant_id},
-        )
-        row = cur.fetchone()
-
-    if row is None:
-        return jsonify({"error": "not found"}), 404
-
-    path = dict(row)
-
-    # Fetch full node detail for each hop
-    node_ids = [str(nid) for nid in path["path_node_ids"]]
-    if node_ids:
+    try:
+        conn = _get_db().conn
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT node_id::text, resource_id, resource_type, name,
-                       location, resource_group, subscription_id
-                FROM graph_nodes
-                WHERE node_id = ANY(%(ids)s::uuid[])
-                  AND tenant_id = %(tenant_id)s
+                SELECT ap.path_id::text, ap.scan_id, ap.source_node_id::text,
+                       ap.target_node_id::text, ap.path_node_ids, ap.path_length,
+                       ap.min_confidence, ap.relationship_types, ap.computed_at
+                FROM attack_paths ap
+                WHERE ap.path_id = %(path_id)s::uuid
+                  AND ap.tenant_id = %(tenant_id)s
                 """,
-                {"ids": node_ids, "tenant_id": tenant_id},
+                {"path_id": path_id, "tenant_id": tenant_id},
             )
-            nodes_by_id = {r["node_id"]: dict(r) for r in cur.fetchall()}
-        path["hops"] = [nodes_by_id.get(str(nid), {"node_id": str(nid)}) for nid in path["path_node_ids"]]
+            row = cur.fetchone()
+
+        if row is None:
+            return jsonify({"error": "not found"}), 404
+
+        path = dict(row)
+
+        # Fetch full node detail for each hop
+        node_ids = [str(nid) for nid in path["path_node_ids"]]
+        if node_ids:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT node_id::text, resource_id, resource_type, name,
+                           location, resource_group, subscription_id
+                    FROM graph_nodes
+                    WHERE node_id = ANY(%(ids)s::uuid[])
+                      AND tenant_id = %(tenant_id)s
+                    """,
+                    {"ids": node_ids, "tenant_id": tenant_id},
+                )
+                nodes_by_id = {r["node_id"]: dict(r) for r in cur.fetchall()}
+            path["hops"] = [nodes_by_id.get(str(nid), {"node_id": str(nid)}) for nid in path["path_node_ids"]]
+    except Exception:
+        logger.exception("get_attack_path failed for path_id %s", path_id)
+        return jsonify({"error": "internal server error"}), 500
 
     path["path_node_ids"] = [str(nid) for nid in path["path_node_ids"]]
     return jsonify(path)

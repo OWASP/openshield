@@ -99,6 +99,30 @@ def _bfs_from(
     return paths
 
 
+def _delete_stale_paths(conn: Any, scan_id: str, tenant_id: str) -> None:
+    """Delete attack paths from previous scans for the same subscription, keeping only the current scan."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            DELETE FROM attack_paths
+            WHERE tenant_id = %(tenant_id)s
+              AND scan_id != %(scan_id)s
+              AND scan_id IN (
+                  SELECT DISTINCT ap2.scan_id
+                  FROM attack_paths ap2
+                  JOIN findings f ON f.scan_id = ap2.scan_id
+                  WHERE ap2.tenant_id = %(tenant_id)s
+                    AND f.subscription_id = (
+                        SELECT subscription_id FROM findings
+                        WHERE scan_id = %(scan_id)s
+                        LIMIT 1
+                    )
+              )
+            """,
+            {"tenant_id": tenant_id, "scan_id": scan_id},
+        )
+
+
 def _write_paths(
     conn: Any,
     scan_id: str,
@@ -135,9 +159,10 @@ def _write_paths(
             rows,
             template="(%s, %s, %s, %s::uuid, %s::uuid, %s::uuid[], %s, %s, %s)",
         )
-    # execute_values returns -1 for rowcount with ON CONFLICT DO NOTHING;
-    # return the number of rows attempted instead.
-    return len(rows)
+        inserted = cur.rowcount
+    # cur.rowcount reflects actual inserts after ON CONFLICT DO NOTHING;
+    # fall back to attempted count if the driver reports -1.
+    return inserted if inserted >= 0 else len(rows)
 
 
 def compute_attack_paths(scan_id: str, tenant_id: str, dsn: str) -> int:
@@ -146,10 +171,12 @@ def compute_attack_paths(scan_id: str, tenant_id: str, dsn: str) -> int:
         conn = psycopg2.connect(dsn)
         conn.autocommit = False
         try:
+            _delete_stale_paths(conn, scan_id, tenant_id)
             adj = _load_adjacency(conn, tenant_id)
             source_nodes = _load_finding_nodes(conn, scan_id, tenant_id)
             if not source_nodes:
                 logger.info("graph path traversal: no finding-linked nodes for scan %s", scan_id)
+                conn.commit()
                 return 0
 
             total = 0
