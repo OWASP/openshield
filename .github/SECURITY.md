@@ -4,13 +4,12 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Report security vulnerabilities privately using
-[GitHub's private security advisory feature](https://github.com/OWASP/openshield/security/advisories/new).
+Email **vishnu.ajith@owasp.org** with your report. This is the current primary
+channel while GitHub private vulnerability reporting (PVR) is being enabled for
+this organization.
 
-> **Note for reporters:** Private vulnerability reporting must be enabled by an
-> organisation owner (Settings > Code security > Private vulnerability reporting)
-> before this link accepts reports from outside collaborators. If the link does
-> not work, email **vishnu.ajith@owasp.org** directly.
+Once PVR is active, you will also be able to report via
+[GitHub's private security advisory feature](https://github.com/OWASP/openshield/security/advisories/new).
 
 Please include:
 
@@ -30,7 +29,7 @@ Please include:
 | Public disclosure | Coordinated with reporter after fix is merged |
 
 We follow coordinated disclosure. We will credit reporters in
-[`SECURITY_ACKNOWLEDGEMENTS.md`](../SECURITY_ACKNOWLEDGEMENTS.md)
+[SECURITY_ACKNOWLEDGEMENTS.md](https://github.com/OWASP/openshield/blob/main/SECURITY_ACKNOWLEDGEMENTS.md)
 unless they prefer to remain anonymous.
 
 ---
@@ -60,7 +59,7 @@ does helps reporters accurately scope their findings.
 | `scanner/` | Reads Azure resource configuration via the Azure SDK; does not write | Credential handling, cross-tenant isolation, output integrity |
 | `playbooks/cli/` | Remediation scripts that modify Azure resources when run manually | Command injection, privilege escalation, unsafe Azure mutations |
 | `sentinel/` | Signs and uploads scan data to Azure Log Analytics via HMAC | HMAC signing, credential handling, data integrity |
-| `api/` AI endpoints | Process untrusted finding text through LLM calls | Prompt injection, data leakage |
+| `ai/` | RAG pipeline (embedding, retrieval, chunking) invoked by the API AI endpoints | Prompt injection, data leakage, path traversal on document loading |
 | `compliance/` | Compliance framework mappings consumed by the API and scanner | Logic errors that incorrectly map controls, suppressing true positives |
 | `frontend/` | React dashboard that displays scan results and compliance reports | XSS, CSRF, insecure API consumption, auth state handling |
 | `website/` | Astro project website and documentation | XSS, content injection, dependency vulnerabilities |
@@ -75,7 +74,7 @@ does helps reporters accurately scope their findings.
 - Social engineering attacks
 - Physical security
 
-### Clarification on read-only behaviour
+### Clarification on read-only behavior
 
 The `scanner/` component is read-only: it reads Azure configuration and does not
 modify resources. The `playbooks/cli/` scripts are separate executables that a
@@ -88,8 +87,8 @@ sentinel components are active network services.
 
 | Control | Implementation |
 |---|---|
-| Static analysis (SAST) | Semgrep, Bandit, CodeQL on every PR |
-| Dependency scanning | Dependabot alerts + pip-audit in CI |
+| Static analysis (SAST) | Semgrep, Bandit in CI + CodeQL (separate workflow) on every PR |
+| Dependency scanning | Dependabot alerts (GitHub) + pip-audit in CI |
 | Secret scanning | Gitleaks in CI |
 | Container scanning | Trivy in CI |
 | SBOM generation | Syft in CI |
