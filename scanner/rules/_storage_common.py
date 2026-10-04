@@ -1,6 +1,8 @@
 """Shared opt-in policy metadata for enterprise storage controls."""
 
-from typing import Any, Mapping
+from typing import Any, Mapping, Optional
+
+from scanner.evaluation import APPROVED_EXCEPTION, POLICY_NOT_REQUIRED
 
 
 def tags_for(resource: Any) -> Mapping[str, Any]:
@@ -19,6 +21,18 @@ def approved_exception(resource: Any) -> bool:
     return tag_true(resource, "oshield:exception-approved")
 
 
+def policy_exemption(resource: Any, requirement_tag: str) -> Optional[str]:
+    """Return why an opt-in policy does not apply, or ``None`` when it does.
+
+    The reason is the NOT_APPLICABLE reason_code evaluate() reports.
+    """
+    if not tag_true(resource, requirement_tag):
+        return POLICY_NOT_REQUIRED
+    if approved_exception(resource):
+        return APPROVED_EXCEPTION
+    return None
+
+
 def policy_required(resource: Any, requirement_tag: str) -> bool:
     """Use explicit opt-in metadata to avoid assuming every account is critical."""
-    return tag_true(resource, requirement_tag) and not approved_exception(resource)
+    return policy_exemption(resource, requirement_tag) is None
