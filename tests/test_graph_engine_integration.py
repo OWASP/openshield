@@ -68,7 +68,6 @@ def test_run_scan_existing_rule_without_snapshot_param_still_works(engine):
     snapshot = _make_snapshot()
 
     def legacy_scan(client, subscription_id):
-<<<<<<< HEAD
         return [
             {
                 "rule_id": "AZ-LEGACY-001",
