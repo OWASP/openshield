@@ -1,7 +1,8 @@
 """Regression tests for the rule evaluation coverage contract (#263).
 
 Covers: the EvaluationStatus/RuleEvaluation contract itself, engine wiring
-(legacy rules, evaluator exceptions, FAIL-finding dedup against scan()), and
+(legacy rules, evaluator exceptions, evaluate() superseding scan()), the
+shared evaluation helpers, and
 DatabaseManager persistence of rule_evaluations in the same transaction as
 findings.
 """
@@ -14,7 +15,17 @@ import pytest
 import scanner.engine as engine_mod
 from api.models.finding import DatabaseManager
 from scanner.engine import ScanEngine
-from scanner.evaluation import EvaluationStatus, RuleEvaluation, aggregate_status, subscription_scope_id
+from scanner.evaluation import (
+    INVENTORY_UNAVAILABLE,
+    NO_RESOURCES_FOUND,
+    EvaluationStatus,
+    RuleEvaluation,
+    aggregate_status,
+    fail_findings,
+    inventory_unavailable,
+    no_resources_found,
+    subscription_scope_id,
+)
 
 _SUB = "00000000-0000-0000-0000-000000000001"
 _SCAN_ID = "00000000-0000-0000-0000-000000000000"
@@ -59,6 +70,31 @@ def test_aggregate_status_conservative_order():
 def test_aggregate_status_requires_at_least_one():
     with pytest.raises(ValueError):
         aggregate_status([])
+
+
+def test_inventory_unavailable_is_error_at_subscription_scope():
+    evaluation = inventory_unavailable("AZ-TEST-010", "Microsoft.Test/things", _SUB)
+    assert evaluation.status == EvaluationStatus.ERROR
+    assert evaluation.reason_code == INVENTORY_UNAVAILABLE
+    assert evaluation.resource_id == subscription_scope_id(_SUB)
+    assert evaluation.resource_type == "Microsoft.Test/things"
+
+
+def test_no_resources_found_is_not_applicable_at_subscription_scope():
+    evaluation = no_resources_found("AZ-TEST-011", "Microsoft.Test/things", _SUB)
+    assert evaluation.status == EvaluationStatus.NOT_APPLICABLE
+    assert evaluation.reason_code == NO_RESOURCES_FOUND
+    assert evaluation.resource_id == subscription_scope_id(_SUB)
+
+
+def test_fail_findings_returns_only_findings_attached_to_fail():
+    finding = {"rule_id": "AZ-TEST-012", "resource_id": "/r/1"}
+    evaluations = [
+        RuleEvaluation(rule_id="AZ-TEST-012", resource_id="/r/1", resource_type="t", status="FAIL", finding=finding),
+        RuleEvaluation(rule_id="AZ-TEST-012", resource_id="/r/2", resource_type="t", status="PASS"),
+        RuleEvaluation(rule_id="AZ-TEST-012", resource_id="/r/3", resource_type="t", status="UNKNOWN", reason_code="X"),
+    ]
+    assert fail_findings(evaluations) == [finding]
 
 
 # ── Engine wiring ────────────────────────────────────────────────────────────
@@ -167,9 +203,9 @@ def test_fail_evaluation_contributes_finding_when_scan_did_not_already_report_it
     assert result["findings"][0]["resource_id"] == finding["resource_id"]
 
 
-def test_fail_evaluation_does_not_duplicate_a_finding_scan_already_reported(monkeypatch):
-    """A rule implementing both scan() and evaluate() must not double-count a
-    violation both already agree on."""
+def test_evaluate_supersedes_scan_so_a_violation_is_reported_once(monkeypatch):
+    """A rule implementing both scan() and evaluate() is run through evaluate()
+    only, so a violation both would report is counted once."""
     _patch_engine_client(monkeypatch, MagicMock())
     eng = ScanEngine.__new__(ScanEngine)
     eng.subscription_id = _SUB
@@ -208,6 +244,117 @@ def test_fail_evaluation_does_not_duplicate_a_finding_scan_already_reported(monk
     result = eng.run_scan()
 
     assert result["total_findings"] == 1
+
+
+def _finding(rule_id: str, resource_id: str) -> dict:
+    return {
+        "rule_id": rule_id,
+        "rule_name": "Test",
+        "severity": "HIGH",
+        "category": "Test",
+        "resource_id": resource_id,
+        "resource_name": "r",
+        "resource_type": "Microsoft.Test/resources",
+        "description": "d",
+        "remediation": "r",
+        "playbook": "playbooks/cli/fix.sh",
+        "frameworks": {},
+        "metadata": {},
+    }
+
+
+def _engine(rules) -> ScanEngine:
+    eng = ScanEngine.__new__(ScanEngine)
+    eng.subscription_id = _SUB
+    eng.client = MagicMock()
+    eng.rules = rules
+    return eng
+
+
+def test_engine_does_not_call_scan_for_a_rule_with_evaluate(monkeypatch):
+    """evaluate() supersedes scan(); calling both repeats every Azure list call."""
+    _patch_engine_client(monkeypatch, MagicMock())
+    scan = MagicMock(return_value=[])
+    rule = SimpleNamespace(
+        RULE_ID="AZ-TEST-020",
+        scan=scan,
+        evaluate=lambda *_: [no_resources_found("AZ-TEST-020", "Microsoft.Test/resources", _SUB)],
+    )
+
+    result = _engine([rule]).run_scan()
+
+    scan.assert_not_called()
+    assert result["evaluations"][0]["status"] == EvaluationStatus.NOT_APPLICABLE
+    assert result["failed_rule_ids"] == []
+
+
+def test_engine_records_a_crashed_evaluate_as_a_failed_rule(monkeypatch):
+    """With scan() no longer run, an evaluate() crash is the rule failing to
+    complete and must reach failed_rule_ids, not just an ERROR row."""
+    _patch_engine_client(monkeypatch, MagicMock())
+
+    def _boom(*_args):
+        raise RuntimeError("evaluator blew up")
+
+    result = _engine([SimpleNamespace(RULE_ID="AZ-TEST-021", scan=lambda *_: [], evaluate=_boom)]).run_scan()
+
+    assert result["failed_rule_ids"] == ["AZ-TEST-021"]
+
+
+def test_engine_rejects_evaluate_items_that_are_not_rule_evaluations(monkeypatch):
+    """A malformed item must become an ERROR for that rule instead of failing
+    the whole scan when results are serialised."""
+    _patch_engine_client(monkeypatch, MagicMock())
+    rule = SimpleNamespace(RULE_ID="AZ-TEST-022", scan=lambda *_: [], evaluate=lambda *_: [{"status": "PASS"}])
+
+    result = _engine([rule]).run_scan()
+
+    assert result["evaluations"][0]["status"] == EvaluationStatus.ERROR
+    assert result["evaluations"][0]["reason_code"] == "EVALUATOR_EXCEPTION"
+    assert result["failed_rule_ids"] == ["AZ-TEST-022"]
+
+
+def test_engine_reports_one_finding_per_resource_for_repeated_fail(monkeypatch):
+    _patch_engine_client(monkeypatch, MagicMock())
+    resource_id = "/subscriptions/x/resource/1"
+
+    def _evaluate(*_args):
+        return [
+            RuleEvaluation(
+                rule_id="AZ-TEST-023",
+                resource_id=resource_id,
+                resource_type="Microsoft.Test/resources",
+                status=EvaluationStatus.FAIL,
+                finding=_finding("AZ-TEST-023", resource_id),
+            )
+            for _ in range(2)
+        ]
+
+    result = _engine([SimpleNamespace(RULE_ID="AZ-TEST-023", scan=lambda *_: [], evaluate=_evaluate)]).run_scan()
+
+    assert result["total_findings"] == 1
+
+
+def test_engine_skips_a_fail_evaluation_without_a_finding(monkeypatch, caplog):
+    _patch_engine_client(monkeypatch, MagicMock())
+    rule = SimpleNamespace(
+        RULE_ID="AZ-TEST-024",
+        scan=lambda *_: [],
+        evaluate=lambda *_: [
+            RuleEvaluation(
+                rule_id="AZ-TEST-024",
+                resource_id="/subscriptions/x/resource/1",
+                resource_type="Microsoft.Test/resources",
+                status=EvaluationStatus.FAIL,
+            )
+        ],
+    )
+
+    result = _engine([rule]).run_scan()
+
+    assert result["total_findings"] == 0
+    assert result["evaluations"][0]["status"] == EvaluationStatus.FAIL
+    assert "without a finding" in caplog.text
 
 
 # ── Persistence: rule_evaluations written in the same transaction ──────────

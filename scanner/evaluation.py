@@ -8,13 +8,16 @@ opts into this contract by additionally exposing::
     def evaluate(azure_client, subscription_id) -> List[RuleEvaluation]
 
 which reports a status for every resource (or the subscription itself) it
-looked at, PASS included. Rules that don't expose ``evaluate`` keep working
-exactly as before via ``scan()``; the engine records their coverage as
+looked at, PASS included. When a rule exposes ``evaluate``, the engine runs
+it instead of ``scan()`` and takes findings from its FAIL evaluations; a
+migrated rule keeps ``scan()`` as a thin wrapper over ``fail_findings()``.
+Rules that don't expose ``evaluate`` keep working exactly as before via
+``scan()``; the engine records their coverage as
 UNKNOWN/LEGACY_RULE_NOT_MIGRATED instead of inventing a PASS.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 # Conservative rank: worse coverage information must never be hidden by
 # better information rolled up from a different resource under the same rule.
@@ -45,6 +48,23 @@ def subscription_scope_id(subscription_id: str) -> str:
     Never an empty string — that would collide across rules/subscriptions.
     """
     return f"/subscriptions/{subscription_id}"
+
+
+# Standard reason codes shared across rule families, so the same situation
+# reads the same way in every compliance report:
+#
+#   INVENTORY_UNAVAILABLE  ERROR           the resource list call failed
+#   NO_RESOURCES_FOUND     NOT_APPLICABLE  the list call succeeded but was empty
+#   EVIDENCE_UNAVAILABLE   UNKNOWN         a per-resource lookup returned None
+#   MISSING_PROPERTIES     UNKNOWN         the resource lacked a required field
+#   POLICY_NOT_REQUIRED    NOT_APPLICABLE  opt-in policy tag not set
+#   APPROVED_EXCEPTION     NOT_APPLICABLE  approved exception tag set
+INVENTORY_UNAVAILABLE = "INVENTORY_UNAVAILABLE"
+NO_RESOURCES_FOUND = "NO_RESOURCES_FOUND"
+EVIDENCE_UNAVAILABLE = "EVIDENCE_UNAVAILABLE"
+MISSING_PROPERTIES = "MISSING_PROPERTIES"
+POLICY_NOT_REQUIRED = "POLICY_NOT_REQUIRED"
+APPROVED_EXCEPTION = "APPROVED_EXCEPTION"
 
 
 @dataclass
@@ -94,3 +114,36 @@ def aggregate_status(statuses: Iterable[str]) -> str:
     if best is None:
         raise ValueError("aggregate_status requires at least one status")
     return best
+
+
+def inventory_unavailable(rule_id: str, resource_type: str, subscription_id: str) -> "RuleEvaluation":
+    """ERROR for a rule whose resource list call failed (inventory returned None).
+
+    A failed list must never read as PASS or NOT_APPLICABLE: the rule did not
+    get to look at anything.
+    """
+    return RuleEvaluation(
+        rule_id=rule_id,
+        resource_id=subscription_scope_id(subscription_id),
+        resource_type=resource_type,
+        status=EvaluationStatus.ERROR,
+        reason_code=INVENTORY_UNAVAILABLE,
+        reason=f"The {resource_type} inventory could not be read for this subscription.",
+    )
+
+
+def no_resources_found(rule_id: str, resource_type: str, subscription_id: str) -> "RuleEvaluation":
+    """NOT_APPLICABLE for a rule whose list call succeeded but returned nothing."""
+    return RuleEvaluation(
+        rule_id=rule_id,
+        resource_id=subscription_scope_id(subscription_id),
+        resource_type=resource_type,
+        status=EvaluationStatus.NOT_APPLICABLE,
+        reason_code=NO_RESOURCES_FOUND,
+        reason=f"No {resource_type} resources were returned for this subscription.",
+    )
+
+
+def fail_findings(evaluations: Iterable["RuleEvaluation"]) -> List[Dict[str, Any]]:
+    """Findings attached to FAIL evaluations, for a migrated rule's scan() wrapper."""
+    return [e.finding for e in evaluations if e.status == EvaluationStatus.FAIL and e.finding]

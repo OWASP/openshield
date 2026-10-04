@@ -46,12 +46,12 @@ class MockAzureClient:
     """Drop-in replacement for AzureClient that returns configured fake data."""
 
     def __init__(self) -> None:
-        self._storage_accounts: List[Any] = []
+        self._storage_accounts: Optional[List[Any]] = []
         self._network_security_groups: List[Any] = []
         self._express_route_ports: Optional[List[Any]] = []
         self._virtual_machines: List[Any] = []
         self._virtual_machine_scale_sets: List[Any] = []
-        self._key_vaults: List[Any] = []
+        self._key_vaults: Optional[List[Any]] = []
         self._sql_servers: List[Any] = []
         self._service_principals: List[Any] = []
         self._sql_firewall_rules: Dict[Tuple[str, str], List[Any]] = {}
@@ -113,7 +113,8 @@ class MockAzureClient:
         # SDK management client inside scan() (e.g. AZ-NET-007..010).
         self.subscription_id = "00000000-0000-0000-0000-000000000001"
 
-    def set_storage_accounts(self, accounts: List[Any]) -> "MockAzureClient":
+    def set_storage_accounts(self, accounts: Optional[List[Any]]) -> "MockAzureClient":
+        """``None`` simulates a failed list call, as AzureClient.list_storage_accounts() reports it."""
         self._storage_accounts = accounts
         return self
 
@@ -216,7 +217,8 @@ class MockAzureClient:
         self._virtual_machine_scale_sets = scale_sets
         return self
 
-    def set_key_vaults(self, vaults: List[Any]) -> "MockAzureClient":
+    def set_key_vaults(self, vaults: Optional[List[Any]]) -> "MockAzureClient":
+        """``None`` simulates a failed list call, as AzureClient.list_key_vaults() reports it."""
         self._key_vaults = vaults
         return self
 
@@ -234,8 +236,11 @@ class MockAzureClient:
         self._sql_firewall_rules[(resource_group, server_name)] = rules
         return self
 
-    def get_storage_accounts(self) -> List[Any]:
+    def list_storage_accounts(self) -> Optional[List[Any]]:
         return self._storage_accounts
+
+    def get_storage_accounts(self) -> List[Any]:
+        return self._storage_accounts or []
 
     def get_network_security_groups(self) -> List[Any]:
         return self._network_security_groups
@@ -246,8 +251,11 @@ class MockAzureClient:
     def get_virtual_machine_scale_sets(self) -> List[Any]:
         return self._virtual_machine_scale_sets
 
-    def get_key_vaults(self) -> List[Any]:
+    def list_key_vaults(self) -> Optional[List[Any]]:
         return self._key_vaults
+
+    def get_key_vaults(self) -> List[Any]:
+        return self._key_vaults or []
 
     def get_sql_servers(self) -> List[Any]:
         return self._sql_servers

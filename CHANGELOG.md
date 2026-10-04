@@ -9,6 +9,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add the evaluate() contract foundation for issue #369: `AzureClient.list_storage_accounts()` and `list_key_vaults()` return `None` when the list call fails, shared `inventory_unavailable()`, `no_resources_found()` and `fail_findings()` helpers with standard reason codes in `scanner/evaluation.py`, and `tests/test_rule_evaluation_contract.py`, which every rule exposing `evaluate()` must pass.
 - Add the remediation approval, idempotency, audit and rescan gate (`api/models/remediation.py`, `docs/remediation-gate.md`) for issue #266: approved-only, allowlisted, at-most-once execution grants with an append-only audit trail and rescan-based verification. Proposal-only; nothing executes a playbook.
 - Add all ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate.
 - Branch protection declared as versioned GitHub rulesets for `dev` and `main`, with a scheduled drift audit that retains evidence (#298)
@@ -32,10 +33,12 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The scan engine runs a rule that exposes `evaluate()` through `evaluate()` only and takes its findings from the FAIL evaluations, instead of also calling `scan()`. A crashed or malformed `evaluate()` now also lists the rule in `failed_rule_ids` (#369).
 - Migrate the ISO 27001 mapping pack from ISO/IEC 27001:2013 to ISO/IEC 27001:2022 Annex A (mapping pack 2.0.0) and each rule's own `ISO27001` value, for issue #358. Rules about monitoring coverage use the new A.8.16 and Kubernetes policy governance uses A.8.9. All entries stay `pending_review`. Scans saved with a mapping snapshot keep reporting against the 2013 controls.
 
 ### Fixed
 
+- `AZ-KV-006` reports `ERROR` (`INVENTORY_UNAVAILABLE`) when the Key Vault list call fails, instead of `NOT_APPLICABLE` as if the subscription had no vaults (#369).
 - Learn page statistics are computed at site build time, and the post-merge stats workflow no longer pushes to the protected `dev` branch (it failed on every merge); README count drift is now reported as a warning
 - High-severity CodeQL findings in Python and JavaScript code
 - Security findings identified during Semgrep analysis
