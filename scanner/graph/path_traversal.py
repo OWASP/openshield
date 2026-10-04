@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 # keeping them would inflate the table for large graphs.
 _MAX_PATH_LENGTH = 8
 
+# Relationships whose edges are also traversed in reverse during BFS.
+# MEMBER_OF and PROTECTS are excluded: reversing MEMBER_OF would let any two
+# VMs in the same subnet reach each other via the subnet node.
+_REVERSE_RELS: frozenset[str] = frozenset({"EXPOSES", "HAS_IDENTITY"})
+
 
 def _load_adjacency(conn: Any, tenant_id: str) -> dict[str, list[tuple[str, str, float]]]:
     """Return {source_node_id: [(target_node_id, relationship_type, confidence)]}."""
@@ -38,7 +43,6 @@ def _load_adjacency(conn: Any, tenant_id: str) -> dict[str, list[tuple[str, str,
         # is semantically meaningful. MEMBER_OF and PROTECTS are not reversed:
         # reversing MEMBER_OF would let any two VMs in the same subnet reach
         # each other via the subnet node, producing spurious lateral-movement paths.
-        _REVERSE_RELS = {"EXPOSES", "HAS_IDENTITY"}
         adj: dict[str, list[tuple[str, str, float]]] = {}
         for src, tgt, rel, conf in cur.fetchall():
             adj.setdefault(src, []).append((tgt, rel, conf))
@@ -192,6 +196,6 @@ def compute_attack_paths(scan_id: str, tenant_id: str, dsn: str) -> int:
             raise
         finally:
             conn.close()
-    except Exception as exc:
-        logger.error("graph path traversal failed for scan %s: %s", scan_id, exc)
+    except Exception:
+        logger.error("graph path traversal failed for scan %s", scan_id, exc_info=True)
         return 0
