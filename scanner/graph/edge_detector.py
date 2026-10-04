@@ -108,12 +108,12 @@ class PublicIpToResourceDetector(EdgeDetector):
             target_id = ip_config.get("id")
             if not target_id:
                 continue
-            # Strip the NIC sub-path to get the parent VM resource ID (4 provider path segments)
+            # Trim to the NIC resource ID (namespace/type/name = 3 segments).
             parts = target_id.split("/providers/")
             if len(parts) >= 2:
                 provider_path = parts[-1].split("/")
-                if len(provider_path) >= 4:
-                    target_id = "/providers/".join(parts[:-1]) + "/providers/" + "/".join(provider_path[:4])
+                if len(provider_path) >= 3:
+                    target_id = "/providers/".join(parts[:-1]) + "/providers/" + "/".join(provider_path[:3])
             edges.append(
                 GraphEdge(
                     source_resource_id=resource.resource_id,

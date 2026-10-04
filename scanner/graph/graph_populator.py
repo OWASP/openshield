@@ -8,7 +8,7 @@ from dataclasses import replace as dc_replace
 from typing import TYPE_CHECKING
 
 import psycopg2
-import psycopg2.extras
+
 
 from scanner.arg_inventory import InventoryResource
 from scanner.graph.node_service import link_findings_to_nodes, populate_nodes
@@ -51,7 +51,8 @@ def _write_edges(edges: list, snapshot_id: str, tenant_id: str, dsn: str) -> int
     if not edges:
         return 0
     written = 0
-    with psycopg2.connect(dsn) as conn:
+    conn = psycopg2.connect(dsn)
+    try:
         with conn.cursor() as cur:
             for edge in edges:
                 cur.execute(
@@ -67,7 +68,13 @@ def _write_edges(edges: list, snapshot_id: str, tenant_id: str, dsn: str) -> int
                         "confidence": edge.confidence,
                     },
                 )
-                written += 1
+                written += max(cur.rowcount, 0)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     return written
 
 
