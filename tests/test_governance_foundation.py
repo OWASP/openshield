@@ -112,6 +112,7 @@ def test_get_all_does_not_follow_redirects():
     [
         "https://management.azure.com.attacker.invalid/next",
         "https://user@management.azure.com/next",
+        "https://management.azure.com:8080/next",
         "http://management.azure.com/next",
     ],
 )
@@ -123,6 +124,48 @@ def test_post_values_rejects_unsafe_continuation_and_returns_none(bad_url):
     credential = SimpleNamespace(get_token=lambda _scope: SimpleNamespace(token="secret"))
     collector = GovernanceCollector(credential, "sub", session=BadODataSession())
     assert collector._post_values("/path") is None
+
+
+def test_get_all_logs_warning_and_does_not_return_partial_evidence_on_bad_next_link(caplog):
+    """Partial results from page 1 must not be silently returned as complete when
+    the continuation URL fails origin validation."""
+    import logging
+
+    class BadNextSession:
+        def get(self, *_args, **_kwargs):
+            return _Response(
+                {"value": [{"id": "partial"}], "nextLink": "https://management.azure.com.attacker.invalid/page2"}
+            )
+
+    credential = SimpleNamespace(get_token=lambda _scope: SimpleNamespace(token="secret"))
+    collector = GovernanceCollector(credential, "sub", session=BadNextSession())
+    with caplog.at_level(logging.WARNING, logger="scanner.governance"):
+        result = collector._get_all("/first")
+    assert result is None, "partial evidence must not be silently returned as complete"
+    assert any("pagination aborted" in record.message.lower() for record in caplog.records), (
+        "a warning must be logged when a nextLink fails origin validation"
+    )
+
+
+def test_post_values_logs_warning_and_does_not_return_partial_evidence_on_bad_next_link(caplog):
+    """Partial results from page 1 must not be silently returned as complete when
+    the odata continuation URL fails origin validation."""
+    import logging
+
+    class BadODataSession:
+        def post(self, *_args, **_kwargs):
+            return _Response(
+                {"value": [{"id": "partial"}], "@odata.nextLink": "https://management.azure.com.attacker.invalid/page2"}
+            )
+
+    credential = SimpleNamespace(get_token=lambda _scope: SimpleNamespace(token="secret"))
+    collector = GovernanceCollector(credential, "sub", session=BadODataSession())
+    with caplog.at_level(logging.WARNING, logger="scanner.governance"):
+        result = collector._post_values("/path")
+    assert result is None, "partial evidence must not be silently returned as complete"
+    assert any("pagination aborted" in record.message.lower() for record in caplog.records), (
+        "a warning must be logged when an odata nextLink fails origin validation"
+    )
 
 
 def test_collector_returns_none_for_transport_failure():

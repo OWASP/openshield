@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -11,6 +12,8 @@ import urllib.parse
 
 import requests
 from azure.core.exceptions import AzureError
+
+logger = logging.getLogger(__name__)
 
 ARM_ENDPOINT = "https://management.azure.com"
 _ARM_HOST = "management.azure.com"
@@ -142,6 +145,11 @@ class GovernanceCollector:
                 if next_link is None:
                     break
                 if not isinstance(next_link, str) or not _is_valid_arm_continuation(next_link):
+                    logger.warning(
+                        "ARM pagination aborted: nextLink failed origin validation (%r); "
+                        "partial evidence is NOT treated as complete.",
+                        next_link,
+                    )
                     return None
                 url = next_link
             return items
@@ -188,6 +196,11 @@ class GovernanceCollector:
                 if next_link is None:
                     break
                 if not isinstance(next_link, str) or not _is_valid_arm_continuation(next_link):
+                    logger.warning(
+                        "ARM pagination aborted: odata/nextLink failed origin validation (%r); "
+                        "partial evidence is NOT treated as complete.",
+                        next_link,
+                    )
                     return None
                 url = next_link
             return items
