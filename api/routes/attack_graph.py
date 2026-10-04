@@ -42,7 +42,7 @@ def _tenant_id() -> str | None:
     return None
 
 
-@attack_graph_bp.teardown_app_request
+@attack_graph_bp.teardown_request
 def _close_db(exc):
     db = g.pop("db", None)
     if db is not None:
@@ -56,7 +56,7 @@ def get_attack_graph():
     Query params: subscription_id (optional), limit (default 100, max 500)
     """
     try:
-        limit = positive_integer(request.args.get("limit", _DEFAULT_LIMIT), "limit")
+        limit = positive_integer(int(request.args.get("limit", _DEFAULT_LIMIT)), "limit")
         if limit > _MAX_LIMIT:
             limit = _MAX_LIMIT
         subscription_id = request.args.get("subscription_id")
@@ -134,7 +134,7 @@ def list_attack_paths():
         return jsonify({"error": "scan_id is required"}), 400
     try:
         scan_id = uuid_string(scan_id, "scan_id")
-        limit = positive_integer(request.args.get("limit", _DEFAULT_LIMIT), "limit")
+        limit = positive_integer(int(request.args.get("limit", _DEFAULT_LIMIT)), "limit")
         if limit > _MAX_LIMIT:
             limit = _MAX_LIMIT
     except ValidationError as exc:
