@@ -318,9 +318,9 @@ def test_engine_records_an_error_evaluation_as_a_failed_rule(monkeypatch):
     assert result["failed_rule_ids"] == ["AZ-TEST-025"]
 
 
-def test_engine_lists_a_rule_with_any_error_even_when_other_resources_passed(monkeypatch):
-    """A rule reading two inventories can evaluate one and fail to read the
-    other; one ERROR lists the rule, and its PASS rows are still kept."""
+def test_engine_does_not_fail_a_rule_for_partial_error_when_other_resources_passed(monkeypatch):
+    """A partial inventory failure does not make a rule with usable outcomes
+    a total failure; the ERROR and PASS rows are both preserved."""
     _patch_engine_client(monkeypatch, MagicMock())
 
     def _evaluate(*_args):
@@ -331,8 +331,58 @@ def test_engine_lists_a_rule_with_any_error_even_when_other_resources_passed(mon
 
     result = _engine([SimpleNamespace(RULE_ID="AZ-TEST-026", scan=lambda *_: [], evaluate=_evaluate)]).run_scan()
 
-    assert result["failed_rule_ids"] == ["AZ-TEST-026"]
+    assert result["failed_rule_ids"] == []
     assert [e["status"] for e in result["evaluations"]] == [EvaluationStatus.PASS, EvaluationStatus.ERROR]
+
+
+def test_engine_does_not_fail_a_rule_for_per_resource_error_when_another_passes(monkeypatch):
+    """A per-resource ERROR is retained but does not fail the rule if another
+    resource produced a usable result."""
+    _patch_engine_client(monkeypatch, MagicMock())
+    rule_id = "AZ-TEST-029"
+
+    def _evaluate(*_args):
+        return [
+            RuleEvaluation(rule_id=rule_id, resource_id="/r/1", resource_type="t", status=EvaluationStatus.PASS),
+            RuleEvaluation(
+                rule_id=rule_id,
+                resource_id="/r/2",
+                resource_type="t",
+                status=EvaluationStatus.ERROR,
+                reason_code="RESOURCE_EVALUATION_ERROR",
+                reason="Evidence lookup failed for this resource.",
+            ),
+        ]
+
+    result = _engine([SimpleNamespace(RULE_ID=rule_id, evaluate=_evaluate)]).run_scan()
+
+    assert [e["status"] for e in result["evaluations"]] == [EvaluationStatus.PASS, EvaluationStatus.ERROR]
+    assert result["failed_rule_ids"] == []
+
+
+def test_engine_fails_a_rule_when_every_per_resource_outcome_is_error(monkeypatch):
+    """All-error resource outcomes supply no usable coverage and count as a
+    total rule failure, even when the inventory itself was available."""
+    _patch_engine_client(monkeypatch, MagicMock())
+    rule_id = "AZ-TEST-030"
+
+    def _evaluate(*_args):
+        return [
+            RuleEvaluation(
+                rule_id=rule_id,
+                resource_id=f"/r/{index}",
+                resource_type="t",
+                status=EvaluationStatus.ERROR,
+                reason_code="RESOURCE_EVALUATION_ERROR",
+                reason="Evidence lookup failed for this resource.",
+            )
+            for index in range(2)
+        ]
+
+    result = _engine([SimpleNamespace(RULE_ID=rule_id, evaluate=_evaluate)]).run_scan()
+
+    assert [e["status"] for e in result["evaluations"]] == [EvaluationStatus.ERROR, EvaluationStatus.ERROR]
+    assert result["failed_rule_ids"] == [rule_id]
 
 
 def test_engine_does_not_list_a_rule_for_per_resource_unknown(monkeypatch):

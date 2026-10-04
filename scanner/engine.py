@@ -107,9 +107,9 @@ class ScanEngine:
         Returns:
             dict with keys: scan_id, subscription_id, started_at,
             completed_at, total_findings, findings, evaluations, and
-            failed_rule_ids (rules that raised, returned malformed data, or
-            reported at least one ERROR evaluation; not a statement that the
-            rule produced no valid results).
+            failed_rule_ids (rules whose evaluator raised, returned malformed
+            data, or produced only ERROR evaluations; partial ERROR results
+            do not mark a rule failed when it also produced usable outcomes).
         """
         scan_id = scan_id or str(uuid.uuid4())
         started_at = datetime.now(timezone.utc).isoformat()
@@ -129,12 +129,11 @@ class ScanEngine:
         # PASS/FAIL from absence of findings (get_compliance_score()) must be
         # able to tell the two apart, or a crashed rule reads as a clean
         # pass. A rule is listed here when it raised, returned malformed
-        # data, or reported at least one ERROR evaluation, so this list and
-        # the evaluations never disagree. ERROR is reserved for "the rule
-        # could not evaluate" (INVENTORY_UNAVAILABLE, evaluator bugs); a
-        # per-resource gap such as EVIDENCE_UNAVAILABLE is UNKNOWN and does
-        # not list the rule. A listed rule may still have produced valid
-        # evaluations and findings for other resources.
+        # data, or produced only ERROR evaluations. Partial ERROR rows do not
+        # fail a rule when it also produced usable outcomes; if every outcome
+        # is ERROR, the rule supplied no usable coverage and is failed. This
+        # also covers inventory-wide failures, while preserving valid results
+        # from other inventories/resources.
         failed_rule_ids: List[str] = []
 
         for rule in self.rules:
@@ -144,7 +143,9 @@ class ScanEngine:
                 # findings (collected below), so also calling scan() would only
                 # repeat the same Azure list calls and let the two paths drift.
                 rule_evaluations, completed = self._run_evaluate(rule, rule_id)
-                if not completed or any(e.status == EvaluationStatus.ERROR for e in rule_evaluations):
+                if not completed or (
+                    rule_evaluations and all(e.status == EvaluationStatus.ERROR for e in rule_evaluations)
+                ):
                     failed_rule_ids.append(rule_id)
                 evaluations.extend(rule_evaluations)
                 logger.info("Rule %s produced %d evaluation(s)", rule_id, len(rule_evaluations))

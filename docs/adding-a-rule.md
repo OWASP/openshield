@@ -181,6 +181,8 @@ def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
 
 When a rule exposes `evaluate()`, the engine runs it **instead of** `scan()` and takes the rule's findings from its `FAIL` evaluations. A rule without `evaluate()` still runs through `scan()`, but its coverage is recorded as `UNKNOWN`/`LEGACY_RULE_NOT_MIGRATED` and every compliance control mapped to it reads `UNKNOWN`. Migration of the existing rules is tracked in #380.
 
+The scan result's `failed_rule_ids` identifies evaluator crashes, malformed evaluator output, and rules that returned only `ERROR` evaluations (including inventory-wide failures with no usable outcomes). Partial `ERROR` rows do not mark a rule failed when it also returned a usable `PASS`, `FAIL`, `UNKNOWN`, or `NOT_APPLICABLE` outcome; the error rows remain in `evaluations` and still affect compliance roll-up. Thus even all-error per-resource results count as a rule failure because none of the rule's coverage could be used.
+
 Rules of the contract (see `scanner/evaluation.py` and `scanner/rules/az_kv_006.py` for the reference implementation):
 
 - Use an inventory call that returns `None` on failure (`list_storage_accounts()`, `list_key_vaults()`, and the `Optional[List]` getters such as `get_managed_clusters()`). A failed inventory must be `ERROR`, never `PASS` or `NOT_APPLICABLE`. If the method you need returns `[]` on failure, add a `list_*()` variant next to it.

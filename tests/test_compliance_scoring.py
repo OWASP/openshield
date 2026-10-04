@@ -392,6 +392,31 @@ def test_rule_that_did_not_complete_is_error_not_pass(tmp_path, monkeypatch):
     assert result["score_percent"] == 33
 
 
+def test_partial_error_evaluations_roll_up_to_error_without_failed_rule_marker(tmp_path, monkeypatch):
+    """Evaluation rows determine partial-coverage scoring; failed_rule_ids is
+    reserved for evaluator failures or rules with no usable outcomes."""
+    rule_id = "AZ-TEST-001"
+    controls = {rule_id: _control("1.1", "direct")}
+    scan_row = {"scan_id": "scan-1", "compliance_mapping_snapshot": {"_scan_rule_outcomes": {"failed_rule_ids": []}}}
+    db, conn, framework_file = _patched_db_with_framework(
+        tmp_path,
+        controls,
+        scan_row,
+        [],
+        evaluation_rows=[(rule_id, "PASS"), (rule_id, "ERROR")],
+    )
+
+    monkeypatch.setattr(finding_module, "FRAMEWORKS_DIR", tmp_path)
+    monkeypatch.setitem(finding_module.FRAMEWORK_FILE_MAP, "testfw", framework_file)
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        result = db.get_compliance_score("testfw")
+
+    assert result["controls"][0]["status"] == "ERROR"
+    assert result["error"] == 1
+    assert result["score_percent"] == 0
+
+
 def test_failed_rule_ids_from_an_older_scan_do_not_leak_into_a_later_ones_scoring(tmp_path, monkeypatch):
     """_scan_rule_outcomes is read from the latest scan's own snapshot only -
     a rule that failed on a previous scan but has a clean PASS evaluation on

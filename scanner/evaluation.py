@@ -60,9 +60,11 @@ def subscription_scope_id(subscription_id: str) -> str:
 #   POLICY_NOT_REQUIRED    NOT_APPLICABLE  opt-in policy tag not set
 #   APPROVED_EXCEPTION     NOT_APPLICABLE  approved exception tag set
 #
-# ERROR is reserved for a rule that could not evaluate at all (a failed
-# inventory, or an evaluator bug recorded by the engine). A gap for one
-# resource is UNKNOWN, never ERROR.
+# ERROR indicates unavailable evaluation evidence. The scan-level
+# ``failed_rule_ids`` list is stricter: partial ERROR rows do not fail a rule
+# if it also returned usable outcomes, but a rule with only ERROR rows has no
+# usable coverage and is listed as failed. A per-resource evidence gap should
+# normally be UNKNOWN, not ERROR.
 INVENTORY_UNAVAILABLE = "INVENTORY_UNAVAILABLE"
 NO_RESOURCES_FOUND = "NO_RESOURCES_FOUND"
 EVIDENCE_UNAVAILABLE = "EVIDENCE_UNAVAILABLE"
