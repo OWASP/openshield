@@ -33,8 +33,8 @@ def collect_snapshot(client: AzureClient, subscription_id: str) -> InventorySnap
                 tenant_id=tenant_id,
                 subscription_ids=[subscription_id],
             )
-    except Exception as exc:
-        logger.warning("snapshot_bridge: ARG collection failed — %s", exc)
+    except Exception:
+        logger.warning("snapshot_bridge: ARG collection failed", exc_info=True)
         return None
 
     if snapshot.status == InventoryStatus.FAILED:

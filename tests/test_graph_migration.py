@@ -6,7 +6,12 @@ from alembic.config import Config
 from alembic import command
 from sqlalchemy import create_engine, inspect
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/openshield_test")
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+pytestmark = pytest.mark.skipif(
+    not DATABASE_URL,
+    reason="DATABASE_URL is required for PostgreSQL migration tests",
+)
 
 
 @pytest.fixture(scope="module")
