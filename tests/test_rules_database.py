@@ -7,6 +7,7 @@ import scanner.rules.az_db_002 as az_db_002
 import scanner.rules.az_db_003 as az_db_003
 import scanner.rules.az_db_004 as az_db_004
 import scanner.rules.az_db_008 as az_db_008
+from scanner.evaluation import EvaluationStatus
 from tests.helpers.mock_azure import make_resource
 
 try:
@@ -314,3 +315,35 @@ def test_db_008_missing_attribute_defaults_to_noncompliant(mock_azure, subscript
     findings = az_db_008.scan(mock_azure, subscription_id)
     assert len(findings) == 1
     assert findings[0]["metadata"]["minimal_tls_version"] == "not set"
+
+
+def test_db_008_evaluate_pass_and_fail_per_server(mock_azure, subscription_id):
+    good = make_resource(id=_sql_id("sql-good"), name="sql-good", minimal_tls_version="1.2")
+    bad = make_resource(id=_sql_id("sql-bad"), name="sql-bad", minimal_tls_version="1.0")
+    mock_azure.set_sql_servers([good, bad])
+    evaluations = az_db_008.evaluate(mock_azure, subscription_id)
+    statuses = {e.resource_id: e.status for e in evaluations}
+    assert statuses[_sql_id("sql-good")] == EvaluationStatus.PASS
+    assert statuses[_sql_id("sql-bad")] == EvaluationStatus.FAIL
+    failed = next(e for e in evaluations if e.status == EvaluationStatus.FAIL)
+    assert failed.finding["rule_id"] == "AZ-DB-008"
+    assert failed.finding["metadata"]["minimal_tls_version"] == "1.0"
+
+
+def test_db_008_evaluate_unset_tls_is_fail_not_skipped(mock_azure, subscription_id):
+    server = make_resource(id=_sql_id("sql-unset"), name="sql-unset")
+    mock_azure.set_sql_servers([server])
+    evaluations = az_db_008.evaluate(mock_azure, subscription_id)
+    assert [e.status for e in evaluations] == [EvaluationStatus.FAIL]
+
+
+def test_db_008_failed_or_empty_inventory_is_unknown_not_clean(mock_azure, subscription_id):
+    """get_sql_servers() returns [] on an API failure as well as for a genuinely empty
+    subscription. scan() alone would look like a clean result either way, so evaluate()
+    must record UNKNOWN (never a PASS) for that case."""
+    mock_azure.set_sql_servers([])
+    evaluations = az_db_008.evaluate(mock_azure, subscription_id)
+    assert len(evaluations) == 1
+    assert evaluations[0].status == EvaluationStatus.UNKNOWN
+    assert evaluations[0].reason_code == "INVENTORY_EMPTY_OR_UNAVAILABLE"
+    assert evaluations[0].resource_id == f"/subscriptions/{subscription_id}"
