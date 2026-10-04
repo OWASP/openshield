@@ -111,14 +111,23 @@ class AzureClient:
     # Storage                                                               #
     # ------------------------------------------------------------------ #
 
-    def get_storage_accounts(self) -> List[Any]:
-        """List all storage accounts in the subscription."""
+    def list_storage_accounts(self) -> Optional[List[Any]]:
+        """List all storage accounts in the subscription.
+
+        Returns ``None`` when the list call fails, so evaluate() can report
+        ERROR instead of mistaking a permissions or network failure for a
+        subscription with no storage accounts.
+        """
         try:
             client = StorageManagementClient(self.credential, self.subscription_id)
             return list(client.storage_accounts.list())
         except Exception as exc:
-            logger.error("get_storage_accounts failed: %s", exc)
-            return []
+            logger.error("list_storage_accounts failed: %s", exc)
+            return None
+
+    def get_storage_accounts(self) -> List[Any]:
+        """List all storage accounts, or ``[]`` on failure (legacy scan() callers)."""
+        return self.list_storage_accounts() or []
 
     def get_storage_lifecycle_policy(self, resource_group: str, account_name: str) -> Optional[bool]:
         """Check whether a storage account has a lifecycle management policy.
@@ -1152,14 +1161,21 @@ class AzureClient:
     # Key Vault                                                             #
     # ------------------------------------------------------------------ #
 
-    def get_key_vaults(self) -> List[Any]:
-        """List all Key Vaults in the subscription with full properties."""
+    def list_key_vaults(self) -> Optional[List[Any]]:
+        """List all Key Vaults in the subscription with full properties.
+
+        Returns ``None`` when the list call fails; see list_storage_accounts().
+        """
         try:
             client = KeyVaultManagementClient(self.credential, self.subscription_id)
             return list(client.vaults.list_by_subscription())
         except Exception as exc:
-            logger.error("get_key_vaults failed: %s", exc)
-            return []
+            logger.error("list_key_vaults failed: %s", exc)
+            return None
+
+    def get_key_vaults(self) -> List[Any]:
+        """List all Key Vaults, or ``[]`` on failure (legacy scan() callers)."""
+        return self.list_key_vaults() or []
 
     def get_key_vault_certificates(self, vault_name: str) -> List[Any]:
         """List all certificates in a Key Vault using the Key Vault data plane API."""

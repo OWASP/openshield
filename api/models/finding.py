@@ -1817,13 +1817,13 @@ class DatabaseManager:
                 current["severity"] = severity
                 current["category"] = category
 
-        # Rules the scan engine could not complete for this scan (raised, or
-        # returned malformed data) - recorded by save_scan() alongside the
-        # mapping snapshot. This is a supplementary signal on top of
-        # rule_evaluations: it can only ever make a control's status stricter
-        # (force ERROR), never looser, and an ERROR still counts in the
-        # denominator, so a rule that failed to run can never improve a score
-        # (issue #302/#263).
+        # Rules with no usable evaluator output (raised, returned malformed
+        # data, or returned only ERROR evaluations) - recorded by save_scan()
+        # alongside the mapping snapshot. This is a supplementary signal on
+        # top of rule_evaluations: it can only ever make a control's status
+        # stricter (force ERROR), never looser, and an ERROR still counts in
+        # the denominator, so a rule that failed to run can never improve a
+        # score (issue #302/#263).
         unevaluated_rule_ids = set((snapshot.get("_scan_rule_outcomes") or {}).get("failed_rule_ids") or [])
 
         results = []

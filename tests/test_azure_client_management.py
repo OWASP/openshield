@@ -57,6 +57,33 @@ def test_list_wrappers_return_results_and_fail_closed(client, method, patch_targ
         assert getattr(client, method)() == []
 
 
+@pytest.mark.parametrize(
+    ("method", "patch_target", "operation"),
+    [
+        ("list_storage_accounts", "scanner.azure_client.StorageManagementClient", "storage_accounts.list"),
+        ("list_key_vaults", "scanner.azure_client.KeyVaultManagementClient", "vaults.list_by_subscription"),
+    ],
+)
+def test_fallible_list_wrappers_distinguish_empty_from_failure(client, method, patch_target, operation):
+    """evaluate() relies on None meaning "the list call failed" and [] meaning
+    "the subscription has none"; collapsing the two hides permission errors."""
+    with patch(patch_target) as constructor:
+        target = constructor.return_value
+        parts = operation.split(".")
+        for part in parts[:-1]:
+            target = getattr(target, part)
+        call = getattr(target, parts[-1])
+
+        call.return_value = [SimpleNamespace(name="one")]
+        assert [item.name for item in getattr(client, method)()] == ["one"]
+
+        call.return_value = []
+        assert getattr(client, method)() == []
+
+        call.side_effect = RuntimeError("Azure unavailable")
+        assert getattr(client, method)() is None
+
+
 def test_single_resource_and_policy_wrappers(client):
     with patch("scanner.azure_client.NetworkManagementClient") as constructor:
         constructor.return_value.network_interfaces.get.return_value = SimpleNamespace(name="nic")

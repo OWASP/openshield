@@ -2,7 +2,14 @@
 
 from typing import Any, Dict, List
 
-from scanner.evaluation import EvaluationStatus, RuleEvaluation, subscription_scope_id
+from scanner.evaluation import (
+    MISSING_PROPERTIES,
+    EvaluationStatus,
+    RuleEvaluation,
+    fail_findings,
+    inventory_unavailable,
+    no_resources_found,
+)
 
 RULE_ID = "AZ-KV-006"
 RULE_NAME = "Key Vault Using Legacy Access Policies Instead of Azure RBAC"
@@ -22,6 +29,7 @@ REMEDIATION = (
     "Note: switching to RBAC does not delete existing access policies, but they stop being enforced."
 )
 PLAYBOOK = "playbooks/cli/fix_az_kv_006.sh"
+RESOURCE_TYPE = "Microsoft.KeyVault/vaults"
 
 
 def _finding(azure_client: Any, vault: Any) -> Dict[str, Any]:
@@ -33,7 +41,7 @@ def _finding(azure_client: Any, vault: Any) -> Dict[str, Any]:
         "category": CATEGORY,
         "resource_id": vault.id,
         "resource_name": vault.name,
-        "resource_type": "Microsoft.KeyVault/vaults",
+        "resource_type": RESOURCE_TYPE,
         "description": DESCRIPTION,
         "remediation": REMEDIATION,
         "playbook": PLAYBOOK,
@@ -47,41 +55,17 @@ def _finding(azure_client: Any, vault: Any) -> Dict[str, Any]:
 
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
     """Detect Key Vaults where enable_rbac_authorization is False or None."""
-    findings: List[Dict[str, Any]] = []
-
-    for vault in azure_client.get_key_vaults():
-        props = getattr(vault, "properties", None)
-        if props is None:
-            continue
-
-        # Access policies are the legacy default; a vault must opt into RBAC.
-        rbac_enabled = getattr(props, "enable_rbac_authorization", False)
-        if not rbac_enabled:
-            findings.append(_finding(azure_client, vault))
-
-    return findings
+    return fail_findings(evaluate(azure_client, subscription_id))
 
 
 def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
     """Report this rule's coverage: a status for every vault it looked at,
-    PASS included, instead of only reporting violations via scan()."""
-    vaults = azure_client.get_key_vaults()
+    PASS included, instead of only reporting violations."""
+    vaults = azure_client.list_key_vaults()
+    if vaults is None:
+        return [inventory_unavailable(RULE_ID, RESOURCE_TYPE, subscription_id)]
     if not vaults:
-        # AzureClient.get_key_vaults() returns [] both when there genuinely
-        # are no vaults and when the list call itself failed — evaluate()
-        # can't tell those apart on its own, so it reports NOT_APPLICABLE
-        # rather than claiming a PASS it can't actually back up. Closing
-        # that ambiguity with Azure Resource Graph is tracked separately.
-        return [
-            RuleEvaluation(
-                rule_id=RULE_ID,
-                resource_id=subscription_scope_id(subscription_id),
-                resource_type="Microsoft.KeyVault/vaults",
-                status=EvaluationStatus.NOT_APPLICABLE,
-                reason_code="NO_RESOURCES_FOUND",
-                reason="No Key Vaults were returned for this subscription.",
-            )
-        ]
+        return [no_resources_found(RULE_ID, RESOURCE_TYPE, subscription_id)]
 
     evaluations: List[RuleEvaluation] = []
     for vault in vaults:
@@ -91,22 +75,25 @@ def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
                 RuleEvaluation(
                     rule_id=RULE_ID,
                     resource_id=vault.id,
-                    resource_type="Microsoft.KeyVault/vaults",
+                    resource_type=RESOURCE_TYPE,
                     status=EvaluationStatus.UNKNOWN,
-                    reason_code="MISSING_PROPERTIES",
+                    reason_code=MISSING_PROPERTIES,
                     reason="Key Vault was returned without a properties payload.",
                 )
             )
             continue
 
+        # Access policies are the legacy default; a vault must opt into RBAC.
         rbac_enabled = getattr(props, "enable_rbac_authorization", False)
+        evidence = {"enable_rbac_authorization": rbac_enabled}
         if rbac_enabled:
             evaluations.append(
                 RuleEvaluation(
                     rule_id=RULE_ID,
                     resource_id=vault.id,
-                    resource_type="Microsoft.KeyVault/vaults",
+                    resource_type=RESOURCE_TYPE,
                     status=EvaluationStatus.PASS,
+                    evidence=evidence,
                 )
             )
         else:
@@ -114,8 +101,9 @@ def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
                 RuleEvaluation(
                     rule_id=RULE_ID,
                     resource_id=vault.id,
-                    resource_type="Microsoft.KeyVault/vaults",
+                    resource_type=RESOURCE_TYPE,
                     status=EvaluationStatus.FAIL,
+                    evidence=evidence,
                     finding=_finding(azure_client, vault),
                 )
             )
