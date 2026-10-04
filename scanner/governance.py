@@ -72,7 +72,7 @@ def _strings(raw: Mapping[str, Any], field: str) -> frozenset[str]:
     values = raw[field]
     if not isinstance(values, list) or any(not isinstance(item, str) or not item.strip() for item in values):
         raise ValueError(f"{field} must be a list of non-empty strings")
-    return frozenset(item.strip().lower() for item in values)
+    return frozenset(item.strip().lower().rstrip("/") for item in values)
 
 
 def load_governance_policy(path: str | Path) -> GovernancePolicy:
@@ -154,6 +154,7 @@ class GovernanceCollector:
                 url = next_link
             return items
         except (requests.RequestException, AzureError, ValueError, TypeError):
+            logger.warning("_get_all collection failed", exc_info=True)
             return None
 
     def _post_graph(self, query: str) -> list[dict[str, Any]] | None:
@@ -166,6 +167,7 @@ class GovernanceCollector:
                     headers=self._headers(),
                     json={"subscriptions": [self.subscription_id], "query": query, "options": options},
                     timeout=30,
+                    allow_redirects=False,
                 )
                 response.raise_for_status()
                 payload = response.json()
@@ -178,6 +180,7 @@ class GovernanceCollector:
                     return items
                 options = {"resultFormat": "objectArray", "$skipToken": skip_token}
         except (requests.RequestException, AzureError, ValueError, TypeError, AttributeError):
+            logger.warning("_post_graph collection failed", exc_info=True)
             return None
 
     def _post_values(self, path: str) -> list[dict[str, Any]] | None:
@@ -205,6 +208,7 @@ class GovernanceCollector:
                 url = next_link
             return items
         except (requests.RequestException, AzureError, ValueError, TypeError, AttributeError):
+            logger.warning("_post_values collection failed", exc_info=True)
             return None
 
     def collect(self) -> dict[str, Any]:
