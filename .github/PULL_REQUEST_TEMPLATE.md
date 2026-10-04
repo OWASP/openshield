@@ -19,7 +19,7 @@
 ## Testing
 - [ ] Tested against a real Azure free trial subscription
 - [ ] Returns correct JSON output
-- [ ] All seven CI checks pass
+- [ ] All CI checks pass (lint, tests, CodeQL, DCO, dependency-review)
 - [ ] No hardcoded credentials or secrets
 
 ## Related issue

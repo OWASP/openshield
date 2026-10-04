@@ -20,6 +20,8 @@ queue_rules:
     # manually queue a PR targeting any branch.
     queue_conditions:
       - base=dev
+      - -draft
+      - -label=blocked
 
     # One PR merged per operation. Combined with max_parallel_checks: 1
     # above, this gives a fully serial merge queue.

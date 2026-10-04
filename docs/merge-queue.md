@@ -196,8 +196,9 @@ Expected behavior:
 
 **Scenario 3: Governance-policy change with only one approval does not auto-merge**
 
-A PR modifies `.mergify.yml` or `GOVERNANCE.md` and receives exactly one
-approving review, with all CI checks green.
+A PR modifies `.mergify.yml`, `GOVERNANCE.md`, `MAINTAINERS.md`, or
+`docs/merge-queue.md` and receives exactly one approving review, with all CI
+checks green.
 
 Expected behavior:
 - The left side of the `or` condition is false (the PR touches governance files).
