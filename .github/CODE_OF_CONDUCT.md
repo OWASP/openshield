@@ -58,9 +58,10 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement by contacting the
-maintainers directly via GitHub (open a private discussion or direct message a
-maintainer). Do not use the security advisory channel for conduct reports.
+reported to the project lead **Vishnu Ajith** at **vishnu.ajith@owasp.org**.
+You may also open a private discussion on this repository or contact OWASP
+directly at <https://owasp.org/contact/>. Do not use the security advisory
+channel for conduct reports.
 
 All complaints will be reviewed and investigated promptly and fairly.
 
