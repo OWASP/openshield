@@ -150,6 +150,22 @@ def no_resources_found(rule_id: str, resource_type: str, subscription_id: str) -
     )
 
 
+def missing_resource_id(rule_id: str, resource_type: str, subscription_id: str) -> "RuleEvaluation":
+    """UNKNOWN for a resource returned without an ID.
+
+    It cannot be evaluated or remediated, and a finding with an empty
+    resource_id would collide with every other one in persistence.
+    """
+    return RuleEvaluation(
+        rule_id=rule_id,
+        resource_id=subscription_scope_id(subscription_id),
+        resource_type=resource_type,
+        status=EvaluationStatus.UNKNOWN,
+        reason_code=MISSING_PROPERTIES,
+        reason=f"A {resource_type} resource was returned without a resource ID.",
+    )
+
+
 def fail_findings(evaluations: Iterable["RuleEvaluation"]) -> List[Dict[str, Any]]:
     """Findings attached to FAIL evaluations, for a migrated rule's scan() wrapper."""
     return [e.finding for e in evaluations if e.status == EvaluationStatus.FAIL and e.finding]
