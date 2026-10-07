@@ -9,7 +9,7 @@ RULE_ID = "AZ-IDN-013"
 RULE_NAME = "App Registration Uses Password Credentials"
 SEVERITY = "MEDIUM"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "N/A-IDN-013", "NIST": "PR.AC-1", "ISO27001": "A.9.4.3", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "N/A-IDN-013", "NIST": "PR.AC-1", "ISO27001": "A.5.17", "SOC2": "CC6.1"}
 DESCRIPTION = (
     "The App Registration has one or more password credentials. Client secrets are commonly copied, "
     "logged, leaked, or left unrotated and are weaker than managed identity or certificate authentication."

@@ -7,7 +7,7 @@ RULE_ID = "AZ-SC-004"
 RULE_NAME = "Container Registry Missing Retention or Quarantine Policy"
 SEVERITY = "MEDIUM"
 CATEGORY = "Supply Chain"
-FRAMEWORKS = {"CIS": "N/A-SC-004", "NIST": "PR.IP-1", "ISO27001": "A.12.1.2", "SOC2": "CC7.1"}
+FRAMEWORKS = {"CIS": "N/A-SC-004", "NIST": "PR.IP-1", "ISO27001": "A.8.32", "SOC2": "CC7.1"}
 
 DESCRIPTION = (
     "The Azure Container Registry has no retention policy for untagged manifests, so stale and "

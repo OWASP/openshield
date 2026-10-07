@@ -9,7 +9,7 @@ RULE_ID = "AZ-AKS-004"
 RULE_NAME = "AKS Workload Identity Not Fully Enabled"
 SEVERITY = "MEDIUM"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-004", "NIST": "PR.AC-4", "ISO27001": "A.9.2.3", "SOC2": "CC6.3"}
+FRAMEWORKS = {"CIS": "N/A-AKS-004", "NIST": "PR.AC-4", "ISO27001": "A.8.2", "SOC2": "CC6.3"}
 DESCRIPTION = (
     "AKS Workload Identity and its OIDC issuer are not both enabled. Applications may consequently "
     "depend on shared credentials or broader node identities when accessing Azure resources."

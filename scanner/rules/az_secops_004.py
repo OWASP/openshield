@@ -18,7 +18,7 @@ RULE_ID = "AZ-SECOPS-004"
 RULE_NAME = "Security Logs Have Insufficient Retention"
 SEVERITY = "MEDIUM"
 CATEGORY = "Security Operations"
-FRAMEWORKS = {"CIS": "N/A-SECOPS-004", "NIST": "PR.PT-1", "ISO27001": "A.12.4.1", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "N/A-SECOPS-004", "NIST": "PR.PT-1", "ISO27001": "A.8.15", "SOC2": "CC7.2"}
 DESCRIPTION = (
     "A diagnostic setting exporting security-relevant logs to a Storage Account has a retention "
     "policy configured below the organisation's minimum retention requirement (or retention is "

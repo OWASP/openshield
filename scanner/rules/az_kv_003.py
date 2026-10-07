@@ -10,7 +10,7 @@ RULE_NAME = "Key Vault Without Diagnostic Logging Enabled"
 SEVERITY = "MEDIUM"
 CATEGORY = "KeyVault"
 
-FRAMEWORKS = {"CIS": "8.4", "NIST": "DE.CM-7", "ISO27001": "A.12.4.1", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "8.4", "NIST": "DE.CM-7", "ISO27001": "A.8.15", "SOC2": "CC7.2"}
 
 DESCRIPTION = (
     "Azure Key Vault diagnostic logging is not enabled. Without diagnostic "

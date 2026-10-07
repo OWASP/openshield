@@ -16,7 +16,7 @@ RULE_ID = "AZ-NET-027"
 RULE_NAME = "Internet-Facing Application Gateway Lacks Approved Rate Limiting"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-027", "NIST": "PR.PT-4", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-NET-027", "NIST": "PR.PT-4", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = "A public Application Gateway has no enabled RateLimitRule in its associated WAF policy."
 REMEDIATION = (
     "Associate a WAF policy and add an enabled RateLimitRule with thresholds "

@@ -9,7 +9,7 @@ RULE_ID = "AZ-AKS-006"
 RULE_NAME = "AKS Node OS Automatic Upgrades Disabled"
 SEVERITY = "HIGH"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-006", "NIST": "PR.IP-12", "ISO27001": "A.12.6.1", "SOC2": "CC7.1"}
+FRAMEWORKS = {"CIS": "N/A-AKS-006", "NIST": "PR.IP-12", "ISO27001": "A.8.8", "SOC2": "CC7.1"}
 DESCRIPTION = (
     "The AKS node OS upgrade channel does not automatically apply managed security updates. "
     "Worker nodes can remain exposed to operating-system vulnerabilities without a separate patch process."

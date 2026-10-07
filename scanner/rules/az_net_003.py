@@ -9,7 +9,7 @@ RULE_ID = "AZ-NET-003"
 RULE_NAME = "NSG allows unrestricted inbound on port 443"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "9.3", "NIST": "SC-7", "ISO27001": "A.13.1.1"}
+FRAMEWORKS = {"CIS": "9.3", "NIST": "SC-7", "ISO27001": "A.8.20"}
 
 DESCRIPTION = (
     "A Network Security Group has an inbound rule allowing unrestricted access "

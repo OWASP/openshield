@@ -9,7 +9,7 @@ RULE_ID = "AZ-IDN-014"
 RULE_NAME = "Multi-Tenant App Registration Lacks Property Lock"
 SEVERITY = "HIGH"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "N/A-IDN-014", "NIST": "PR.IP-1", "ISO27001": "A.12.1.2", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-IDN-014", "NIST": "PR.IP-1", "ISO27001": "A.8.32", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "The multi-tenant App Registration does not lock all sensitive properties on its service-principal "
     "instances. Tenant administrators can modify credentials or token-encryption settings unexpectedly."

@@ -7,7 +7,7 @@ RULE_ID = "AZ-IDN-008"
 RULE_NAME = "Custom RBAC Role with Wildcard Permissions at Subscription Scope"
 SEVERITY = "HIGH"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "1.23", "NIST": "PR.AC-4", "ISO27001": "A.9.2.3", "SOC2": "CC6.3"}
+FRAMEWORKS = {"CIS": "1.23", "NIST": "PR.AC-4", "ISO27001": "A.8.2", "SOC2": "CC6.3"}
 DESCRIPTION = (
     "One or more custom RBAC role definitions contain wildcard actions (*) or "
     "overly broad permissions at subscription scope. Custom roles with wildcard "

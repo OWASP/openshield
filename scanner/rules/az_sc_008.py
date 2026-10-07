@@ -7,7 +7,7 @@ RULE_ID = "AZ-SC-008"
 RULE_NAME = "Pipeline Service Connection Uses Password Instead of Federated Credential"
 SEVERITY = "MEDIUM"
 CATEGORY = "Supply Chain"
-FRAMEWORKS = {"CIS": "N/A-SC-008", "NIST": "PR.AC-1", "ISO27001": "A.9.4.3", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "N/A-SC-008", "NIST": "PR.AC-1", "ISO27001": "A.5.17", "SOC2": "CC6.1"}
 
 DESCRIPTION = (
     "An Azure DevOps service connection authenticates with a stored service principal secret "

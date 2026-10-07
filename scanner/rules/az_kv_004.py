@@ -6,7 +6,7 @@ RULE_ID = "AZ-KV-004"
 RULE_NAME = "Key Vault Purge Protection Disabled"
 SEVERITY = "MEDIUM"
 CATEGORY = "KeyVault"
-FRAMEWORKS = {"CIS": "8.5", "NIST": "PR.IP-4", "ISO27001": "A.17.2.1", "SOC2": "CC9.1"}
+FRAMEWORKS = {"CIS": "8.5", "NIST": "PR.IP-4", "ISO27001": "A.8.14", "SOC2": "CC9.1"}
 DESCRIPTION = (
     "Azure Key Vaults without purge protection enabled allow permanent "
     "deletion of vaults and their secrets, keys, and certificates during "

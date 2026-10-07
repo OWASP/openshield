@@ -7,7 +7,7 @@ RULE_ID = "AZ-NET-010"
 RULE_NAME = "Subnet with no network security group attached"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "9.10", "NIST": "SC-7", "ISO27001": "A.13.1.1"}
+FRAMEWORKS = {"CIS": "9.10", "NIST": "SC-7", "ISO27001": "A.8.20"}
 DESCRIPTION = (
     "A subnet exists without a Network Security Group attached. Without an NSG "
     "at the subnet level, all resources deployed into that subnet have no network "
