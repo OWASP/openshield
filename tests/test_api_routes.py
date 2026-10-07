@@ -116,7 +116,7 @@ class TestComplianceRoute:
             resp = client.get(f"/api/compliance/{framework}", headers=auth_headers)
         assert resp.status_code == 200
         # The route must forward the validated framework verbatim to the DB layer.
-        db.get_compliance_score.assert_called_once_with(framework)
+        db.get_compliance_score.assert_called_once_with(framework, subscription_id=None)
         data = resp.get_json()
         assert data["framework"] == framework
         for key in ("total_controls", "passed", "failed", "score_percent", "controls"):

@@ -18,7 +18,7 @@ RULE_ID = "AZ-SECOPS-005"
 RULE_NAME = "Security Logs Stored Only in a Destination the Workload Administrator Can Modify"
 SEVERITY = "HIGH"
 CATEGORY = "Security Operations"
-FRAMEWORKS = {"CIS": "N/A-SECOPS-005", "NIST": "PR.DS-6", "ISO27001": "A.12.4.2", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "N/A-SECOPS-005", "NIST": "PR.DS-6", "ISO27001": "A.8.15", "SOC2": "CC7.2"}
 DESCRIPTION = (
     "A critical resource's diagnostic setting exports logs only to a destination that lives in "
     "the same resource group (and therefore the same administrative scope) as the workload itself, "
@@ -29,7 +29,8 @@ DESCRIPTION = (
     "Monitor diagnostic-settings API does not expose the destination's own access-control or "
     "immutability configuration. The CIS Azure Foundations Benchmark does not assign a distinct "
     "numbered control to log-destination ownership/tamper-protection, so no single-control CIS "
-    "mapping applies here; ISO 27001 A.12.4.2 (Protection of log information) is the closest direct match."
+    "mapping applies here; ISO 27001:2022 A.8.15 (Logging, which also covers protection of log information) "
+    "is the closest direct match."
 )
 REMEDIATION = (
     "Add a second export from the resource's diagnostic setting to an organisation-approved, "

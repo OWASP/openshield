@@ -8,7 +8,7 @@ RULE_ID = "AZ-DB-005"
 RULE_NAME = "SQL Server Microsoft Entra-Only Authentication Not Enforced"
 SEVERITY = "HIGH"
 CATEGORY = "Database"
-FRAMEWORKS = {"CIS": "N/A-DB-005", "NIST": "PR.AC-6", "ISO27001": "A.9.4.2", "SOC2": "CC6.3"}
+FRAMEWORKS = {"CIS": "N/A-DB-005", "NIST": "PR.AC-6", "ISO27001": "A.8.5", "SOC2": "CC6.3"}
 DESCRIPTION = (
     "An explicitly protected Azure SQL server permits SQL authentication instead of "
     "enforcing Microsoft Entra-only authentication."

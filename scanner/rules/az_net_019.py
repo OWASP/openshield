@@ -9,7 +9,7 @@ RULE_ID = "AZ-NET-019"
 RULE_NAME = "Private Endpoint Connection Is Not Approved"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-019", "NIST": "PR.AC-5", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-NET-019", "NIST": "PR.AC-5", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "A Private Endpoint connection is pending, rejected, or disconnected and cannot provide the intended private path."
 )

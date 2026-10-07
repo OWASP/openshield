@@ -11,7 +11,7 @@ RULE_ID = "AZ-STOR-010"
 RULE_NAME = "Storage Account Missing Private Endpoint"
 SEVERITY = "HIGH"
 CATEGORY = "Storage"
-FRAMEWORKS = {"CIS": "N/A-STOR-010", "NIST": "PR.AC-5", "ISO27001": "A.13.1.3", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-STOR-010", "NIST": "PR.AC-5", "ISO27001": "A.8.22", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "A storage account reachable over the public network has no approved Private "
     "Endpoint connection, so its blob/file/queue/table endpoints stay reachable from "

@@ -7,7 +7,7 @@ RULE_ID = "AZ-NET-004"
 RULE_NAME = "NSG with no rules configured"
 SEVERITY = "MEDIUM"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "9.2", "NIST": "SC-7", "ISO27001": "A.13.1.1"}
+FRAMEWORKS = {"CIS": "9.2", "NIST": "SC-7", "ISO27001": "A.8.20"}
 DESCRIPTION = (
     "A Network Security Group exists but has no custom security rules configured. "
     "An empty NSG relies entirely on Azure default rules which may not meet your "

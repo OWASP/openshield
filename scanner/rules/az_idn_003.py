@@ -7,7 +7,7 @@ RULE_ID = "AZ-IDN-003"
 RULE_NAME = "Guest user invitations not restricted to admins in Entra ID"
 SEVERITY = "MEDIUM"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "1.15", "NIST": "PR.AC-1", "ISO27001": "A.9.2.1"}
+FRAMEWORKS = {"CIS": "1.15", "NIST": "PR.AC-1", "ISO27001": "A.5.16"}
 DESCRIPTION = (
     "Guest user invitations in Entra ID are not restricted to administrators. "
     "Any organisation member can invite external users into the tenant without "

@@ -9,7 +9,7 @@ RULE_ID = "AZ-IDN-012"
 RULE_NAME = "App Registration Enables OAuth Implicit Grant"
 SEVERITY = "MEDIUM"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "N/A-IDN-012", "NIST": "PR.AC-3", "ISO27001": "A.9.4.2", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "N/A-IDN-012", "NIST": "PR.AC-3", "ISO27001": "A.8.5", "SOC2": "CC6.1"}
 DESCRIPTION = (
     "The App Registration enables access-token or ID-token issuance through the legacy implicit "
     "grant flow. Tokens can be exposed to browser history, extensions, or front-channel leakage."

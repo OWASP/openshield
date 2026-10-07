@@ -26,7 +26,7 @@ kubernetes==36.0.0
 azure-mgmt-recoveryservices==4.1.0
 psycopg2-binary==2.9.9
 python-dotenv==1.2.2
-pyjwt==2.13.0
+pyjwt==2.15.0
 requests==2.34.2
 PyYAML==6.0.3
 gunicorn==26.0.0

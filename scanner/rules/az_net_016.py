@@ -7,7 +7,7 @@ RULE_ID = "AZ-NET-016"
 RULE_NAME = "Network Interface Has IP Forwarding Enabled"
 SEVERITY = "MEDIUM"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-016", "NIST": "SC-7", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-NET-016", "NIST": "SC-7", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "The network interface has IP forwarding enabled, which disables Azure source and destination checks and "
     "allows the attached workload to forward traffic not addressed to it. This is normally required only for a "

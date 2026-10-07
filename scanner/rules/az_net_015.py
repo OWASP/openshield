@@ -9,7 +9,7 @@ CATEGORY = "Network"
 FRAMEWORKS = {
     "CIS": "9.8",
     "NIST": "PR.AC-5",
-    "ISO27001": "A.13.1.1",
+    "ISO27001": "A.8.20",
     "SOC2": "CC6.6",
 }
 DESCRIPTION = (

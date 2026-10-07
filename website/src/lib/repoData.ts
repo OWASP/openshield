@@ -50,7 +50,7 @@ export const repoRoot = findRepoRoot();
 export interface Rule {
   id: string;
   name: string;
-  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
   domain: string;
   category: string;
   frameworks: Record<string, string>;

@@ -15,7 +15,7 @@ import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function loadAiApiModule(seed = {}) {
+function loadAiApiModule(seed = {}, fetchImpl = null) {
   let source = readFileSync(path.join(__dirname, 'aiApi.js'), 'utf8');
 
   // Neutralize the one Vite-only construct so this can run under plain Node.
@@ -45,7 +45,7 @@ function loadAiApiModule(seed = {}) {
 
   const load = new Function('localStorage', 'fetch', 'AbortController', 'setTimeout', 'clearTimeout', source);
   const noopFetch = () => Promise.reject(new Error('fetch should not be called in this test'));
-  const mod = load(localStorageStub, noopFetch, AbortController, setTimeout, clearTimeout);
+  const mod = load(localStorageStub, fetchImpl || noopFetch, AbortController, setTimeout, clearTimeout);
   return { ...mod, backingStore };
 }
 
@@ -139,8 +139,52 @@ check('clear() also removes any legacy ai_api_key still in storage', () => {
   assert.equal(backingStore.has('ai_api_key'), false);
 });
 
+// ── Request bodies: findings never leave the browser (#357) ─────────────────
+
+function loadWithCapturingFetch() {
+  const sent = [];
+  const fetchImpl = (url, init) => {
+    sent.push({ url, body: JSON.parse(init.body) });
+    return Promise.resolve({ ok: true, json: async () => ({ summary: 's', answer: 'a', sources: [] }) });
+  };
+  const mod = loadAiApiModule({}, fetchImpl);
+  mod.aiSettings.save({ provider: 'anthropic', apiKey: 'sk-test' });
+  return { ...mod, sent };
+}
+
+async function checkAsync(description, fn) {
+  try {
+    await fn();
+    console.log(`PASS: ${description}`);
+  } catch (err) {
+    failures++;
+    console.error(`FAIL: ${description}\n  ${err.message}`);
+  }
+}
+
+await checkAsync('AI requests never send findings from the browser', async () => {
+  const { aiApi, sent } = loadWithCapturingFetch();
+  await aiApi.chat({ question: 'What is my risk?' });
+  await aiApi.getSummary();
+  await aiApi.getInsights({ question: 'q' });
+  await aiApi.getPrioritisation();
+  assert.equal(sent.length, 4);
+  for (const { url, body } of sent) {
+    assert.ok(!('findings' in body), `${url} sent findings`);
+    assert.ok(!('scan_id' in body), `${url} sent an empty scan_id`);
+  }
+});
+
+await checkAsync('scanId is forwarded as scan_id when given', async () => {
+  const { aiApi, sent } = loadWithCapturingFetch();
+  const scanId = '11111111-2222-4333-8444-555555555555';
+  await aiApi.chat({ question: 'q', scanId });
+  await aiApi.getSummary({ scanId });
+  assert.deepEqual(sent.map(({ body }) => body.scan_id), [scanId, scanId]);
+});
+
 if (failures > 0) {
   console.error(`\n${failures} test(s) failed`);
   process.exit(1);
 }
-console.log('\nAll aiSettings tests passed');
+console.log('\nAll aiApi tests passed');
