@@ -128,13 +128,13 @@
       "review_date": null
     },
     "AZ-DB-008": {
-    "control_id": "A.10.1.1",
-    "control_name": "Policy on the use of cryptographic controls",
-    "description": "SQL Server minimum TLS version applies cryptographic controls to data in transit. A policy on the use of cryptographic controls for protection of information should be developed and implemented.",
+    "control_id": "A.8.24",
+    "control_name": "Use of cryptography",
+    "description": "Enforcing a minimum TLS version of 1.2 on the SQL server applies cryptographic controls to data in transit. A policy on the use of cryptography for protection of information should be defined and implemented.",
     "mapping_type": "supporting",
     "evidence_type": "automated_configuration_scan",
-    "primary_source": "ISO/IEC 27001:2013:2013, Annex A control A.10.1.1",
-    "rationale": "ISO/IEC 27001:2013 Annex A control A.10.1.1 ('Policy on the use of cryptographic controls') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-DB-008 evaluates one Azure technical setting that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
+    "primary_source": "ISO/IEC 27001:2022, Annex A control A.8.24",
+    "rationale": "ISO/IEC 27001:2022 Annex A control A.8.24 ('Use of cryptography') requires a documented ISMS control, not solely a technical configuration state. OpenShield rule AZ-DB-008 evaluates one Azure technical setting that provides supporting automated evidence toward this control; full conformance also requires the organizational policy and process elements ISO 27001 mandates.",
     "owner": null,
     "review_status": "pending_review",
     "review_date": null

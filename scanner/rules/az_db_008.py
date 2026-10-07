@@ -8,7 +8,7 @@ RULE_ID = "AZ-DB-008"
 RULE_NAME = "Azure SQL Server Minimum TLS Version Below 1.2"
 SEVERITY = "HIGH"
 CATEGORY = "Database"
-FRAMEWORKS = {"CIS": "N/A-DB-008", "NIST": "PR.DS-2", "ISO27001": "A.10.1.1", "SOC2": "CC6.7"}
+FRAMEWORKS = {"CIS": "N/A-DB-008", "NIST": "PR.DS-2", "ISO27001": "A.8.24", "SOC2": "CC6.7"}
 DESCRIPTION = (
     "The Azure SQL Server does not enforce a minimum TLS version of 1.2 or higher. "
     "Connections are still able to negotiate the deprecated TLS 1.0 or 1.1 protocols, "
