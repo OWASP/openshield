@@ -1,9 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- Add all ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate.
-
 All notable changes to OpenShield are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -13,8 +9,11 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add the remediation approval, idempotency, audit and rescan gate (`api/models/remediation.py`, `docs/remediation-gate.md`) for issue #266: approved-only, allowlisted, at-most-once execution grants with an append-only audit trail and rescan-based verification. Proposal-only; nothing executes a playbook.
+- Add all ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate.
 - Branch protection declared as versioned GitHub rulesets for `dev` and `main`, with a scheduled drift audit that retains evidence (#298)
 - CI and CodeQL post-merge runs on `dev` and `main` (#298)
+- Ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate
 - Fifteen enterprise AKS and Kubernetes workload rules covering API restrictions, network policy, Defender, secrets, workload isolation, RBAC, and image trust
 - OIDC bearer-token verification (`OPENSHIELD_AUTH_MODE=oidc`) with JWKS signature, issuer, audience, tenant and IdP app-role enforcement (#294)
 - Azure Network Layer Assurance API with 20-domain coverage, network-rule classification, and authoritative IP forwarding and direct Internet route checks
@@ -31,8 +30,13 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Terraform configuration for Render, Vercel, and GitHub OIDC
 - Database connection pool utilization and exhaustion telemetry (`openshield_db_pool_connections_*`) on `/metrics`
 
+### Changed
+
+- Migrate the ISO 27001 mapping pack from ISO/IEC 27001:2013 to ISO/IEC 27001:2022 Annex A (mapping pack 2.0.0) and each rule's own `ISO27001` value, for issue #358. Rules about monitoring coverage use the new A.8.16 and Kubernetes policy governance uses A.8.9. All entries stay `pending_review`. Scans saved with a mapping snapshot keep reporting against the 2013 controls.
+
 ### Fixed
 
+- Learn page statistics are computed at site build time, and the post-merge stats workflow no longer pushes to the protected `dev` branch (it failed on every merge); README count drift is now reported as a warning
 - High-severity CodeQL findings in Python and JavaScript code
 - Security findings identified during Semgrep analysis
 - Sensitive identity metadata removed from scanner debug logging

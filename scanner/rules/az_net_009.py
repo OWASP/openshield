@@ -7,7 +7,7 @@ RULE_ID = "AZ-NET-009"
 RULE_NAME = "VPN gateway using outdated IKE version"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "9.5", "NIST": "SC-8", "ISO27001": "A.13.2.1"}
+FRAMEWORKS = {"CIS": "9.5", "NIST": "SC-8", "ISO27001": "A.5.14"}
 DESCRIPTION = (
     "A VPN gateway is configured to use IKEv1 which is an outdated and less "
     "secure version of the Internet Key Exchange protocol. IKEv1 is vulnerable "

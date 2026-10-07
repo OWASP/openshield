@@ -17,7 +17,7 @@ RULE_ID = "AZ-DL-001"
 RULE_NAME = "ExpressRoute Direct Link Does Not Use MACsec"
 SEVERITY = "HIGH"
 CATEGORY = "Data Link"
-FRAMEWORKS = {"CIS": "N/A-DL-001", "NIST": "PR.DS-2", "ISO27001": "A.13.1.1", "SOC2": "CC6.7"}
+FRAMEWORKS = {"CIS": "N/A-DL-001", "NIST": "PR.DS-2", "ISO27001": "A.8.20", "SOC2": "CC6.7"}
 DESCRIPTION = "An enabled ExpressRoute Direct Ethernet link does not have a MACsec configuration."
 REMEDIATION = (
     "Plan a maintenance window, store CAK and CKN values in Azure Key Vault, then enable MACsec on both "

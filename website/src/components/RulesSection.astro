@@ -5,8 +5,9 @@ import type { Rule } from '../lib/repoData';
 
 const { rules, ruleCount } = repoData;
 
-const SEV_TEXT: Record<string, string> = { HIGH: '#a03a1e', MEDIUM: '#7a5310', LOW: '#3d5a75' };
-const SEV_DOT: Record<string, string> = { HIGH: '#c73a17', MEDIUM: '#a06f10', LOW: '#5d6c80' };
+const SEV_TEXT: Record<string, string> = { CRITICAL: '#8f1414', HIGH: '#a03a1e', MEDIUM: '#7a5310', LOW: '#3d5a75', INFO: '#4b5563' };
+const SEV_LABEL: Record<string, string> = { CRITICAL: 'Critical', HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low', INFO: 'Info' };
+const SEV_DOT: Record<string, string> = { CRITICAL: '#b91c1c', HIGH: '#c73a17', MEDIUM: '#a06f10', LOW: '#5d6c80', INFO: '#6b7280' };
 
 /* representative picks, one per pastel swatch; fall back to the first rule
    of the domain so the section never renders an empty card */
@@ -34,7 +35,7 @@ const featured: { rule: Rule; swatch: string }[] = picks.map((id, i) => ({
         <div class="rcard">
           <div class={`swatch ${swatch}`}>
             <span class="sev" style={`color:${SEV_TEXT[rule.severity]}`}>
-              <i style={`background:${SEV_DOT[rule.severity]}`}></i>{rule.severity === 'HIGH' ? 'High' : rule.severity === 'MEDIUM' ? 'Medium' : 'Low'}
+              <i style={`background:${SEV_DOT[rule.severity]}`}></i>{SEV_LABEL[rule.severity] ?? rule.severity}
             </span>
             <span class="rid">{rule.id}</span>
           </div>

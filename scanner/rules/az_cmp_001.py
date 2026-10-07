@@ -7,7 +7,7 @@ RULE_ID = "AZ-CMP-001"
 RULE_NAME = "VM with Public IP and No Associated NSG on Network Interface"
 SEVERITY = "HIGH"
 CATEGORY = "Compute"
-FRAMEWORKS = {"CIS": "7.1", "NIST": "PR.AC-3", "ISO27001": "A.13.1.1"}
+FRAMEWORKS = {"CIS": "7.1", "NIST": "PR.AC-3", "ISO27001": "A.8.20"}
 DESCRIPTION = (
     "A virtual machine has a public IP address assigned to its network interface "
     "but no Network Security Group protecting that interface. Without an NSG, "

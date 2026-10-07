@@ -9,7 +9,7 @@ RULE_ID = "AZ-CMP-002"
 RULE_NAME = "Virtual machine disk not protected by customer-managed key or ADE"
 SEVERITY = "HIGH"
 CATEGORY = "Compute"
-FRAMEWORKS = {"CIS": "7.2", "NIST": "PR.DS-1", "ISO27001": "A.10.1.1", "SOC2": "CC6.7"}
+FRAMEWORKS = {"CIS": "7.2", "NIST": "PR.DS-1", "ISO27001": "A.8.24", "SOC2": "CC6.7"}
 DESCRIPTION = (
     "One or more disks attached to this virtual machine are using platform-managed "
     "encryption only (EncryptionAtRestWithPlatformKey). CIS 7.2 requires disks to be "

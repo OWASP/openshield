@@ -8,7 +8,7 @@ RULE_ID = "AZ-IDN-006"
 RULE_NAME = "Service Principal Client Secret Older Than 90 Days"
 SEVERITY = "HIGH"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "1.14", "NIST": "PR.AC-1", "ISO27001": "A.9.4.3", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "1.14", "NIST": "PR.AC-1", "ISO27001": "A.5.17", "SOC2": "CC6.1"}
 DESCRIPTION = (
     "One or more service principal applications have client secrets with a creation "
     "date older than 90 days and no expiry date set, or secrets that have already "

@@ -7,7 +7,7 @@ RULE_ID = "AZ-CMP-006"
 RULE_NAME = "VM Scale Set with Public IP and No Associated NSG on Network Interface"
 SEVERITY = "HIGH"
 CATEGORY = "Compute"
-FRAMEWORKS = {"CIS": "N/A-CMP-006", "NIST": "PR.AC-3", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-CMP-006", "NIST": "PR.AC-3", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "A VM Scale Set network interface configuration provisions a public IP address "
     "for its instances but has no Network Security Group protecting that interface, "

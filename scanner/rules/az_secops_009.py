@@ -12,7 +12,7 @@ RULE_ID = "AZ-SECOPS-009"
 RULE_NAME = "Sentinel Missing Required High-Severity Analytics Coverage"
 SEVERITY = "HIGH"
 CATEGORY = "Security Operations"
-FRAMEWORKS = {"CIS": "N/A-SECOPS-009", "NIST": "DE.CM-1", "ISO27001": "A.12.4.1", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "N/A-SECOPS-009", "NIST": "DE.CM-1", "ISO27001": "A.8.16", "SOC2": "CC7.2"}
 DESCRIPTION = (
     "A Sentinel-onboarded workspace has no enabled analytics (alert) rule with High severity "
     "covering an organisation-required detection use case (e.g. privileged-role-change, "

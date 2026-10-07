@@ -10,7 +10,7 @@ RULE_ID = "AZ-NET-025"
 RULE_NAME = "Application Gateway WAF Diagnostic Logging Is Not Enabled"
 SEVERITY = "MEDIUM"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-025", "NIST": "DE.CM-1", "ISO27001": "A.12.4.1", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "N/A-NET-025", "NIST": "DE.CM-1", "ISO27001": "A.8.15", "SOC2": "CC7.2"}
 DESCRIPTION = (
     "An Application Gateway WAF lacks a diagnostic setting with every log category supported by its SKU enabled. "
     "WAF v1 requires access, performance, and firewall logs; WAF_v2 requires access and firewall logs, with "

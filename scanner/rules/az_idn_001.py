@@ -6,7 +6,7 @@ RULE_ID = "AZ-IDN-001"
 RULE_NAME = "Service Principal Assigned Owner Role at Subscription Scope"
 SEVERITY = "HIGH"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "1.24", "NIST": "PR.AC-4", "ISO27001": "A.9.2.3"}
+FRAMEWORKS = {"CIS": "1.24", "NIST": "PR.AC-4", "ISO27001": "A.8.2"}
 DESCRIPTION = (
     "A service principal holds the Owner role at subscription scope, granting it "
     "full control over all resources and the ability to assign roles to other principals. "

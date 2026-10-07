@@ -14,6 +14,7 @@ import psycopg2
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 
 pytestmark = pytest.mark.skipif(
@@ -25,7 +26,6 @@ _BEFORE_ADMISSION = "f2b6d8e1a4c9"
 # The dev head this branch builds on, i.e. the state a deployment upgrades from.
 _BEFORE_LEASES = "3f59f83a5253"
 _LEASES = "e4f7a9b2c6d8"
-_HEAD = "d4a8c1e6b2f9"
 _ADMISSION = "a7c5e9d2f1b4"
 _ACTIVE_INDEX = "uq_scans_one_active_per_subscription"
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -63,6 +63,12 @@ def _alembic_config() -> Config:
     config = Config()
     config.set_main_option("script_location", os.path.join(_REPO_ROOT, "alembic"))
     return config
+
+
+# Resolved from the revision graph rather than pinned, so a later migration
+# chained on top does not break these tests. get_current_head() also raises if
+# the graph has forked into more than one head.
+_HEAD = ScriptDirectory.from_config(_alembic_config()).get_current_head()
 
 
 def _upgrade(dsn: str, revision: str) -> None:

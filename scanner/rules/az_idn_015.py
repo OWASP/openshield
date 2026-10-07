@@ -7,7 +7,7 @@ RULE_ID = "AZ-IDN-015"
 RULE_NAME = "Managed Identity Has Privileged Subscription Role"
 SEVERITY = "HIGH"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "N/A-IDN-015", "NIST": "PR.AC-4", "ISO27001": "A.9.2.3", "SOC2": "CC6.3"}
+FRAMEWORKS = {"CIS": "N/A-IDN-015", "NIST": "PR.AC-4", "ISO27001": "A.8.2", "SOC2": "CC6.3"}
 DESCRIPTION = (
     "A managed identity holds Owner or Contributor at subscription scope. Compromise of any resource "
     "that can use the identity would provide an unnecessarily large Azure control-plane blast radius."

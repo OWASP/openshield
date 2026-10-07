@@ -150,17 +150,17 @@ def test_engine_empty_subscription_is_consistent(monkeypatch):
 
 
 def test_engine_isolates_a_failing_rule(monkeypatch):
-    """One rule raising inside scan() must not abort the whole scan.
-
-    Demonstrates the OBSERVABILITY GAP: the failed rule is swallowed and the
-    result dict has no field recording which rules errored, so a partial scan
-    is indistinguishable from a fully clean one.
-    """
+    """One rule raising inside scan() must not abort the whole scan, and the
+    failure must be recorded in the result (issue #302: a rule that crashed
+    is not the same as a rule that ran and found nothing - get_compliance_score()
+    needs failed_rule_ids to avoid reading the crash as a clean PASS)."""
     _patch_engine_client(monkeypatch, _offline_mock())
     eng = ScanEngine(_SUB)
     assert len(eng.rules) >= 45
 
     # Force the first loaded rule to raise when scanned.
+    failing_rule_id = eng.rules[0].RULE_ID
+
     def _boom(*args, **kwargs):
         raise RuntimeError("simulated rule failure")
 
@@ -168,9 +168,51 @@ def test_engine_isolates_a_failing_rule(monkeypatch):
 
     result = eng.run_scan()  # must not raise
     assert result["status"] == "completed"
-    # The other rules still ran (empty mock -> no findings) and the scan
-    # completed. Crucially, there is NO field in the result naming the failed
-    # rule -- this is the observability gap flagged in the validation report.
-    assert "errored_rules" not in result
-    assert "rules_failed" not in result
-    assert "errors" not in result
+    # The other rules still ran and the scan completed, but the crashed rule
+    # is explicitly named so its absence from findings is never mistaken for
+    # a clean pass. (Not asserting the list is exactly [failing_rule_id]: a
+    # handful of resilience/backup rules already error against the offline
+    # mock for an unrelated, pre-existing reason - MockAzureClient predates
+    # them and is missing methods like get_recovery_vault_security_posture.
+    # That gap is real but out of scope here; this test only cares that the
+    # rule we deliberately broke shows up.)
+    assert failing_rule_id in result["failed_rule_ids"]
+
+
+def test_engine_records_a_rule_that_returns_malformed_data_as_failed(monkeypatch):
+    """A rule returning something other than a list is not silently treated
+    as clean either - it's the same "did not actually run to completion"
+    case as a raised exception."""
+    _patch_engine_client(monkeypatch, _offline_mock())
+    eng = ScanEngine(_SUB)
+
+    malformed_rule_id = eng.rules[0].RULE_ID
+    monkeypatch.setattr(eng.rules[0], "scan", lambda *a, **k: {"not": "a list"})
+
+    result = eng.run_scan()
+    assert result["status"] == "completed"
+    assert malformed_rule_id in result["failed_rule_ids"]
+
+
+def test_engine_run_scan_always_reports_failed_rule_ids_as_a_list(monkeypatch):
+    """failed_rule_ids must always be a list, never an absent key, so
+    get_compliance_score() can read it unconditionally."""
+    _patch_engine_client(monkeypatch, _offline_mock())
+    eng = ScanEngine(_SUB)
+
+    result = eng.run_scan()
+    assert isinstance(result["failed_rule_ids"], list)
+
+
+def test_engine_a_rule_that_completes_cleanly_is_never_recorded_as_failed(monkeypatch):
+    """Rules that ran successfully - even producing zero findings - must not
+    appear in failed_rule_ids. Only rules that actually raised or returned
+    malformed data belong there."""
+    _patch_engine_client(monkeypatch, _offline_mock())
+    eng = ScanEngine(_SUB)
+
+    healthy_rule_id = eng.rules[0].RULE_ID
+    monkeypatch.setattr(eng.rules[0], "scan", lambda *a, **k: [])
+
+    result = eng.run_scan()
+    assert healthy_rule_id not in result["failed_rule_ids"]

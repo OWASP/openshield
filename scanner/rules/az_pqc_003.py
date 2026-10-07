@@ -10,7 +10,7 @@ CATEGORY = "PostQuantum"
 FRAMEWORKS = {
     "CIS": "8.9",
     "NIST": "PR.DS-2",
-    "ISO27001": "A.10.1.1",
+    "ISO27001": "A.8.24",
     "SOC2": "CC6.7",
 }
 DESCRIPTION = (

@@ -6,7 +6,7 @@ RULE_ID = "AZ-IDN-002"
 RULE_NAME = "No MFA Enforced on Admin Accounts via Conditional Access"
 SEVERITY = "HIGH"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "1.2.4", "NIST": "PR.AC-1", "ISO27001": "A.9.4.2"}
+FRAMEWORKS = {"CIS": "1.2.4", "NIST": "PR.AC-1", "ISO27001": "A.8.5"}
 DESCRIPTION = (
     "No Conditional Access policy is enabled that requires multi-factor authentication "
     "for administrator accounts. Without MFA enforcement, a single compromised password "
