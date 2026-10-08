@@ -177,7 +177,8 @@ class StoragePrivateEndpointDetector(EdgeDetector):
 def detect_all_edges(snapshot: InventorySnapshot) -> list[GraphEdge]:
     """Run all detectors and return the combined edge list.
 
-    Per-detector exceptions are caught and logged; the function never raises.
+    A detector failure aborts graph publication. Publishing a partial edge list
+    as complete would remove valid relationships from the preceding snapshot.
     """
     detectors: list[EdgeDetector] = [
         NsgToSubnetDetector(),
@@ -192,4 +193,5 @@ def detect_all_edges(snapshot: InventorySnapshot) -> list[GraphEdge]:
             edges.extend(detector.detect(snapshot))
         except Exception as exc:
             logger.warning("edge_detector: %s failed: %s", type(detector).__name__, exc)
+            raise
     return edges
