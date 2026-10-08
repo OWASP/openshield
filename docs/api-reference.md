@@ -7,7 +7,7 @@ routes become public only when the deliberate demo-mode setting is enabled.
 
 ## Authentication
 
-`/`, `/health`, `/ready`, and `/metrics` are always public. All other routes — including all `/api/*` GET endpoints — require an `Authorization: Bearer <jwt>` header, verified by `api/auth.py` according to `OPENSHIELD_AUTH_MODE`:
+`/`, `/health`, `/ready`, and `/metrics` are always public. All other routes â€” including all `/api/*` GET endpoints â€” require an `Authorization: Bearer <jwt>` header, verified by `api/auth.py` according to `OPENSHIELD_AUTH_MODE`:
 
 | Mode | Verification | Role source | Intended for |
 |---|---|---|---|
@@ -27,7 +27,7 @@ The dashboard never embeds a token (see [authentication and containment](securit
 
 ### Subscription authorization
 
-`POST /api/scans/trigger` also checks `subscription_id` against `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS`, a comma-separated allowlist. A valid `operator`/`admin` token can otherwise trigger a scan against *any* subscription_id — role alone doesn't say which subscription a caller is entitled to. Left unset, every subscription_id is accepted (matches historical behavior); the API logs a loud startup warning when it's unset. This is a single-tenant containment boundary, not a substitute for real per-tenant authorization — see issue #294 for the remaining tenant-ownership scope this is a stopgap for.
+`POST /api/scans/trigger` also checks `subscription_id` against `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS`, a comma-separated allowlist. A valid `operator`/`admin` token can otherwise trigger a scan against *any* subscription_id â€” role alone doesn't say which subscription a caller is entitled to. Left unset, every subscription_id is accepted (matches historical behavior); the API logs a loud startup warning when it's unset. This is a single-tenant containment boundary, not a substitute for real per-tenant authorization â€” see issue #294 for the remaining tenant-ownership scope this is a stopgap for.
 
 ## Input limits
 
@@ -185,7 +185,7 @@ Example response:
 
 Returns the details and current status of a specific scan.
 
-Path parameters: `scan_id` — UUID of the scan.
+Path parameters: `scan_id` â€” UUID of the scan.
 
 Example response:
 
@@ -208,7 +208,7 @@ Example response:
 
 Admits an asynchronous scan against the configured subscription. Execution happens in a background worker process; the response returns as soon as the scan is durably recorded.
 
-Request body (optional — falls back to `AZURE_SUBSCRIPTION_ID`):
+Request body (optional â€” falls back to `AZURE_SUBSCRIPTION_ID`):
 
 ```json
 {
@@ -221,7 +221,7 @@ Request body (optional — falls back to `AZURE_SUBSCRIPTION_ID`):
 Admission is serialized per subscription and enforced by the database, so concurrent and replayed triggers converge on one logical scan rather than creating duplicates:
 
 - **At most one active scan per subscription.** While a `pending` or `running` scan exists, a further trigger returns that existing scan instead of queueing another.
-- **`Idempotency-Key` (optional request header, 1–200 characters).** A repeat of the same key for the same subscription returns the original scan. The key is scoped to the subscription; the same key under a different subscription is a different request. A trigger carries no request input other than `subscription_id`, so a key that resolves to an existing scan is always a replay of the same logical request and there is no changed-payload conflict to report.
+- **`Idempotency-Key` (optional request header, 1â€“200 characters).** A repeat of the same key for the same subscription returns the original scan. The key is scoped to the subscription; the same key under a different subscription is a different request. A trigger carries no request input other than `subscription_id`, so a key that resolves to an existing scan is always a replay of the same logical request and there is no changed-payload conflict to report.
 - **`OPENSHIELD_MAX_SCANS_PER_SUBSCRIPTION_PER_HOUR`** adds an optional hourly admission quota. Unset or `0` (the default) applies no time-window limit; the one-active-scan rule still applies.
 
 ### Responses
@@ -229,8 +229,8 @@ Admission is serialized per subscription and enforced by the database, so concur
 | Status | When | Body |
 | --- | --- | --- |
 | `202 Accepted` | A new scan was admitted and queued. | `scan_id`, `status: "pending"`, `message` |
-| `200 OK` | The request resolved to an existing logical scan — an `Idempotency-Key` replay of the same request, or a trigger while a scan is already active for the subscription. | `scan_id`, `status` (the existing scan's `pending`/`running`), `message: "Existing logical scan returned."` |
-| `400 Bad Request` | Malformed body, invalid `subscription_id`, missing subscription, or an `Idempotency-Key` outside 1–200 characters. | `error` |
+| `200 OK` | The request resolved to an existing logical scan â€” an `Idempotency-Key` replay of the same request, or a trigger while a scan is already active for the subscription. | `scan_id`, `status` (the existing scan's `pending`/`running`), `message: "Existing logical scan returned."` |
+| `400 Bad Request` | Malformed body, invalid `subscription_id`, missing subscription, or an `Idempotency-Key` outside 1â€“200 characters. | `error` |
 | `403 Forbidden` | `subscription_id` is not on the `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS` allowlist. | `error` |
 | `429 Too Many Requests` | The configured hourly quota for this subscription is exhausted. | `error: "Scan quota exceeded for this subscription."` |
 
@@ -266,7 +266,7 @@ Missing subscription response (`400`):
 
 ## POST /api/scans/&lt;scan_id&gt;/enrich
 
-Queues durable CVE enrichment for a completed scan's findings. Enrichment runs as a database-backed job claimed by the background worker — the request never owns a thread, so the work survives an API restart.
+Queues durable CVE enrichment for a completed scan's findings. Enrichment runs as a database-backed job claimed by the background worker â€” the request never owns a thread, so the work survives an API restart.
 
 There is **never more than one enrichment job per scan**. Repeat calls are safe: they report the state of the single job rather than creating another.
 
@@ -280,11 +280,11 @@ Every response carries `scan_id`, `job_id`, `status` (the job row's state) and a
 | `202 Accepted` | `requeued` | A previously **failed** job was reset to `pending` and will be retried. |
 | `202 Accepted` | `active` | A `pending` or `running` job already exists and was returned unchanged. A live claim is never interrupted. |
 | `200 OK` | `completed` | Enrichment already finished; nothing was restarted. |
-| `404 Not Found` | — | Unknown `scan_id`, or the scan has no findings to enrich and has not already been enriched. |
+| `404 Not Found` | â€” | Unknown `scan_id`, or the scan has no findings to enrich and has not already been enriched. |
 
 An already-enriched scan always reports `completed`, including a clean scan that had no findings to enrich in the first place.
 
-A job that exhausts its retry budget becomes `failed`. Re-POSTing this endpoint is the supported operator recovery: it atomically returns the job to `pending` with a fresh retry budget, clears the lease, and keeps the last `error_message` and the `checkpoint` so the retry resumes rather than re-enriching findings that already succeeded. Concurrent re-POSTs converge — exactly one reports `requeued` and the rest report `active`.
+A job that exhausts its retry budget becomes `failed`. Re-POSTing this endpoint is the supported operator recovery: it atomically returns the job to `pending` with a fresh retry budget, clears the lease, and keeps the last `error_message` and the `checkpoint` so the retry resumes rather than re-enriching findings that already succeeded. Concurrent re-POSTs converge â€” exactly one reports `requeued` and the rest report `active`.
 
 Newly queued (`202`):
 
@@ -316,7 +316,7 @@ Poll `GET /api/scans/<scan_id>` for `cve_enrichment_status` (`PENDING`, `ENRICHI
 
 ## GET /api/score
 
-Returns the overall security posture score from 0 to 100. Under [severity contract v1](severity-contract.md), the score starts at 100 and deducts 20 per CRITICAL finding, 10 per HIGH finding, 5 per MEDIUM finding, and 2 per LOW finding; INFO findings deduct zero. Scoped to the most recent **completed** scan — if no completed scan exists yet, this returns `status: "NO_SCAN_DATA"` with `score: null` rather than a misleading 100 (a scan with no findings and no evidence at all would otherwise be indistinguishable).
+Returns the overall security posture score from 0 to 100. Under [severity contract v1](severity-contract.md), the score starts at 100 and deducts 20 per CRITICAL finding, 10 per HIGH finding, 5 per MEDIUM finding, and 2 per LOW finding; INFO findings deduct zero. Scoped to the most recent **completed** scan â€” if no completed scan exists yet, this returns `status: "NO_SCAN_DATA"` with `score: null` rather than a misleading 100 (a scan with no findings and no evidence at all would otherwise be indistinguishable).
 
 Query parameters:
 
@@ -345,13 +345,13 @@ Example response (no completed scan exists yet):
 }
 ```
 
-Consumers must check `status` and treat a `null` `score` as "not assessed" — never coerce it to `0`, which would misrepresent absence of evidence as a confirmed worst-case score.
+Consumers must check `status` and treat a `null` `score` as "not assessed" â€” never coerce it to `0`, which would misrepresent absence of evidence as a confirmed worst-case score.
 
 ---
 
 ## GET /api/compliance/&lt;framework&gt;
 
-Returns technical-evidence coverage against a compliance framework mapping pack, scoped to the most recent **completed** scan. This is coverage, not a certification or a claim of full framework compliance — see `docs/compliance-mapping-pack.md` for the full mapping-pack schema and `evaluation_basis` semantics.
+Returns technical-evidence coverage against a compliance framework mapping pack, scoped to the most recent **completed** scan. This is coverage, not a certification or a claim of full framework compliance â€” see `docs/compliance-mapping-pack.md` for the full mapping-pack schema and `evaluation_basis` semantics.
 
 Supported frameworks:
 
@@ -371,10 +371,10 @@ Query parameters:
 | `subscription_id` | UUID string | No | Scopes the "most recent completed scan" lookup to one Azure subscription. Defaults to the deployment's `AZURE_SUBSCRIPTION_ID`; if neither is set the latest completed scan from *any* subscription is used, which is only correct for a single-tenant database. A malformed value is a `400`, never a silently unscoped result. |
 
 `status` is one of:
-- `OK` — a completed scan exists and at least one mapped control is in scope; `score_percent` is a real evaluated percentage.
-- `NO_SCAN_DATA` — no completed scan exists yet, so there is no evidence to report; `score_percent` is `null`.
-- `NO_REVIEWED_CONTROLS` — a completed scan exists, but every mapping awaits review; `score_percent` is `null` and no direct-evidence score exists.
-- `NO_IN_SCOPE_CONTROLS` — a completed scan exists, but every reviewed mapped control for this framework is `not_applicable`/`organizational` and excluded from the denominator; `score_percent` is `null`.
+- `OK` â€” a completed scan exists and at least one mapped control is in scope; `score_percent` is a real evaluated percentage.
+- `NO_SCAN_DATA` â€” no completed scan exists yet, so there is no evidence to report; `score_percent` is `null`.
+- `NO_REVIEWED_CONTROLS` â€” a completed scan exists, but every mapping awaits review; `score_percent` is `null` and no direct-evidence score exists.
+- `NO_IN_SCOPE_CONTROLS` â€” a completed scan exists, but every reviewed mapped control for this framework is `not_applicable`/`organizational` and excluded from the denominator; `score_percent` is `null`.
 
 Per-control `status` is evaluation-derived (issue #263) only after its mapping
 has been reviewed: `PASS`/`FAIL`/`UNKNOWN`/`ERROR` is the rolled-up status of
@@ -391,7 +391,7 @@ Any control with `review_status` other than `reviewed` has control status
 `UNREVIEWED_MAPPING`, regardless of its `mapping_type`. It is excluded from
 the denominator alongside `not_applicable` and `organizational` controls, and
 does not contribute to `passed` or `failed`. Consumers must check `status` and
-never treat a `null` `score_percent` as `0` — a missing/excluded score is a
+never treat a `null` `score_percent` as `0` â€” a missing/excluded score is a
 different fact from a real, evaluated 0%. `reviewed_controls`,
 `unreviewed_controls`, `not_applicable`, `organizational`, and
 `excluded_controls` make the reason explicit.
@@ -440,7 +440,7 @@ Example response (`OK`):
 }
 ```
 
-Example response (`NO_SCAN_DATA`, HTTP 200 — never 500):
+Example response (`NO_SCAN_DATA`, HTTP 200 â€” never 500):
 
 ```json
 {
@@ -471,7 +471,7 @@ Unknown framework response (HTTP 400):
 
 ## GET /api/resources
 
-Returns unique Azure resources derived from the most recent scan that has findings. Resources are aggregated from findings — one entry per distinct `resource_id`. Risk level is computed from the maximum severity finding on each resource.
+Returns unique Azure resources derived from the most recent scan that has findings. Resources are aggregated from findings â€” one entry per distinct `resource_id`. Risk level is computed from the maximum severity finding on each resource.
 
 Query parameters: none
 
@@ -513,7 +513,7 @@ No findings response (no scan with findings exists):
 
 ## GET /api/prioritization
 
-Returns findings from the most recent scan grouped and ranked by risk score (`severity_weight × affected_resource_count`). Produces a matrix view, a ranked list, and recommended action items.
+Returns findings from the most recent scan grouped and ranked by risk score (`severity_weight Ã— affected_resource_count`). Produces a matrix view, a ranked list, and recommended action items.
 
 Query parameters: none
 
@@ -613,7 +613,7 @@ No drift response (fewer than two scans):
 
 Returns the structured remediation playbook for a specific finding. Loads the matching `playbooks/cli/fix_<rule>.sh` script and wraps the finding's remediation text as a portal step. Appends NVD links from any CVE references on the finding.
 
-Path parameters: `id` — integer finding ID from `GET /api/findings`.
+Path parameters: `id` â€” integer finding ID from `GET /api/findings`.
 
 Example response:
 
@@ -696,7 +696,7 @@ The following endpoints are called by the frontend but have no backend implement
 
 | Endpoint | Used by | Status |
 |---|---|---|
-| `GET /api/monitoring` | Monitoring page — score trend chart, category distribution | Deferred. Score and findings data come from `GET /api/score` and `GET /api/findings` instead. |
+| `GET /api/monitoring` | Monitoring page â€” score trend chart, category distribution | Deferred. Score and findings data come from `GET /api/score` and `GET /api/findings` instead. |
 
 ---
 
@@ -706,7 +706,7 @@ The following endpoints are called by the frontend but have no backend implement
 
 ### Authentication requirement
 
-These endpoints are **OIDC-only**. In `shared_secret` mode no tenant claim is present in the token, so the endpoints return `403 {"error": "tenant_id not available; OIDC authentication required"}`. This is intentional: the graph is strictly scoped per tenant and there is no safe way to infer a tenant from a shared-secret token.
+OIDC callers use the verified tenant claim. A supplied `X-Tenant-Id` header cannot override that claim. In `shared_secret` mode, an authenticated admin may supply `X-Tenant-Id` explicitly; viewer and operator tokens cannot select a tenant. Requests without a usable tenant return `403 {"error": "tenant_id not available; OIDC authentication required"}`. Tenant query parameters never determine graph scope.
 
 ### Attack-path retention
 

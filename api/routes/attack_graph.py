@@ -60,7 +60,7 @@ def get_attack_graph():
         if limit > _MAX_LIMIT:
             limit = _MAX_LIMIT
         subscription_id = request.args.get("subscription_id")
-    except ValidationError as exc:
+    except (ValidationError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
 
     tenant_id = _tenant_id()
@@ -137,7 +137,7 @@ def list_attack_paths():
         limit = positive_integer(int(request.args.get("limit", _DEFAULT_LIMIT)), "limit")
         if limit > _MAX_LIMIT:
             limit = _MAX_LIMIT
-    except ValidationError as exc:
+    except (ValidationError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
 
     tenant_id = _tenant_id()
@@ -180,7 +180,7 @@ def get_attack_path(path_id: str):
     """Return a single attack path with full node detail for each hop."""
     try:
         path_id = uuid_string(path_id, "path_id")
-    except ValidationError as exc:
+    except (ValidationError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
 
     tenant_id = _tenant_id()
