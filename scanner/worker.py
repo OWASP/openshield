@@ -25,6 +25,8 @@ from api.observability import (
     configure_logging,
     init_sentry,
 )
+from api.services.lifecycle_service import LifecycleService
+from api.services.pattern_service import PatternService
 from scanner.engine import ScanEngine
 from scanner.enrichment_worker import process_enrichment_job
 from scanner.graph.graph_populator import populate_graph
@@ -230,6 +232,35 @@ def run_worker():
                             scan_id,
                             exc,
                         )
+                # Apply lifecycle tracking. Lifecycle failures are non-fatal:
+                # the scan is already persisted, so we log and continue rather
+                # than marking the scan as failed.
+                try:
+                    tenant_id = os.environ.get("OPENSHIELD_TENANT_ID", subscription_id)
+                    lc_svc = LifecycleService()
+                    lc_svc.apply_scan(
+                        db_conn=db._get_conn(),
+                        scan_id=scan_id,
+                        subscription_id=subscription_id,
+                        tenant_id=tenant_id,
+                        rule_outcomes=result.get("rule_outcomes", []),
+                        findings=result.get("findings", []),
+                        evaluations=result.get("evaluations", []),
+                    )
+                    pat_svc = PatternService()
+                    pat_svc.detect_and_publish(
+                        db_conn=db._get_conn(),
+                        scan_id=scan_id,
+                        subscription_id=subscription_id,
+                        tenant_id=tenant_id,
+                    )
+                except Exception as lc_exc:
+                    logger.error(
+                        "Lifecycle/pattern update failed for scan %s (scan data intact): %s",
+                        scan_id,
+                        lc_exc,
+                        extra={"scan_id": scan_id},
+                    )
 
                 SCANS_TOTAL.labels(status="completed").inc()
                 logger.info(

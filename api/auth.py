@@ -200,9 +200,10 @@ class TokenVerifier:
         return {
             "sub": claims["sub"],
             "role": role,
-            "tenant": None,
+            "tenant": _verified_scope_claim(claims, "tid"),
             "issuer": claims.get("iss"),
             "auth_mode": SHARED_SECRET_MODE,
+            **_subscription_scope(claims),
         }
 
     def _get_jwks_client(self) -> Any:
@@ -247,7 +248,8 @@ class TokenVerifier:
             logger.warning("OIDC authorization rejected: %s", type(exc).__name__)
             raise TokenRejected("Invalid token") from exc
 
-        tenant = str(claims.get("tid") or "").lower() or None
+        tenant_claim = _verified_scope_claim(claims, "tid")
+        tenant = tenant_claim.lower() if tenant_claim else None
         if settings.allowed_tenants and tenant not in settings.allowed_tenants:
             logger.warning("OIDC token rejected: tenant %r is not allowed", tenant)
             raise TokenRejected("Invalid token")
@@ -266,6 +268,7 @@ class TokenVerifier:
             "tenant": tenant,
             "issuer": claims["iss"],
             "auth_mode": AUTH_MODE_OIDC,
+            **_subscription_scope(claims),
         }
 
 
@@ -274,3 +277,18 @@ def build_verifier(shared_secret: Callable[[], str], env: Mapping[str, str] = os
     mode = load_auth_mode(env)
     oidc = load_oidc_settings(env) if mode == AUTH_MODE_OIDC else None
     return TokenVerifier(mode, shared_secret, oidc=oidc, env=env)
+
+
+def _verified_scope_claim(claims: Dict[str, Any], key: str) -> Optional[str]:
+    """Validate scope only after signature, issuer and audience verification."""
+    value = claims.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip() or len(value) > 256:
+        raise TokenRejected("Invalid token")
+    return value.strip()
+
+
+def _subscription_scope(claims: Dict[str, Any]) -> Dict[str, str]:
+    subscription = _verified_scope_claim(claims, "subscription_id")
+    return {"subscription_id": subscription} if subscription else {}

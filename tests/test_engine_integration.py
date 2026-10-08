@@ -216,3 +216,26 @@ def test_engine_a_rule_that_completes_cleanly_is_never_recorded_as_failed(monkey
 
     result = eng.run_scan()
     assert healthy_rule_id not in result["failed_rule_ids"]
+
+
+def test_engine_retains_legacy_outcomes_and_resource_evaluations(monkeypatch):
+    from types import SimpleNamespace
+    from scanner.evaluation import RuleEvaluation, EvaluationStatus
+
+    _patch_engine_client(monkeypatch, _offline_mock())
+    engine = ScanEngine(_SUB)
+    engine.rules = [
+        SimpleNamespace(
+            RULE_ID="AZ-TEST-001",
+            scan=lambda *args: [],
+            evaluate=lambda *args: [
+                RuleEvaluation(
+                    rule_id="AZ-TEST-001", resource_id="/resource/a", resource_type="test", status=EvaluationStatus.PASS
+                )
+            ],
+        )
+    ]
+    result = engine.run_scan()
+    assert result["rule_outcomes"][0]["status"] == "EMPTY_SUCCESS"
+    assert result["evaluations"][0]["status"] == "PASS"
+    assert result["failed_rule_ids"] == []

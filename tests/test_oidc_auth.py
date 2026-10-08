@@ -294,3 +294,14 @@ def test_oidc_wrong_tenant_is_rejected_at_the_api(oidc_client):
     resp = oidc_client.get("/api/findings", headers=headers)
     assert resp.status_code == 401
     assert resp.get_json()["error"] == "Invalid token"
+
+
+def test_signed_subscription_scope_is_preserved_by_real_oidc_verifier():
+    principal = _verifier().verify(_token(_claims(subscription_id="sub-authorized")))
+    assert principal["subscription_id"] == "sub-authorized"
+    assert principal["tenant"] == TENANT
+
+
+@pytest.mark.parametrize("scope", [[], {}, "", " ", 42])
+def test_malformed_signed_subscription_scope_is_rejected(scope):
+    assert _rejected(_verifier(), _token(_claims(subscription_id=scope))).status == 401
