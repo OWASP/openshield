@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List
 
-from scanner.rules._governance_common import evaluate
+from scanner.rules._governance_common import evaluate as _evaluate
 
 RULE_ID = "AZ-GOV-008"
 RULE_NAME = "Undocumented Resource Provider Registered"
@@ -30,4 +30,4 @@ _SPEC = {
 
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
     """Evaluate AZ-GOV-008 from read-only governance evidence."""
-    return evaluate(_SPEC, azure_client, subscription_id)
+    return _evaluate(_SPEC, azure_client, subscription_id)

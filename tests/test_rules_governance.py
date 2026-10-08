@@ -17,6 +17,33 @@ from scanner.rules import (
 )
 from scanner.rules import _governance_common as common
 
+
+@pytest.mark.parametrize(
+    "module",
+    [
+        az_gov_001,
+        az_gov_002,
+        az_gov_003,
+        az_gov_004,
+        az_gov_005,
+        az_gov_006,
+        az_gov_007,
+        az_gov_008,
+        az_gov_009,
+        az_gov_010,
+    ],
+)
+def test_engine_does_not_call_internal_findings_helper_as_coverage_evaluator(module):
+    from scanner.engine import ScanEngine
+
+    engine = ScanEngine.__new__(ScanEngine)
+    engine.subscription_id = "sub"
+    engine.client = object()
+    evaluations = engine._evaluate_rule(module, module.RULE_ID)
+    assert evaluations[0].status == "UNKNOWN"
+    assert evaluations[0].reason_code == "LEGACY_RULE_NOT_MIGRATED"
+
+
 SUB = "sub"
 SCOPE = "/subscriptions/sub"
 RESOURCE = f"{SCOPE}/resourceGroups/prod/providers/Microsoft.Storage/storageAccounts/data"

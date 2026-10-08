@@ -24,4 +24,4 @@ Every governance playbook requires the literal `--apply` flag. Review inherited 
 
 ## Current scanner contract
 
-The scanner currently persists findings only. A confirmed unsafe state produces `FAIL` as a finding. Compliant, inaccessible, and out-of-scope resources do not create findings, while `UNKNOWN` and `NOT_APPLICABLE` are recorded in logs. Issue #263 tracks persistent per-resource evaluation states and compliance-score correction.
+The scanner persists findings and per-resource rule evaluations. Governance rules currently emit findings through the legacy scan interface, so the engine records UNKNOWN coverage with LEGACY_RULE_NOT_MIGRATED rather than inferring PASS from an empty finding list. Dedicated governance coverage evaluators are still required before these controls can contribute affirmative compliance or resolve lifecycle findings.
