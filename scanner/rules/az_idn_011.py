@@ -11,7 +11,7 @@ RULE_ID = "AZ-IDN-011"
 RULE_NAME = "App Registration Uses Insecure Redirect URI"
 SEVERITY = "HIGH"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "N/A-IDN-011", "NIST": "PR.DS-2", "ISO27001": "A.14.1.2", "SOC2": "CC6.7"}
+FRAMEWORKS = {"CIS": "N/A-IDN-011", "NIST": "PR.DS-2", "ISO27001": "A.8.26", "SOC2": "CC6.7"}
 DESCRIPTION = (
     "The App Registration contains an HTTP redirect URI for a non-loopback host. Authorization "
     "responses can be intercepted or modified before reaching the application."

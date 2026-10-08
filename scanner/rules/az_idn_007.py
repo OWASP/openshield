@@ -7,7 +7,7 @@ RULE_ID = "AZ-IDN-007"
 RULE_NAME = "Active User with No MFA Registered in Entra ID"
 SEVERITY = "HIGH"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "1.1", "NIST": "PR.AC-7", "ISO27001": "A.9.4.2", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "1.1", "NIST": "PR.AC-7", "ISO27001": "A.8.5", "SOC2": "CC6.1"}
 DESCRIPTION = (
     "One or more active user accounts in Entra ID have no multi-factor "
     "authentication methods registered. Accounts without MFA are vulnerable to "

@@ -325,7 +325,8 @@ def evaluate(spec: Mapping[str, Any], azure_client: Any, subscription_id: str) -
             # Count all of them; filtering to subscription scope would miss the most
             # common enterprise pattern of an Owner granted at a parent MG.
             owners = [
-                item for item in assignments
+                item
+                for item in assignments
                 if normal(properties(item).get("roleDefinitionId", "")).rsplit("/", 1)[-1] == OWNER_ROLE_ID
             ]
             if len(owners) <= policy.maximum_subscription_owners:

@@ -18,7 +18,7 @@ RULE_ID = "AZ-SECOPS-010"
 RULE_NAME = "Security Alerts Have No Monitored Incident-Response Destination"
 SEVERITY = "HIGH"
 CATEGORY = "Security Operations"
-FRAMEWORKS = {"CIS": "2.1.20", "NIST": "RS.CO-2", "ISO27001": "A.16.1.2", "SOC2": "CC7.4"}
+FRAMEWORKS = {"CIS": "2.1.20", "NIST": "RS.CO-2", "ISO27001": "A.6.8", "SOC2": "CC7.4"}
 DESCRIPTION = (
     "No enabled Azure Monitor action group with at least one notification receiver (email, SMS, "
     "voice, webhook, ITSM, Logic App, Automation runbook, Azure Function, or Event Hub) exists at "

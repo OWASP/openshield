@@ -7,7 +7,7 @@ RULE_ID = "AZ-NET-008"
 RULE_NAME = "Load balancer with no backend pool configured"
 SEVERITY = "LOW"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "9.7", "NIST": "CM-7", "ISO27001": "A.13.1.1", "SOC2": "CC8.1"}
+FRAMEWORKS = {"CIS": "9.7", "NIST": "CM-7", "ISO27001": "A.8.20", "SOC2": "CC8.1"}
 DESCRIPTION = (
     "A load balancer exists in the subscription but has no backend pool "
     "configured. A load balancer with no backend pool is either misconfigured "

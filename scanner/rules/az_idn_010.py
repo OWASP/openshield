@@ -9,7 +9,7 @@ RULE_ID = "AZ-IDN-010"
 RULE_NAME = "App Registration Has No Owner"
 SEVERITY = "MEDIUM"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "N/A-IDN-010", "NIST": "PR.AC-4", "ISO27001": "A.9.2.1", "SOC2": "CC6.2"}
+FRAMEWORKS = {"CIS": "N/A-IDN-010", "NIST": "PR.AC-4", "ISO27001": "A.5.16", "SOC2": "CC6.2"}
 DESCRIPTION = (
     "The App Registration has no assigned owner. Unowned applications can escape periodic review, "
     "credential rotation, permission cleanup, and accountable incident response."

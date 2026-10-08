@@ -6,7 +6,7 @@ RULE_ID = "AZ-KV-001"
 RULE_NAME = "Key Vault with Soft Delete Disabled"
 SEVERITY = "MEDIUM"
 CATEGORY = "KeyVault"
-FRAMEWORKS = {"CIS": "N/A-KV-001", "NIST": "PR.IP-4", "ISO27001": "A.17.2.1"}
+FRAMEWORKS = {"CIS": "N/A-KV-001", "NIST": "PR.IP-4", "ISO27001": "A.8.14"}
 DESCRIPTION = (
     "Azure Key Vault soft delete is disabled. Without soft delete, secrets, keys, "
     "and certificates can be permanently destroyed immediately upon deletion — "

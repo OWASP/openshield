@@ -148,6 +148,6 @@ OpenShield generates an `OpenShield-CBOM` document with schema version `1.0` fro
 | Framework | Control | Requirement |
 |-----------|---------|-------------|
 | NIST CSF | PR.DS-2 | Data in transit is protected using quantum-safe algorithms |
-| ISO 27001 | A.10.1.1 | Cryptographic controls policy must address quantum threats |
+| ISO 27001 | A.8.24 | Rules for the use of cryptography must address quantum threats |
 | CIS Azure | 8.1 | Key management must include post-quantum migration planning |
 | SOC 2 | CC6.7 | Encryption protecting data in transit must be quantum-safe |

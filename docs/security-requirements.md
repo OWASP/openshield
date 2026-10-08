@@ -38,8 +38,12 @@ permissions, service tiers, Azure API behavior and organizational context.
 Remediation playbooks can affect availability and require operator review.
 
 OpenShield does not claim that its framework mappings constitute certification
-or complete benchmark coverage. Unsupported versions receive no guaranteed
-security fixes.
+or complete benchmark coverage. Compliance reports are versioned technical
+evidence coverage against a specific mapping-pack revision, not an audit
+opinion; see `docs/compliance-mapping-pack.md` for supported framework
+editions, mapping-pack versioning, and what is excluded from each framework's
+pass-rate denominator. Unsupported versions receive no guaranteed security
+fixes.
 
 ## Verification evidence
 

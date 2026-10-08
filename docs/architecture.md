@@ -115,15 +115,15 @@ See `docs/rules-reference.md` for the full table of documented controls.
 
 | Category | Count | Rules |
 |---|---|---|
-| Storage | 9 | AZ-STOR-001 to 009 |
-| Network | 17 | AZ-NET-001 to 017 |
+| Storage | 10 | AZ-STOR-001 to 010 |
+| Network | 27 | AZ-NET-001 to 027 |
 | Identity | 25 | AZ-IDN-001 to 025 |
 | Database | 7 | AZ-DB-001 to 007 |
 | Cosmos DB | 2 | AZ-COSMOS-001 to 002 |
 | Managed Cache | 1 | AZ-CACHE-001 |
 | Compute | 4 | AZ-CMP-001 to 004 |
-| Key Vault | 5 | AZ-KV-001 to 005 |
-| Kubernetes | 21 | AZ-AKS-001 to 021 |
+| Key Vault | 6 | AZ-KV-001 to 006 |
+| Kubernetes | 27 | AZ-AKS-001 to 027 |
 | Post-quantum | 3 | AZ-PQC-001 to 003 |
 | Governance | 10 | AZ-GOV-001 to 010 |
 | Backup | 4 | AZ-BAK-001, 002, 004, 006 |
@@ -151,7 +151,7 @@ Every finding returned by a rule must conform to this schema:
     "description": str,
     "remediation": str,
     "playbook": str,  # path to the CLI remediation script
-    "frameworks": dict,  # {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.9.4.1"}
+    "frameworks": dict,  # {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.8.3"}
     "metadata": dict,  # optional rule-specific context
     "detected_at": str,  # ISO 8601, added by engine
     "scan_id": str,  # UUID, added by engine
@@ -204,7 +204,9 @@ GET /api/findings
 
 GET /api/score
     → db.get_score()                 # contract v1: CRITICAL -20, HIGH -10, MEDIUM -5, LOW -2
-    → returns plain integer (e.g. 18)
+    → returns { status, score, max_score } — status is "OK" (score: 0-100) or
+      "NO_SCAN_DATA" (score: null) when no completed scan exists yet, never a
+      false 100
 
 GET /api/resources
     → aggregates unique resources from latest scan's findings

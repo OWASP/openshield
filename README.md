@@ -74,10 +74,10 @@ Findings map to NIST FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), and FIPS 205 (SLH-DSA
 
 | Feature | Description |
 |---|---|
-| **Misconfiguration Scanner** | Runs 95 Azure security rules across storage, network, identity, database, compute, Key Vault, AKS, post-quantum cryptography, backup, serverless, private endpoint, supply chain, and governance posture |
+| **Misconfiguration Scanner** | Runs 154 Azure security rules across storage, network, identity, database, compute, Key Vault, AKS, Kubernetes workloads, post-quantum cryptography, backup, serverless, private endpoint, supply chain, and governance posture |
 | **Compliance Mapper** | Maps findings to CIS Benchmarks, NIST CSF, ISO 27001, and SOC 2 framework JSON files |
 | **Scan History API** | Stores scans and findings in PostgreSQL and exposes findings, score, scan history, compliance posture, drift, and resource inventory over REST |
-| **Remediation Playbooks** | Every rule ships with a matching Azure CLI remediation script (95 playbooks) |
+| **Remediation Playbooks** | Every documented rule ships with a matching review-gated remediation script (154 playbooks) |
 | **Security Dashboard** | Full React dashboard deployed on Vercel - live monitoring, findings, compliance, drift, prioritization, and AI-layer views |
 | **Project Website** | Documentation and reference site at [owasp.github.io/openshield](https://owasp.github.io/openshield/) - blog, rules gallery, architecture, evidence guides, roadmap, and releases |
 | **Sentinel Integration** | Normalises findings and pushes them into Microsoft Sentinel via a Log Analytics custom table and KQL analytics rules |
@@ -109,6 +109,7 @@ Project policies and assurance evidence:
 - [Support and upgrade policy](SUPPORT.md)
 - [Security requirements](docs/security-requirements.md) and [security assurance case](docs/security-assurance-case.md)
 - [Release security](docs/release-security.md) and [accessibility/i18n policy](docs/accessibility-and-i18n.md)
+- [Compliance mapping pack](docs/compliance-mapping-pack.md) — supported framework editions, mapping-pack versioning, and why compliance reports are evidence coverage, not certification
 - [OpenSSF Silver evidence register](docs/openssf-silver-evidence.md)
 
 ---
@@ -119,11 +120,11 @@ Project policies and assurance evidence:
 flowchart TD
     A["React Dashboard\nVercel · Live"]
     B["Flask REST API\nJWT · CORS · Blueprints"]
-    C["Scanner Engine\n105 Python rules"]
+    C["Scanner Engine\n154 Python rules"]
     D["Azure Subscription\nScanned via Azure SDK + Graph"]
     E["Compliance Framework JSON\nCIS · NIST · ISO 27001 · SOC 2"]
     F["PostgreSQL Database\nFindings · Scans"]
-    G["Azure CLI Playbooks\n95 remediation scripts"]
+    G["Azure CLI Playbooks\n154 remediation scripts"]
     H["sentinel/ingest.py\nNormalise + HMAC upload"]
     I["Microsoft Sentinel\nOpenShieldFindings_CL · KQL rules"]
 
@@ -330,7 +331,7 @@ Learn OpenShield covers:
 - Contributor onboarding
 - Documentation navigation
 
-Live Learning Portal: https://openshieldlearn.netlify.app/learn/
+Live Learning Portal: https://owasp.github.io/openshield/learn/
 Full documentation, the security rules gallery, architecture guide, evidence guide, and blog are available at the project website:
 
 **[owasp.github.io/openshield](https://owasp.github.io/openshield/)**
