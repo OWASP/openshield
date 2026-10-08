@@ -1,6 +1,9 @@
 """Verify the graph schema migration applies and rolls back cleanly."""
 
 import os
+import uuid
+
+import psycopg2
 import pytest
 from alembic.config import Config
 from alembic import command
@@ -15,8 +18,37 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture(scope="module")
-def engine():
-    return create_engine(DATABASE_URL)
+def scratch_database():
+    """Each module owns its database, so downgrade never changes shared state."""
+    base = DATABASE_URL.rsplit("/", 1)[0]
+    name = f"openshield_graph_mig_{uuid.uuid4().hex[:12]}"
+    admin = psycopg2.connect(f"{base}/postgres")
+    admin.autocommit = True
+    previous = os.environ.get("DATABASE_URL")
+    try:
+        with admin.cursor() as cur:
+            cur.execute(f'CREATE DATABASE "{name}"')
+        os.environ["DATABASE_URL"] = f"{base}/{name}"
+        yield os.environ["DATABASE_URL"]
+    finally:
+        if previous is None:
+            os.environ.pop("DATABASE_URL", None)
+        else:
+            os.environ["DATABASE_URL"] = previous
+        with admin.cursor() as cur:
+            cur.execute(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()",
+                (name,),
+            )
+            cur.execute(f'DROP DATABASE IF EXISTS "{name}"')
+        admin.close()
+
+
+@pytest.fixture(scope="module")
+def engine(scratch_database):
+    engine = create_engine(scratch_database)
+    yield engine
+    engine.dispose()
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -24,7 +56,6 @@ def run_migrations(engine):
     cfg = Config("alembic.ini")
     command.upgrade(cfg, "head")
     yield
-    command.downgrade(cfg, "e1f2a3b4c5d6-1")  # one step back
 
 
 def test_graph_nodes_table_exists(engine):
@@ -85,7 +116,7 @@ def test_finding_graph_nodes_columns(engine):
 
 def test_downgrade_removes_tables(engine):
     cfg = Config("alembic.ini")
-    command.downgrade(cfg, "3f59f83a5253")
+    command.downgrade(cfg, "b6d2f8a4c1e7")
     inspector = inspect(engine)
     tables = inspector.get_table_names()
     assert "graph_nodes" not in tables
@@ -93,3 +124,10 @@ def test_downgrade_removes_tables(engine):
     assert "finding_graph_nodes" not in tables
     # Restore for subsequent tests
     command.upgrade(cfg, "head")
+
+
+def test_upgrade_from_current_dev(engine):
+    cfg = Config("alembic.ini")
+    command.downgrade(cfg, "b6d2f8a4c1e7")
+    command.upgrade(cfg, "head")
+    assert "graph_nodes" in inspect(engine).get_table_names()
