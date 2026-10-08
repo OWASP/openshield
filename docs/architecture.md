@@ -148,7 +148,7 @@ Every finding returned by a rule must conform to this schema:
     "description": str,
     "remediation": str,
     "playbook": str,  # path to the CLI remediation script
-    "frameworks": dict,  # {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.9.4.1"}
+    "frameworks": dict,  # {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.8.3"}
     "metadata": dict,  # optional rule-specific context
     "detected_at": str,  # ISO 8601, added by engine
     "scan_id": str,  # UUID, added by engine
@@ -201,7 +201,9 @@ GET /api/findings
 
 GET /api/score
     → db.get_score()                 # contract v1: CRITICAL -20, HIGH -10, MEDIUM -5, LOW -2
-    → returns plain integer (e.g. 18)
+    → returns { status, score, max_score } — status is "OK" (score: 0-100) or
+      "NO_SCAN_DATA" (score: null) when no completed scan exists yet, never a
+      false 100
 
 GET /api/resources
     → aggregates unique resources from latest scan's findings

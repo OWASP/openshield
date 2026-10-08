@@ -9,7 +9,7 @@ RULE_ID = "AZ-AKS-005"
 RULE_NAME = "AKS Azure Policy Add-on Not Enabled"
 SEVERITY = "MEDIUM"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-005", "NIST": "PR.IP-1", "ISO27001": "A.12.1.2", "SOC2": "CC8.1"}
+FRAMEWORKS = {"CIS": "N/A-AKS-005", "NIST": "PR.IP-1", "ISO27001": "A.8.9", "SOC2": "CC8.1"}
 DESCRIPTION = (
     "The Azure Policy add-on is not enabled for the AKS cluster. The organization cannot centrally "
     "audit or enforce Kubernetes admission controls through Azure Policy."

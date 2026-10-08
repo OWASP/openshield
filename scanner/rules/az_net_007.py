@@ -7,7 +7,7 @@ RULE_ID = "AZ-NET-007"
 RULE_NAME = "Application Gateway without WAF enabled"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "9.6", "NIST": "SI-3", "ISO27001": "A.13.1.1"}
+FRAMEWORKS = {"CIS": "9.6", "NIST": "SI-3", "ISO27001": "A.8.20"}
 DESCRIPTION = (
     "An Application Gateway exists without Web Application Firewall enabled. "
     "Without WAF, the application is unprotected against common web exploits "

@@ -8,7 +8,7 @@ RULE_ID = "AZ-AKS-018"
 RULE_NAME = "Kubernetes Cluster Admin Access Assigned Too Broadly"
 SEVERITY = "CRITICAL"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-018", "NIST": "PR.AC-4", "ISO27001": "A.9.2.3", "SOC2": "CC6.3"}
+FRAMEWORKS = {"CIS": "N/A-AKS-018", "NIST": "PR.AC-4", "ISO27001": "A.8.2", "SOC2": "CC6.3"}
 DESCRIPTION = (
     "A ClusterRoleBinding grants cluster-admin to a subject outside the approved platform administrator allowlist."
 )

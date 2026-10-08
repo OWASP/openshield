@@ -10,7 +10,7 @@ RULE_ID = "AZ-NET-022"
 RULE_NAME = "Critical PaaS Resource Is Publicly Accessible Without Approved Exception"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-022", "NIST": "PR.AC-3", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-NET-022", "NIST": "PR.AC-3", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "A critical PaaS resource permits public network access and is not in the explicit approved-exception list."
 )

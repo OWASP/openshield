@@ -8,7 +8,7 @@ RULE_ID = "AZ-SC-006"
 RULE_NAME = "Terraform State Storage Account Missing Versioning or Soft Delete"
 SEVERITY = "HIGH"
 CATEGORY = "Supply Chain"
-FRAMEWORKS = {"CIS": "N/A-SC-006", "NIST": "PR.IP-4", "ISO27001": "A.12.3.1", "SOC2": "A1.2"}
+FRAMEWORKS = {"CIS": "N/A-SC-006", "NIST": "PR.IP-4", "ISO27001": "A.8.13", "SOC2": "A1.2"}
 
 DESCRIPTION = (
     "A storage account holding a container that appears to be a Terraform remote state backend "

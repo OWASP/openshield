@@ -97,11 +97,14 @@ This guide validates the **frontend/API/database integration** of OpenShield. It
 
 ### Score (`GET /api/score`)
 
-Raw backend response — source of truth: `api/models/finding.py` (`get_score()` is typed `-> int`). The endpoint returns a **bare integer** (0–100), not an object:
+Raw backend response — source of truth: `api/models/finding.py` (`get_score()` is typed `-> Dict[str, Any]`). The endpoint returns an object, not a bare integer, and `score` is `null` (not `0`) when no completed scan exists yet:
 ```json
-68
+{ "status": "OK", "score": 68, "max_score": 100 }
 ```
-> `normalizeScore()` in `frontend/src/utils/api.js` wraps the number into `{ "score": 68, "max_score": 100 }`. That object shape is frontend-only — the backend never emits `score`/`max_score` keys for this endpoint.
+```json
+{ "status": "NO_SCAN_DATA", "score": null, "max_score": 100, "message": "No completed scan is available yet, so there is no security posture to score." }
+```
+> `normalizeScore()` in `frontend/src/utils/api.js` also accepts a bare legacy integer for backward compatibility (treated as `{ status: "OK", score, max_score: 100 }`), but the backend itself has emitted the object shape since issue #302. Consumers must check `status` and never coerce a `null` `score` to `0`.
 
 ### Findings List (`GET /api/findings`)
 ```json

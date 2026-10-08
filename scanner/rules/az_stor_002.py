@@ -6,7 +6,7 @@ RULE_ID = "AZ-STOR-002"
 RULE_NAME = "Storage Account Allows HTTP Traffic (Not HTTPS-Only)"
 SEVERITY = "HIGH"
 CATEGORY = "Storage"
-FRAMEWORKS = {"CIS": "3.1", "NIST": "PR.DS-2", "ISO27001": "A.10.1.1"}
+FRAMEWORKS = {"CIS": "3.1", "NIST": "PR.DS-2", "ISO27001": "A.8.24"}
 DESCRIPTION = (
     "Storage accounts that do not enforce HTTPS-only traffic allow data to be "
     "transmitted in plaintext over HTTP. This exposes credentials and data to "

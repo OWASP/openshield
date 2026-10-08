@@ -41,37 +41,19 @@ def _validate_limit(raw: str) -> int:
 
 
 def _effective_tenant(effective_sub: str) -> str:
-    """Return the tenant scope for this request.
-
-    Uses OPENSHIELD_TENANT_ID env var when set (multi-tenant deployments).
-    Falls back to effective_sub for single-tenant deployments where
-    tenant_id == subscription_id by convention.
-    """
-    return os.environ.get("OPENSHIELD_TENANT_ID", effective_sub)
+    """Use the token's verified tenant; deployment configuration cannot override it."""
+    tenant = (getattr(g, "user", {}) or {}).get("tenant")
+    if not tenant:
+        raise _ValidationError("Verified tenant scope is required")
+    return tenant
 
 
 def _effective_subscription(subscription_id_param: str | None) -> str:
-    """Return the subscription scope this request is authorized to see.
-
-    The JWT subscription_id is always the authority. A query-param
-    subscription_id may narrow the JWT scope but never widen it. If the
-    JWT carries no subscription_id, the query param is accepted as the
-    scope (single-tenant deployments that do not embed subscription_id in
-    tokens). Either way the scope must be non-empty: an unscoped query
-    would return patterns from every subscription, which is never correct.
-    """
-    user = getattr(g, "user", {}) or {}
-    jwt_sub = user.get("subscription_id")
-
-    if jwt_sub:
-        if subscription_id_param and subscription_id_param != jwt_sub:
-            raise _ValidationError("subscription_id does not match token scope")
-        return jwt_sub
-
-    if subscription_id_param:
-        return subscription_id_param
-
-    raise _ValidationError("subscription_id is required")
+    """The trusted token issuer must assign an explicit subscription scope."""
+    subscription = (getattr(g, "user", {}) or {}).get("subscription_id")
+    if not subscription or (subscription_id_param and subscription_id_param != subscription):
+        raise _ValidationError("Verified subscription scope is required")
+    return subscription
 
 
 def _row_to_dict(row: dict) -> dict:

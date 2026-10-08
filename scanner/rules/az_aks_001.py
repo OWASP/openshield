@@ -9,7 +9,7 @@ RULE_ID = "AZ-AKS-001"
 RULE_NAME = "AKS Private Cluster Not Enabled"
 SEVERITY = "HIGH"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-001", "NIST": "PR.AC-3", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-AKS-001", "NIST": "PR.AC-3", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "The AKS API server is reachable through a public endpoint. Public control-plane exposure "
     "increases the opportunity for credential attacks and unauthorized cluster access."

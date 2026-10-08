@@ -7,7 +7,7 @@ RULE_ID = "AZ-IDN-004"
 RULE_NAME = "No Privileged Identity Management for Admin Roles"
 SEVERITY = "HIGH"
 CATEGORY = "Identity"
-FRAMEWORKS = {"CIS": "1.16", "NIST": "PR.AC-4", "ISO27001": "A.9.2.3", "SOC2": "CC6.3"}
+FRAMEWORKS = {"CIS": "1.16", "NIST": "PR.AC-4", "ISO27001": "A.8.2", "SOC2": "CC6.3"}
 DESCRIPTION = (
     "Privileged Identity Management (PIM) is not configured for one or more admin roles "
     "in Entra ID. Without PIM, admin roles are permanently assigned with no just-in-time "

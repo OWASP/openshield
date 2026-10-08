@@ -8,7 +8,7 @@ RULE_ID = "AZ-KV-006"
 RULE_NAME = "Key Vault Using Legacy Access Policies Instead of Azure RBAC"
 SEVERITY = "MEDIUM"
 CATEGORY = "KeyVault"
-FRAMEWORKS = {"CIS": "8.6", "NIST": "PR.AC-4", "ISO27001": "A.9.2.3", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "8.6", "NIST": "PR.AC-4", "ISO27001": "A.8.2", "SOC2": "CC6.1"}
 DESCRIPTION = (
     "The Azure Key Vault is authorizing access through legacy vault access policies "
     "instead of Azure RBAC. Access policies are all-or-nothing per permission type, "

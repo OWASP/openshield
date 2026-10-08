@@ -46,7 +46,7 @@ def test_get_scan_status_error_does_not_leak_exception(client, auth_headers):
 
 
 def test_trigger_scan_db_error_does_not_leak_exception(client, auth_headers):
-    with patch.object(scans_route, "_get_db", return_value=_raising_db("create_pending_scan")):
+    with patch.object(scans_route, "_get_db", return_value=_raising_db("admit_scan")):
         resp = client.post(
             "/api/scans/trigger",
             json={"subscription_id": "00000000-0000-0000-0000-000000000001"},

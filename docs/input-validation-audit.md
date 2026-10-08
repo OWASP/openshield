@@ -29,8 +29,7 @@ Azure/Sentinel integrations, subprocesses, or external AI providers.
 | Sentinel ingestion CLI | JSON file, scan ID, finding records and environment configuration | Existing regular `.json` file under 10 MiB; at most 1,000 object findings; bounded fields; severity/config format checks |
 | Azure resource data | Management-plane SDK objects | Typed SDK accessors; failures preserved as unknown; no subprocess interpolation |
 | Playbook selection | Rule ID derived from stored finding | Allowlisted identifier converted to a filename and constrained beneath `playbooks/cli` |
-| Website media URLs | User-entered video URL | HTTPS host allowlist and embed conversion tests in `website/test_toEmbedUrl.mjs` |
-| Website editor text | Titles, excerpts, names and Markdown content | Intentionally free-form client-side content; repository write still requires the operator's GitHub token and GitHub authorization |
+| Website content | Titles, excerpts, names and Markdown content authored in Decap CMS | No browser-side renderer remains: content is committed to the repository and rendered by Astro at build time, so nothing user-entered reaches a live DOM sink. Repository writes still require GitHub authorization, and the deployed pages are served under `script-src 'self'` with no inline script |
 
 ## Intentionally unrestricted text
 

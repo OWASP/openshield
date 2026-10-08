@@ -17,6 +17,10 @@ from scanner.engine import ScanEngine
 from scanner.evaluation import EvaluationStatus, RuleEvaluation, aggregate_status, subscription_scope_id
 
 _SUB = "00000000-0000-0000-0000-000000000001"
+_SCAN_ID = "00000000-0000-0000-0000-000000000000"
+# save_scan only writes while the caller still holds the scan lease (#303).
+_OWNER = "worker-under-test"
+_TOKEN = 1
 
 
 # ── RuleEvaluation / EvaluationStatus contract ──────────────────────────────
@@ -222,7 +226,22 @@ def _cursor():
     cur.__exit__ = MagicMock(return_value=False)
     # Every INSERT ... RETURNING id call returns an incrementing fake id.
     ids = iter(range(1, 10_000))
-    cur.fetchone.side_effect = lambda: (next(ids),)
+    last_sql = {"text": ""}
+
+    def _execute(sql, *args, **kwargs):
+        last_sql["text"] = sql
+        return MagicMock()
+
+    def _fetchone():
+        # save_scan opens with the lease/fencing ownership probe. It must see
+        # an owned row, and it must not consume a finding id -- the linkage
+        # assertions below depend on findings starting at 1.
+        if "FOR UPDATE" in last_sql["text"]:
+            return (_SCAN_ID,)
+        return (next(ids),)
+
+    cur.execute.side_effect = _execute
+    cur.fetchone.side_effect = _fetchone
     return cur
 
 
@@ -275,7 +294,7 @@ def test_save_scan_persists_evaluations_and_links_fail_finding_id():
     }
 
     with patch.object(db, "_get_conn", return_value=conn):
-        db.save_scan(result)
+        db.save_scan(result, _OWNER, _TOKEN)
 
     insert_calls = [c for c in cursor.execute.call_args_list if "INSERT INTO rule_evaluations" in c.args[0]]
     assert len(insert_calls) == 2
@@ -316,7 +335,7 @@ def test_save_scan_evaluations_upsert_on_conflict_instead_of_delete_first():
     }
 
     with patch.object(db, "_get_conn", return_value=conn):
-        db.save_scan(result)
+        db.save_scan(result, _OWNER, _TOKEN)
 
     insert_calls = [c for c in cursor.execute.call_args_list if "INSERT INTO rule_evaluations" in c.args[0]]
     assert len(insert_calls) == 1
@@ -348,7 +367,7 @@ def test_save_scan_deletes_all_prior_evaluations_when_scan_reports_none():
     }
 
     with patch.object(db, "_get_conn", return_value=conn):
-        db.save_scan(result)
+        db.save_scan(result, _OWNER, _TOKEN)
 
     delete_sql = [c.args[0] for c in cursor.execute.call_args_list if c.args[0].strip().startswith("DELETE")]
     assert any("rule_evaluations" in sql for sql in delete_sql)
@@ -370,4 +389,4 @@ def test_save_scan_evaluations_default_to_empty_list_for_backward_compatible_cal
     }
 
     with patch.object(db, "_get_conn", return_value=conn):
-        db.save_scan(result)  # must not raise
+        db.save_scan(result, _OWNER, _TOKEN)  # must not raise

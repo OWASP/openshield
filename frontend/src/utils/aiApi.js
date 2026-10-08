@@ -7,6 +7,10 @@
 //   POST /api/ai/insights   — executive summary + remediation plan
 //   POST /api/ai/prioritise — AI-ranked findings by real-world exploitability
 //
+// Findings are never sent from the browser. The backend reads them from a
+// completed scan (scanId, or the latest completed scan when omitted), so an
+// answer is always grounded in persisted evidence (#357).
+//
 // If no provider key is configured all AI functions return null.
 // CVE analysis calls the public GET /api/score/cve-summary endpoint.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,46 +108,42 @@ export const aiApi = {
   settings: aiSettings,
 
   // ── Chat / Q&A  POST /api/ai/ask ──────────────────────────────────────────
-  chat: async ({ question, findings = [] }) => {
+  chat: async ({ question, scanId } = {}) => {
     if (!aiSettings.isConfigured()) return null;
-    const result = await aiApiFetch('/ai/ask', buildBody({ question, findings }));
+    const result = await aiApiFetch('/ai/ask', buildBody({ question, scan_id: scanId }));
     return {
       answer:  result.answer  || result,
       sources: result.sources || [],
     };
   },
 
-  // ── Executive Summary  POST /api/ai/summary ───────────────────────────────
-  getSummary: async (findings = []) => {
+  getSummary: async ({ scanId } = {}) => {
     if (!aiSettings.isConfigured()) return null;
     try {
-      return normalizeSummary(await aiApiFetch('/ai/summary', buildBody({ findings })));
+      return normalizeSummary(await aiApiFetch('/ai/summary', buildBody({ scan_id: scanId })));
     } catch {
       return null;
     }
   },
 
-  // ── Insights  POST /api/ai/insights ───────────────────────────────────────
-  getInsights: async ({ findings = [], question }) => {
+  getInsights: async ({ question, scanId } = {}) => {
     if (!aiSettings.isConfigured()) return null;
     try {
-      return await aiApiFetch('/ai/insights', buildBody({ findings, question }));
+      return await aiApiFetch('/ai/insights', buildBody({ question, scan_id: scanId }));
     } catch {
       return null;
     }
   },
 
-  // ── Prioritise  POST /api/ai/prioritise ───────────────────────────────────
-  getPrioritisation: async (findings = []) => {
+  getPrioritisation: async ({ scanId } = {}) => {
     if (!aiSettings.isConfigured()) return null;
     try {
-      return await aiApiFetch('/ai/prioritise', buildBody({ findings }));
+      return await aiApiFetch('/ai/prioritise', buildBody({ scan_id: scanId }));
     } catch {
       return null;
     }
   },
 
-  // ── CVE Analysis  GET /api/score/cve-summary (public) ────────────────────
   getCVEAnalysis: async () => {
     try {
       const token = getToken();

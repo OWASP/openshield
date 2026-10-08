@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Statuses that mean "we actively confirmed this rule was clean in the scan."
+# Rule completion is necessary but insufficient for per-resource resolution.
 _RESOLVING_STATUSES = frozenset({"SUCCESS", "EMPTY_SUCCESS"})
 
 # All statuses the DB constraint accepts. Any other value defaults to FAILED to
@@ -71,6 +71,7 @@ class LifecycleService:
         tenant_id: str,
         rule_outcomes: List[Dict[str, Any]],
         findings: Optional[List[Dict[str, Any]]] = None,
+        evaluations: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """Apply a completed scan's findings to the lifecycle tables.
 
@@ -80,6 +81,7 @@ class LifecycleService:
             subscription_id: Azure subscription ID.
             tenant_id: Tenant identifier for isolation.
             rule_outcomes: List of dicts with keys 'rule_id' and 'status'.
+            evaluations: Current per-resource PASS/FAIL/UNKNOWN coverage.
             findings: List of finding dicts with keys 'rule_id', 'resource_id',
                 and optionally 'evidence_key'. Defaults to empty list.
         """
@@ -134,11 +136,29 @@ class LifecycleService:
                     o["rule_id"]: o["status"] for o in rule_outcomes if "rule_id" in o and "status" in o
                 }
 
-                # Collect rule IDs that actively confirmed a clean result. Only
-                # these can trigger resolution of absent findings (fail-closed).
-                resolving_rule_ids = [
-                    rule_id for rule_id, status in outcome_by_rule.items() if status in _RESOLVING_STATUSES
-                ]
+                # Rule-level completion is not proof that any particular resource
+                # passed. Conflicting or incomplete coverage must fail closed.
+                resource_statuses: Dict[tuple, set] = {}
+                for evaluation in evaluations or []:
+                    rule_id = evaluation.get("rule_id")
+                    resource_id = evaluation.get("resource_id")
+                    if not isinstance(rule_id, str) or not isinstance(resource_id, str):
+                        continue
+                    key = (rule_id, _normalize_resource_id(resource_id))
+                    resource_statuses.setdefault(key, set()).add(evaluation.get("status"))
+                passing_resources = {
+                    key
+                    for key, statuses in resource_statuses.items()
+                    if statuses == {"PASS"} and outcome_by_rule.get(key[0]) in _RESOLVING_STATUSES
+                }
+                # A violation contradicts a PASS for the same rule/resource,
+                # even when the new finding has a different evidence fingerprint.
+                failing_resources = {
+                    (finding.get("rule_id"), _normalize_resource_id(finding.get("resource_id", "")))
+                    for finding in findings
+                }
+                passing_resources.difference_update(failing_resources)
+                resolving_rule_ids = sorted({key[0] for key in passing_resources})
 
                 # Build the set of fingerprints seen in this scan.
                 seen_fingerprint_keys: set = set()
@@ -283,7 +303,7 @@ class LifecycleService:
                         # syntax issues that occur with NOT IN %s.
                         cur.execute(
                             """
-                            SELECT fl.id, fl.state, fl.row_version, ff.rule_id
+                            SELECT fl.id, fl.state, fl.row_version, ff.rule_id, ff.resource_id_normalized
                             FROM finding_lifecycles fl
                             JOIN finding_fingerprints ff ON ff.id = fl.fingerprint_id
                             WHERE ff.tenant_id = %s
@@ -303,7 +323,7 @@ class LifecycleService:
                     else:
                         cur.execute(
                             """
-                            SELECT fl.id, fl.state, fl.row_version, ff.rule_id
+                            SELECT fl.id, fl.state, fl.row_version, ff.rule_id, ff.resource_id_normalized
                             FROM finding_lifecycles fl
                             JOIN finding_fingerprints ff ON ff.id = fl.fingerprint_id
                             WHERE ff.tenant_id = %s
@@ -314,7 +334,7 @@ class LifecycleService:
                             """,
                             (tenant_id, subscription_id, resolving_rule_ids),
                         )
-                    _resolve_absent_rows(cur, scan_id, outcome_by_rule)
+                    _resolve_absent_rows(cur, scan_id, passing_resources)
 
                 # --- Idempotency sentinel (inserted last) ---------------------
                 cur.execute(
@@ -337,17 +357,16 @@ class LifecycleService:
 def _resolve_absent_rows(
     cur: Any,
     scan_id: str,
-    outcome_by_rule: Dict[str, str],
+    passing_resources: set,
 ) -> None:
     """Transition OPEN/REOPENED lifecycle rows to RESOLVED for clean-outcome rules.
 
-    The SQL query already filters by resolving_rule_ids, so outcome_status is
-    always in _RESOLVING_STATUSES here. The check is kept as a defensive guard.
+    Rule-level selection narrows candidates. Each candidate still requires a
+    matching current PASS evaluation for its exact normalized resource ID.
     """
     absent_rows = cur.fetchall()
-    for lc_id, state, row_version, rule_id in absent_rows:
-        outcome_status = outcome_by_rule.get(rule_id)
-        if outcome_status in _RESOLVING_STATUSES:
+    for lc_id, state, row_version, rule_id, resource_id in absent_rows:
+        if (rule_id, _normalize_resource_id(resource_id)) in passing_resources:
             cur.execute(
                 """
                 UPDATE finding_lifecycles

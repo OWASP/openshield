@@ -103,7 +103,7 @@ Example response:
       "frameworks": {
         "CIS": "3.5",
         "NIST": "PR.AC-3",
-        "ISO27001": "A.9.4.1"
+        "ISO27001": "A.8.3"
       },
       "metadata": {},
       "detected_at": "2026-05-09T12:00:00Z"
@@ -139,7 +139,7 @@ Example response:
   "frameworks": {
     "CIS": "3.5",
     "NIST": "PR.AC-3",
-    "ISO27001": "A.9.4.1"
+    "ISO27001": "A.8.3"
   },
   "metadata": {},
   "detected_at": "2026-05-09T12:00:00Z"
@@ -206,9 +206,9 @@ Example response:
 
 ## POST /api/scans/trigger
 
-Triggers an asynchronous scan against the configured subscription. Returns `202 Accepted` with the `scan_id` immediately. The actual scan execution happens in a background worker process.
+Admits an asynchronous scan against the configured subscription. Execution happens in a background worker process; the response returns as soon as the scan is durably recorded.
 
-Request body:
+Request body (optional — falls back to `AZURE_SUBSCRIPTION_ID`):
 
 ```json
 {
@@ -216,7 +216,25 @@ Request body:
 }
 ```
 
-Example response:
+### Admission semantics
+
+Admission is serialized per subscription and enforced by the database, so concurrent and replayed triggers converge on one logical scan rather than creating duplicates:
+
+- **At most one active scan per subscription.** While a `pending` or `running` scan exists, a further trigger returns that existing scan instead of queueing another.
+- **`Idempotency-Key` (optional request header, 1–200 characters).** A repeat of the same key for the same subscription returns the original scan. The key is scoped to the subscription; the same key under a different subscription is a different request. A trigger carries no request input other than `subscription_id`, so a key that resolves to an existing scan is always a replay of the same logical request and there is no changed-payload conflict to report.
+- **`OPENSHIELD_MAX_SCANS_PER_SUBSCRIPTION_PER_HOUR`** adds an optional hourly admission quota. Unset or `0` (the default) applies no time-window limit; the one-active-scan rule still applies.
+
+### Responses
+
+| Status | When | Body |
+| --- | --- | --- |
+| `202 Accepted` | A new scan was admitted and queued. | `scan_id`, `status: "pending"`, `message` |
+| `200 OK` | The request resolved to an existing logical scan — an `Idempotency-Key` replay of the same request, or a trigger while a scan is already active for the subscription. | `scan_id`, `status` (the existing scan's `pending`/`running`), `message: "Existing logical scan returned."` |
+| `400 Bad Request` | Malformed body, invalid `subscription_id`, missing subscription, or an `Idempotency-Key` outside 1–200 characters. | `error` |
+| `403 Forbidden` | `subscription_id` is not on the `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS` allowlist. | `error` |
+| `429 Too Many Requests` | The configured hourly quota for this subscription is exhausted. | `error: "Scan quota exceeded for this subscription."` |
+
+New scan (`202`):
 
 ```json
 {
@@ -226,7 +244,17 @@ Example response:
 }
 ```
 
-Missing subscription response:
+Replay or already-active scan (`200`):
+
+```json
+{
+  "scan_id": "6f4a08ac-7d3a-4d9a-a4b4-2a26e5f63c8a",
+  "status": "running",
+  "message": "Existing logical scan returned."
+}
+```
+
+Missing subscription response (`400`):
 
 ```json
 {
@@ -236,26 +264,94 @@ Missing subscription response:
 
 ---
 
-## GET /api/score
+## POST /api/scans/&lt;scan_id&gt;/enrich
 
-Returns the overall security posture score from 0 to 100. Under [severity contract v1](severity-contract.md), the score starts at 100 and deducts 20 per CRITICAL finding, 10 per HIGH finding, 5 per MEDIUM finding, and 2 per LOW finding. INFO findings deduct zero.
+Queues durable CVE enrichment for a completed scan's findings. Enrichment runs as a database-backed job claimed by the background worker — the request never owns a thread, so the work survives an API restart.
 
-Query parameters: none
+There is **never more than one enrichment job per scan**. Repeat calls are safe: they report the state of the single job rather than creating another.
 
-Example response:
+### Responses
+
+Every response carries `scan_id`, `job_id`, `status` (the job row's state) and an `outcome` naming what this call did:
+
+| Status | `outcome` | When |
+| --- | --- | --- |
+| `202 Accepted` | `created` | No job existed; one was queued. |
+| `202 Accepted` | `requeued` | A previously **failed** job was reset to `pending` and will be retried. |
+| `202 Accepted` | `active` | A `pending` or `running` job already exists and was returned unchanged. A live claim is never interrupted. |
+| `200 OK` | `completed` | Enrichment already finished; nothing was restarted. |
+| `404 Not Found` | — | Unknown `scan_id`, or the scan has no findings to enrich and has not already been enriched. |
+
+An already-enriched scan always reports `completed`, including a clean scan that had no findings to enrich in the first place.
+
+A job that exhausts its retry budget becomes `failed`. Re-POSTing this endpoint is the supported operator recovery: it atomically returns the job to `pending` with a fresh retry budget, clears the lease, and keeps the last `error_message` and the `checkpoint` so the retry resumes rather than re-enriching findings that already succeeded. Concurrent re-POSTs converge — exactly one reports `requeued` and the rest report `active`.
+
+Newly queued (`202`):
 
 ```json
 {
+  "scan_id": "6f4a08ac-7d3a-4d9a-a4b4-2a26e5f63c8a",
+  "job_id": "1f2e3d4c-5b6a-4790-8123-456789abcdef",
+  "status": "pending",
+  "outcome": "created",
+  "message": "CVE enrichment queued; poll GET /api/scans/<scan_id> for completion."
+}
+```
+
+Requeued after terminal failure (`202`):
+
+```json
+{
+  "scan_id": "6f4a08ac-7d3a-4d9a-a4b4-2a26e5f63c8a",
+  "job_id": "1f2e3d4c-5b6a-4790-8123-456789abcdef",
+  "status": "pending",
+  "outcome": "requeued",
+  "message": "Previously failed enrichment job requeued; poll GET /api/scans/<scan_id> for completion."
+}
+```
+
+Poll `GET /api/scans/<scan_id>` for `cve_enrichment_status` (`PENDING`, `ENRICHING`, `COMPLETED`, `FAILED`).
+
+---
+
+## GET /api/score
+
+Returns the overall security posture score from 0 to 100. Under [severity contract v1](severity-contract.md), the score starts at 100 and deducts 20 per CRITICAL finding, 10 per HIGH finding, 5 per MEDIUM finding, and 2 per LOW finding; INFO findings deduct zero. Scoped to the most recent **completed** scan — if no completed scan exists yet, this returns `status: "NO_SCAN_DATA"` with `score: null` rather than a misleading 100 (a scan with no findings and no evidence at all would otherwise be indistinguishable).
+
+Query parameters:
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `subscription_id` | UUID string | No | Scopes the "most recent completed scan" lookup to one Azure subscription. Defaults to the deployment's `AZURE_SUBSCRIPTION_ID`; if neither is set the latest completed scan from *any* subscription is used, which is only correct for a single-tenant database. A malformed value is a `400`, never a silently unscoped result. |
+
+Example response (a completed scan exists):
+
+```json
+{
+  "status": "OK",
   "score": 82,
   "max_score": 100
 }
 ```
 
+Example response (no completed scan exists yet):
+
+```json
+{
+  "status": "NO_SCAN_DATA",
+  "score": null,
+  "max_score": 100,
+  "message": "No completed scan is available yet, so there is no security posture to score."
+}
+```
+
+Consumers must check `status` and treat a `null` `score` as "not assessed" — never coerce it to `0`, which would misrepresent absence of evidence as a confirmed worst-case score.
+
 ---
 
 ## GET /api/compliance/&lt;framework&gt;
 
-Returns a pass/fail control breakdown for a supported compliance framework.
+Returns technical-evidence coverage against a compliance framework mapping pack, scoped to the most recent **completed** scan. This is coverage, not a certification or a claim of full framework compliance — see `docs/compliance-mapping-pack.md` for the full mapping-pack schema and `evaluation_basis` semantics.
 
 Supported frameworks:
 
@@ -265,36 +361,109 @@ Supported frameworks:
 | `nist` | `nist_csf.json` |
 | `iso27001` | `iso27001.json` |
 | `soc2` | `soc2.json` |
+| `ncsc_pqc` | `ncsc_pqc.json` |
+| `enisa_pqc` | `enisa_pqc.json` |
 
-Query parameters: none
+Query parameters:
 
-Example response:
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `subscription_id` | UUID string | No | Scopes the "most recent completed scan" lookup to one Azure subscription. Defaults to the deployment's `AZURE_SUBSCRIPTION_ID`; if neither is set the latest completed scan from *any* subscription is used, which is only correct for a single-tenant database. A malformed value is a `400`, never a silently unscoped result. |
+
+`status` is one of:
+- `OK` — a completed scan exists and at least one mapped control is in scope; `score_percent` is a real evaluated percentage.
+- `NO_SCAN_DATA` — no completed scan exists yet, so there is no evidence to report; `score_percent` is `null`.
+- `NO_REVIEWED_CONTROLS` — a completed scan exists, but every mapping awaits review; `score_percent` is `null` and no direct-evidence score exists.
+- `NO_IN_SCOPE_CONTROLS` — a completed scan exists, but every reviewed mapped control for this framework is `not_applicable`/`organizational` and excluded from the denominator; `score_percent` is `null`.
+
+Per-control `status` is evaluation-derived (issue #263) only after its mapping
+has been reviewed: `PASS`/`FAIL`/`UNKNOWN`/`ERROR` is the rolled-up status of
+that rule's persisted `rule_evaluations` rows for the scan, not an inference
+from the mere absence of a finding. A reviewed control whose rule has no
+evaluation row for the scan (a legacy rule not yet migrated to `evaluate()`,
+or one that was skipped) is reported `UNKNOWN`. `UNKNOWN` and `ERROR` count in
+the `score_percent` denominator without counting as a pass, so missing or lost
+evidence lowers the score rather than shrinking the base it is measured
+against. Unreviewed, `not_applicable`, and `organizational` controls are
+excluded.
+
+Any control with `review_status` other than `reviewed` has control status
+`UNREVIEWED_MAPPING`, regardless of its `mapping_type`. It is excluded from
+the denominator alongside `not_applicable` and `organizational` controls, and
+does not contribute to `passed` or `failed`. Consumers must check `status` and
+never treat a `null` `score_percent` as `0` — a missing/excluded score is a
+different fact from a real, evaluated 0%. `reviewed_controls`,
+`unreviewed_controls`, `not_applicable`, `organizational`, and
+`excluded_controls` make the reason explicit.
+
+Example response (`OK`):
 
 ```json
 {
   "framework": "CIS Microsoft Azure Foundations Benchmark",
   "version": "2.0.0",
-  "total_controls": 20,
-  "passed": 19,
-  "failed": 1,
-  "score_percent": 95,
+  "contract_version": "3",
+  "status": "OK",
+  "mapping_pack_version": "1.0.0",
+  "mapping_pack_status": "current",
+  "mapping_pack_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0 official control text. Technical-evidence mapping only; not a certification statement.",
+  "mapping_pack_published": "2026-08-22",
+  "scan_id": "scan-1",
+  "evaluation_basis": "Status is evaluation-derived: PASS/FAIL/UNKNOWN/ERROR for each control is the rolled-up status of its rule's persisted rule_evaluations rows for the most recent completed scan (issue #263). ...",
+  "total_controls": 95,
+  "in_scope_controls": 20,
+  "excluded_controls": 75,
+  "reviewed_controls": 66,
+  "unreviewed_controls": 29,
+  "not_applicable": 40,
+  "organizational": 6,
+  "passed": 18,
+  "failed": 2,
+  "unknown": 0,
+  "error": 0,
+  "score_percent": 92,
   "controls": [
     {
       "rule_id": "AZ-STOR-001",
       "control_id": "3.5",
       "control_name": "Ensure that 'Public access level' is set to Private for blob containers",
-      "status": "FAIL"
+      "status": "FAIL",
+      "mapping_type": "direct",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control 3.5",
+      "rationale": "...",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   ]
 }
 ```
 
-Unknown framework response:
+Example response (`NO_SCAN_DATA`, HTTP 200 — never 500):
 
 ```json
 {
-  "error": "Unknown framework 'pci'",
-  "supported": ["cis", "nist", "iso27001", "soc2"]
+  "status": "NO_SCAN_DATA",
+  "message": "No completed scan is available yet, so no technical evidence exists to report against this framework.",
+  "total_controls": 95,
+  "in_scope_controls": null,
+  "excluded_controls": null,
+  "reviewed_controls": null,
+  "unreviewed_controls": null,
+  "passed": null,
+  "failed": null,
+  "score_percent": null,
+  "controls": []
+}
+```
+
+Unknown framework response (HTTP 400):
+
+```json
+{
+  "error": "Invalid request parameters",
+  "supported": ["cis", "nist", "iso27001", "soc2", "ncsc_pqc", "enisa_pqc"]
 }
 ```
 
@@ -474,6 +643,50 @@ Not found response:
   "error": "Finding 99 not found"
 }
 ```
+
+---
+
+## AI endpoints
+
+`POST /api/ai/summary`, `/api/ai/insights`, `/api/ai/prioritise`, `/api/ai/ask` and `/api/ai/threat-simulation` send scan findings to the caller's chosen LLM provider. Every request carries `provider` (`anthropic`, `groq` or `gemini`) and `api_key`; `model` is optional, and `/ask` and `/insights` also accept `question`.
+
+### Evidence
+
+Findings are read on the server, never trusted from the browser:
+
+- `scan_id` (optional, UUID) selects a completed scan. An unknown or not-yet-completed scan returns `404`.
+- Without `scan_id`, the latest completed scan is used, the same data `GET /api/findings` returns by default.
+- `findings` (a client-supplied array) is **deprecated** and kept only for compatibility. It cannot be combined with `scan_id` (`400`).
+
+Every response includes an `evidence` object saying what the answer was built from:
+
+```json
+{
+  "evidence": {
+    "source": "scan",
+    "scan_id": "11111111-2222-4333-8444-555555555555",
+    "verified": true,
+    "finding_count": 37,
+    "findings_in_prompt": 37
+  }
+}
+```
+
+`source` is `scan`, `client_supplied` (`verified: false`) or `none` (no completed scan, only possible on endpoints where findings are optional). At most the 200 most severe findings go into one prompt; `finding_count` is the scan total.
+
+`/insights` and `/threat-simulation` need findings: no completed scan returns `404`, a scan with no findings returns `422`, and an evidence lookup failure returns `503`.
+
+### Prompt safety
+
+Finding fields such as `resource_name` and `description` can contain text written by whoever controls the scanned resource. Before anything reaches the model, each field is stripped of control, bidi and zero-width characters, collapsed to one line, length-capped, JSON-encoded, and placed in a data block whose delimiters carry a per-request random boundary. The instructions tell the model to treat those blocks as evidence only (OWASP Top 10 for LLM Applications, LLM01).
+
+### Validated output
+
+`/prioritise` and `/threat-simulation` ask the model for JSON and validate what comes back (LLM05):
+
+- Items citing a `rule_id`, or a rule/resource pair, that is not in the evidence are dropped and counted in `discarded_items`.
+- `/prioritise` items need a positive integer `priority` and a contract severity. `/threat-simulation` stages must use the documented stage names and cite at least one rule from the evidence.
+- Output that is not valid JSON, or has the wrong shape, returns `502 {"error": "AI response failed validation"}`. Raw model text is never passed through.
 
 ---
 

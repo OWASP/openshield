@@ -6,7 +6,7 @@ RULE_ID = "AZ-DB-001"
 RULE_NAME = "PostgreSQL Server Allows Public Network Access"
 SEVERITY = "HIGH"
 CATEGORY = "Database"
-FRAMEWORKS = {"CIS": "4.3.1", "NIST": "PR.AC-3", "ISO27001": "A.13.1.1"}
+FRAMEWORKS = {"CIS": "4.3.1", "NIST": "PR.AC-3", "ISO27001": "A.8.20"}
 DESCRIPTION = (
     "The Azure Database for PostgreSQL server is configured to allow public network access. "
     "This means the server endpoint is reachable from the public internet, increasing the "

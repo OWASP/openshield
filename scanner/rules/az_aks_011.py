@@ -8,7 +8,7 @@ RULE_ID = "AZ-AKS-011"
 RULE_NAME = "AKS Secrets Lack Key Vault or KMS-Backed Protection"
 SEVERITY = "HIGH"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-011", "NIST": "PR.DS-1", "ISO27001": "A.10.1.1", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "N/A-AKS-011", "NIST": "PR.DS-1", "ISO27001": "A.8.24", "SOC2": "CC6.1"}
 DESCRIPTION = "A workload references native Kubernetes Secrets while Azure Key Vault KMS encryption is disabled."
 REMEDIATION = (
     "Enable and validate Key Vault KMS for native Kubernetes Secrets, or configure the Key Vault Secrets Store CSI "

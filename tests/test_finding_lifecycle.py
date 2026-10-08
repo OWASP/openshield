@@ -4,6 +4,8 @@ All tests use in-memory state to simulate the database without requiring a
 live PostgreSQL instance.
 """
 
+import pytest
+
 from collections import deque
 
 from api.services.lifecycle_service import (
@@ -192,7 +194,15 @@ class TestLifecycleStateTransitions:
     def _run(self, results, findings, outcomes):
         conn = _FakeConn(results)
         svc = LifecycleService()
-        svc.apply_scan(conn, SCAN_ID_1, SUB_ID, TENANT_ID, outcomes, findings)
+        svc.apply_scan(
+            conn,
+            SCAN_ID_1,
+            SUB_ID,
+            TENANT_ID,
+            outcomes,
+            findings,
+            evaluations=[{"rule_id": o["rule_id"], "resource_id": "/rg/foo", "status": "PASS"} for o in outcomes],
+        )
         return conn
 
     def _all_sql(self, conn: _FakeConn) -> list[str]:
@@ -242,7 +252,7 @@ class TestLifecycleStateTransitions:
         results = [
             None,
             None,
-            [(10, "OPEN", 0, "RULE-001")],
+            [(10, "OPEN", 0, "RULE-001", "/rg/foo")],
             None,
             None,
             None,
@@ -316,7 +326,7 @@ class TestLifecycleStateTransitions:
             None,  # idempotency check
             None,  # scan_rule_outcomes RULE-001
             None,  # scan_rule_outcomes RULE-002
-            [(10, "OPEN", 0, "RULE-001")],  # absent-findings query
+            [(10, "OPEN", 0, "RULE-001", "/rg/foo")],  # absent-findings query
             None,  # UPDATE RESOLVED
             None,  # transition insert
             None,  # idempotency insert
@@ -349,7 +359,7 @@ class TestLifecycleStateTransitions:
         results = [
             None,
             None,
-            [(10, "REOPENED", 0, "RULE-001")],
+            [(10, "REOPENED", 0, "RULE-001", "/rg/foo")],
             None,
             None,
             None,
@@ -359,7 +369,10 @@ class TestLifecycleStateTransitions:
         sqls = self._all_sql(conn)
         assert any("RESOLVED" in s and "UPDATE" in s.upper() for s in sqls)
         # Transition from REOPENED to RESOLVED must be recorded.
-        assert any("finding_lifecycle_transitions" in s and "REOPENED" in s and "RESOLVED" in s for s in sqls)
+        assert any(
+            "finding_lifecycle_transitions" in sql and params == (10, "REOPENED", SCAN_ID_1)
+            for sql, params in conn.all_executed()
+        )
 
     def test_reopened_finding_seen_again_increments_occurrence_stays_reopened(self):
         # REOPENED + seen in scan: occurrence_count increments, no new state transition.
@@ -385,3 +398,68 @@ class TestLifecycleStateTransitions:
 
         # occurrence_count should increment.
         assert any("occurrence_count = occurrence_count + 1" in s for s in sqls)
+
+
+def test_empty_success_without_resource_evidence_does_not_resolve():
+    conn = _FakeConn([None, None, [(10, "OPEN", 0, "RULE-001", "/rg/foo")], None, None, None])
+    LifecycleService().apply_scan(conn, SCAN_ID_1, SUB_ID, TENANT_ID, [_make_outcome("RULE-001", "EMPTY_SUCCESS")], [])
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
+
+
+@pytest.mark.parametrize("status", ["UNKNOWN", "ERROR", "FAIL", "NOT_APPLICABLE"])
+def test_incomplete_resource_evidence_does_not_resolve(status):
+    conn = _FakeConn([None, None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [_make_outcome("RULE-001", "SUCCESS")],
+        [],
+        evaluations=[{"rule_id": "RULE-001", "resource_id": "/rg/foo", "status": status}],
+    )
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
+
+
+def test_pass_for_one_resource_does_not_resolve_unobserved_resource():
+    conn = _FakeConn([None, None, [(10, "OPEN", 0, "RULE-001", "/rg/unobserved")], None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [_make_outcome("RULE-001", "SUCCESS")],
+        [],
+        evaluations=[{"rule_id": "RULE-001", "resource_id": "/rg/foo", "status": "PASS"}],
+    )
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
+
+
+def test_conflicting_pass_and_unknown_cannot_resolve():
+    conn = _FakeConn([None, None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [_make_outcome("RULE-001", "SUCCESS")],
+        [],
+        evaluations=[
+            {"rule_id": "RULE-001", "resource_id": "/rg/foo", "status": status} for status in ["PASS", "UNKNOWN"]
+        ],
+    )
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
+
+
+def test_current_finding_overrides_contradictory_resource_pass():
+    conn = _FakeConn([None, None, (1,), None, (10,), None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [_make_outcome("RULE-001", "SUCCESS")],
+        [_make_finding("RULE-001", "/rg/foo")],
+        evaluations=[{"rule_id": "RULE-001", "resource_id": "/rg/foo", "status": "PASS"}],
+    )
+    assert not any("FROM finding_lifecycles fl" in sql for sql, _ in conn.all_executed())

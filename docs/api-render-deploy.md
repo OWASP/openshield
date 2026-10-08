@@ -178,8 +178,8 @@ API_URL=https://openshield-api.onrender.com JWT_SECRET=<secret> \
 
 #### Score Endpoint
 * **TC-09:** GET `/api/score` returns HTTP 200.
-* **TC-10:** GET `/api/score` returns a numeric score.
-* **TC-11:** GET `/api/score` ensures the score is mathematically between 0 and 100.
+* **TC-10:** GET `/api/score` returns a numeric score when `status` is `"OK"` (a numeric score is not required when `status` is `"NO_SCAN_DATA"` — `score` is legitimately `null` then).
+* **TC-11:** GET `/api/score` ensures the score is mathematically between 0 and 100, or `null` with a non-`"OK"` status.
 
 #### Scans Endpoint
 * **TC-12:** GET `/api/scans` returns HTTP 200.

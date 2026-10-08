@@ -35,8 +35,8 @@ export default function ComplianceTable({ controls }) {
               <td className="px-4 py-3">
                 <div className="flex items-center gap-1.5">
                   <StatusIcon status={c.status} />
-                  <span className={`text-xs font-medium ${c.status === 'PASS' ? 'text-brand-primary' : c.status === 'FAIL' ? 'text-severity-high' : 'text-text-tertiary'}`}>
-                    {c.status}
+                  <span className={`text-xs font-medium ${c.status === 'PASS' ? 'text-brand-primary' : c.status === 'FAIL' ? 'text-severity-high' : c.status === 'UNREVIEWED_MAPPING' ? 'text-amber-700 dark:text-amber-400' : 'text-text-tertiary'}`}>
+                    {c.status === 'UNREVIEWED_MAPPING' ? 'Mapping review pending' : c.status}
                   </span>
                 </div>
               </td>

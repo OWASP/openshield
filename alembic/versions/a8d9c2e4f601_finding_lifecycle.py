@@ -1,8 +1,8 @@
 """Add finding lifecycle tables: scan_rule_outcomes, scan_lifecycle_applications,
 finding_fingerprints, finding_lifecycles, finding_lifecycle_transitions, patterns.
 
-Revision ID: e1f2a3b4c5d6
-Revises: d8e4f6a1b2c3
+Revision ID: a8d9c2e4f601
+Revises: b6d2f8a4c1e7
 Create Date: 2026-08-30 00:00:00.000000
 """
 
@@ -11,8 +11,8 @@ from typing import Sequence, Union
 from alembic import op
 
 # Revision identifiers, used by Alembic.
-revision: str = "e1f2a3b4c5d6"
-down_revision: Union[str, Sequence[str], None] = "d8e4f6a1b2c3"
+revision: str = "a8d9c2e4f601"
+down_revision: Union[str, Sequence[str], None] = "b6d2f8a4c1e7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -10,7 +10,7 @@ RULE_ID = "AZ-NET-023"
 RULE_NAME = "Azure Firewall Threat Intelligence Is Not in Deny Mode"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-023", "NIST": "DE.CM-1", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-NET-023", "NIST": "DE.CM-1", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "Azure Firewall threat intelligence is disabled or configured to alert without denying known malicious traffic."
 )

@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Mapping
 
 logger = logging.getLogger(__name__)
 
-FRAMEWORKS = {"CIS": "TBD", "NIST": "PR.AC-5", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "TBD", "NIST": "PR.AC-5", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 
 
 def _value(module: Any, name: str) -> Any:

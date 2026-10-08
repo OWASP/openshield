@@ -9,7 +9,7 @@ RULE_ID = "AZ-AKS-003"
 RULE_NAME = "AKS Cluster Not Using Managed Identity"
 SEVERITY = "HIGH"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-003", "NIST": "PR.AC-1", "ISO27001": "A.9.2.1", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "N/A-AKS-003", "NIST": "PR.AC-1", "ISO27001": "A.5.16", "SOC2": "CC6.1"}
 DESCRIPTION = (
     "The AKS control plane is not configured with a managed identity. Legacy service principals "
     "depend on credentials that require rotation and can be exposed or expire unexpectedly."

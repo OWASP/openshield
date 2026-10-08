@@ -28,6 +28,7 @@ def _make_token(sub_id: str | None = None) -> str:
     payload = {
         "sub": "test-user",
         "role": "admin",
+        "tid": TENANT_ID,
         "iat": int(time.time()),
         "exp": int(time.time()) + 3600,
     }
@@ -191,7 +192,7 @@ class TestPatternServiceDetection:
 @pytest.fixture
 def app_client(monkeypatch):
     """Flask test client with JWT and mocked DB."""
-    monkeypatch.setenv("DATABASE_URL", "postgresql://fake/fake")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:1/openshield?connect_timeout=1")
     monkeypatch.setenv("JWT_SECRET", _TEST_JWT_SECRET)
 
     from api.app import create_app
@@ -381,3 +382,30 @@ class TestPatternsRouteGet:
     def test_get_requires_auth(self, app_client):
         resp = app_client.get("/api/v1/patterns/1")
         assert resp.status_code == 401
+
+
+def test_pattern_query_cannot_supply_scope_missing_from_verified_token(app_client):
+    with patch("api.routes.patterns._get_db") as db:
+        response = app_client.get("/api/v1/patterns?subscription_id=sub-other", headers=_auth_headers())
+    assert response.status_code == 400
+    db.assert_not_called()
+
+
+def test_verified_tenant_overrides_deployment_tenant(app_client, monkeypatch):
+    monkeypatch.setenv("OPENSHIELD_TENANT_ID", "other-tenant")
+    db = _mock_db_rows([], 0)
+    with patch("api.routes.patterns._get_db", return_value=db):
+        response = app_client.get("/api/v1/patterns", headers=_auth_headers(SUB_ID))
+    assert response.status_code == 200
+    params = db._get_conn.return_value.cursor.return_value.execute.call_args_list[0][0][1]
+    assert params[:2] == (TENANT_ID, SUB_ID)
+
+
+def test_missing_verified_tenant_cannot_fall_back_to_deployment(app_client, monkeypatch):
+    monkeypatch.setenv("OPENSHIELD_TENANT_ID", TENANT_ID)
+    payload = {"sub": "viewer", "role": "viewer", "subscription_id": SUB_ID, "exp": int(time.time()) + 3600}
+    token = jwt.encode(payload, _TEST_JWT_SECRET, algorithm="HS256")
+    with patch("api.routes.patterns._get_db") as db:
+        response = app_client.get("/api/v1/patterns", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 400
+    db.assert_not_called()
