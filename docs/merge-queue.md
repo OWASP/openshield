@@ -2,7 +2,7 @@
 
 OpenShield uses Mergify to run a serial merge queue on the `dev` branch.
 GitHub Actions remains the CI system. Mergify reads pull-request state,
-waits for all conditions to be met, rebases each PR onto the current `dev`
+waits for all conditions to be met, updates each PR against the current `dev`
 HEAD, and merges it only after CI passes on the updated state.
 
 This configuration is inactive until the Mergify GitHub App is installed
@@ -37,7 +37,7 @@ are true:
 - The pull request is not a draft
 - The `blocked` label is not applied
 
-Mergify processes one pull request at a time. It rebases the queued PR onto
+Mergify processes one pull request at a time. It updates the queued PR against
 the latest `dev` and runs CI again before merging, so the branch is always
 tested against what is actually on `dev` at merge time.
 
