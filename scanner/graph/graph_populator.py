@@ -7,11 +7,9 @@ import uuid
 from dataclasses import replace as dc_replace
 from typing import TYPE_CHECKING
 
-import psycopg2
 
-
-from scanner.arg_inventory import InventoryResource
-from scanner.graph.node_service import link_findings_to_nodes, populate_nodes
+from scanner.arg_inventory import InventoryResource, InventoryStatus
+from scanner.graph.node_service import graph_connection, link_findings_to_nodes, populate_nodes
 from scanner.graph.edge_detector import detect_all_edges
 
 if TYPE_CHECKING:
@@ -39,6 +37,8 @@ WHERE lower(src.resource_id) = lower(%(source_resource_id)s)
   AND src.tenant_id = %(tenant_id)s
   AND lower(tgt.resource_id) = lower(%(target_resource_id)s)
   AND tgt.tenant_id = %(tenant_id)s
+  AND src.snapshot_id = %(evidence_snapshot_id)s
+  AND tgt.snapshot_id = %(evidence_snapshot_id)s
 ON CONFLICT (source_node_id, target_node_id, relationship_type) DO UPDATE SET
     confidence = EXCLUDED.confidence,
     evidence_source = EXCLUDED.evidence_source,
@@ -47,12 +47,11 @@ ON CONFLICT (source_node_id, target_node_id, relationship_type) DO UPDATE SET
 """
 
 
-def _write_edges(edges: list, snapshot_id: str, tenant_id: str, dsn: str) -> int:
+def _write_edges(edges: list, snapshot_id: str, tenant_id: str, dsn: str, *, connection=None) -> int:
     if not edges:
         return 0
     written = 0
-    conn = psycopg2.connect(dsn)
-    try:
+    with graph_connection(dsn, connection) as conn:
         with conn.cursor() as cur:
             for edge in edges:
                 cur.execute(
@@ -69,12 +68,6 @@ def _write_edges(edges: list, snapshot_id: str, tenant_id: str, dsn: str) -> int
                     },
                 )
                 written += max(cur.rowcount, 0)
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
     return written
 
 
@@ -127,22 +120,62 @@ def populate_graph(scan_id: str, snapshot: InventorySnapshot, dsn: str) -> None:
         resources=snapshot.resources + tuple(subnet_resources),
     )
 
-    try:
-        node_count = populate_nodes(augmented_snapshot, dsn)
-        logger.info("graph: upserted %d nodes for scan %s", node_count, scan_id)
-    except Exception as exc:
-        logger.warning("graph: node population failed for scan %s: %s", scan_id, exc)
+    if snapshot.status == InventoryStatus.FAILED:
         return
-
     try:
-        edges = detect_all_edges(augmented_snapshot)
-        edge_count = _write_edges(edges, snapshot.snapshot_id, snapshot.tenant_id, dsn)
-        logger.info("graph: wrote %d edges for scan %s", edge_count, scan_id)
-    except Exception as exc:
-        logger.warning("graph: edge population failed for scan %s: %s", scan_id, exc)
-
-    try:
-        link_count = link_findings_to_nodes(scan_id, snapshot.tenant_id, dsn)
-        logger.info("graph: linked %d findings to nodes for scan %s", link_count, scan_id)
-    except Exception as exc:
-        logger.warning("graph: finding link failed for scan %s: %s", scan_id, exc)
+        # Publish the new scope only after every write succeeds. Partial snapshots
+        # retain historical rows, but the views expose only explicit current evidence.
+        with graph_connection(dsn) as conn:
+            node_count = populate_nodes(augmented_snapshot, dsn, connection=conn)
+            edges = detect_all_edges(augmented_snapshot)
+            edge_count = _write_edges(edges, snapshot.snapshot_id, snapshot.tenant_id, dsn, connection=conn)
+            with conn.cursor() as cur:
+                params = {
+                    "tenant": snapshot.tenant_id,
+                    "subscriptions": list(snapshot.requested_subscriptions),
+                    "snapshot": snapshot.snapshot_id,
+                }
+                if snapshot.status == InventoryStatus.COMPLETE:
+                    cur.execute(
+                        """
+                        DELETE FROM graph_edges e USING graph_nodes src, graph_nodes tgt
+                        WHERE src.node_id = e.source_node_id AND tgt.node_id = e.target_node_id
+                          AND src.tenant_id = %(tenant)s AND tgt.tenant_id = %(tenant)s
+                          AND (src.subscription_id = ANY(%(subscriptions)s)
+                               OR tgt.subscription_id = ANY(%(subscriptions)s))
+                          AND e.evidence_snapshot_id <> %(snapshot)s
+                    """,
+                        params,
+                    )
+                    cur.execute(
+                        """
+                        DELETE FROM graph_nodes
+                        WHERE tenant_id = %(tenant)s AND subscription_id = ANY(%(subscriptions)s)
+                          AND snapshot_id <> %(snapshot)s
+                    """,
+                        params,
+                    )
+                for subscription in snapshot.requested_subscriptions:
+                    cur.execute(
+                        """
+                        INSERT INTO graph_snapshot_scopes
+                          (tenant_id, subscription_id, snapshot_id, status, collected_at)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (tenant_id, subscription_id) DO UPDATE SET
+                          snapshot_id = EXCLUDED.snapshot_id, status = EXCLUDED.status,
+                          collected_at = EXCLUDED.collected_at
+                    """,
+                        (
+                            snapshot.tenant_id,
+                            subscription,
+                            snapshot.snapshot_id,
+                            snapshot.status.value,
+                            snapshot.collected_at,
+                        ),
+                    )
+            link_count = link_findings_to_nodes(scan_id, snapshot.tenant_id, dsn, connection=conn)
+        logger.info(
+            "graph: wrote %d nodes, %d edges, %d links for scan %s", node_count, edge_count, link_count, scan_id
+        )
+    except Exception:
+        logger.warning("graph: population failed for scan %s", scan_id, exc_info=True)
