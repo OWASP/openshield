@@ -72,7 +72,7 @@ does helps reporters accurately scope their findings.
 
 ### Out of scope
 
-- Vulnerabilities in third-party dependencies: report those to the upstream maintainer
+- Vulnerabilities solely in third-party dependencies without an OpenShield-specific impact: report those to the upstream maintainer. Report exploitable integration or deployment issues in the components listed above through the OpenShield reporting channel.
 - Security issues in infrastructure you deploy OpenShield to (your Azure environment, your PostgreSQL instance)
 - False-positive scan findings due to unsupported Azure API versions or preview features
 - Rate limiting or throttling by the Azure ARM API
