@@ -48,6 +48,7 @@ def test_populate_nodes_upserts_each_resource():
 
     mock_conn = MagicMock()
     mock_cur = MagicMock()
+    mock_cur.rowcount = 1
     mock_conn.__enter__ = MagicMock(return_value=mock_conn)
     mock_conn.__exit__ = MagicMock(return_value=False)
     mock_cur.__enter__ = MagicMock(return_value=mock_cur)
@@ -78,6 +79,7 @@ def test_populate_nodes_does_not_write_cross_tenant_resources():
     captured_args = []
     mock_conn = MagicMock()
     mock_cur = MagicMock()
+    mock_cur.rowcount = 1
     mock_conn.__enter__ = MagicMock(return_value=mock_conn)
     mock_conn.__exit__ = MagicMock(return_value=False)
     mock_cur.__enter__ = MagicMock(return_value=mock_cur)
@@ -100,6 +102,7 @@ def test_populate_nodes_does_not_write_cross_tenant_resources():
 def test_link_findings_to_nodes_executes_insert():
     mock_conn = MagicMock()
     mock_cur = MagicMock()
+    mock_cur.rowcount = 1
     mock_conn.__enter__ = MagicMock(return_value=mock_conn)
     mock_conn.__exit__ = MagicMock(return_value=False)
     mock_cur.__enter__ = MagicMock(return_value=mock_cur)
@@ -113,3 +116,13 @@ def test_link_findings_to_nodes_executes_insert():
     assert mock_cur.execute.called
     sql_called = mock_cur.execute.call_args[0][0]
     assert "finding_graph_nodes" in sql_called
+
+
+def test_populate_nodes_reports_zero_actual_writes():
+    mock_conn = MagicMock()
+    mock_cur = mock_conn.cursor.return_value.__enter__.return_value
+    mock_cur.rowcount = 0
+    with patch("scanner.graph.node_service.psycopg2.connect", return_value=mock_conn):
+        assert (
+            populate_nodes(_make_snapshot([_make_resource("/subscriptions/sub/resource")]), "postgresql://test/db") == 0
+        )
