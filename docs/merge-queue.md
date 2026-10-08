@@ -108,13 +108,11 @@ dismissed: a reviewer's objection survives the push and continues to block
 and clears it, or a maintainer manually dismisses it via GitHub (see
 inactive-reviewer process below).
 
-This means every approval in `merge_conditions` always reflects the code
-that will actually land on `dev`, and no blocking concern can be erased by
-a push followed by a third-party approval.
-
-If your PR gets rebased while waiting in the queue, expect your approval to
-be dismissed and the PR to return to "needs review" state before it can
-re-enter the queue.
+Contributor pushes require fresh approval. Queue updates sent by
+`mergify[bot]` are excluded from approval dismissal so a routine queue update
+does not create a dequeue and reapproval loop. CI must still pass on the
+updated state before merging. Updates sent by other accounts require fresh
+approval, including a maintainer's manual rebase.
 
 **For reviewers:** use inline conversation threads for every blocking
 concern, not just the review summary body. Inline threads survive approval
@@ -169,6 +167,21 @@ manual merge step is needed once the two-approval-plus-lead condition is met.
 The following scenarios describe expected queue behavior. They can be verified
 against a Mergify dry-run or by inspecting queue state on a real PR.
 
+Run `python -m pytest tests/test_mergify_policy.py -q` for static configuration
+regression coverage. These tests parse the committed YAML and check review,
+governance, CI and Terraform gates. They do not execute Mergify or establish
+that review dismissal, event delivery or queue operation works on GitHub.
+
+Before enabling the queue, a maintainer must also validate the configuration
+and run a read-only simulation with the
+[Mergify CLI](https://docs.mergify.com/configuration/file-format/):
+`mergify config validate` and
+`mergify config simulate https://github.com/OWASP/openshield/pull/335`.
+Schema validation alone does not prove that the necessary Mergify products
+are enabled or that branch protection enforces the intended policy. Record
+the tested configuration commit, simulation output and the three review
+scenarios below in issue #334 before rollout.
+
 **Scenario 1: Blocking review with no inline thread, followed by unrelated push**
 
 A reviewer submits `CHANGES_REQUESTED` with the concern in the review summary
@@ -203,8 +216,8 @@ checks green.
 Expected behavior:
 - The left side of the `or` condition is false (the PR touches governance files).
 - The right side requires both `#approved-reviews-by>=2` and
-  `approved-reviews-by=Vishnu2707`. With only one approval, neither sub-condition
-  is satisfied.
+  `approved-reviews-by=Vishnu2707`. One approval fails the count condition,
+  even when that approval is from the project lead.
 - The whole `or` condition is false; the PR does not enter the queue.
 - The PR can only proceed once it has at least two approvals and `@Vishnu2707`
   is one of the approvers.
