@@ -702,12 +702,12 @@ The following endpoints are called by the frontend but have no backend implement
 
 ## Attack graph endpoints
 
-`GET /api/attack-graph`, `GET /api/attack-paths`, and `GET /api/attack-paths/<path_id>` expose the attack graph computed from the most recent scan for the caller's tenant.
+`GET /api/attack-graph` returns explicitly observed nodes and relationships from the latest published inventory snapshot for each subscription in the caller's tenant. Complete snapshots expire absent resources and relationships within their tenant/subscription scope. Partial snapshots retain historical evidence in storage, while current graph queries and traversal exclude unobserved resources and relationships. Failed collection keeps the previous published snapshot. `GET /api/attack-paths` and `GET /api/attack-paths/<path_id>` expose paths computed for a requested scan. Successful subsequent scans replace prior paths for the same tenant/subscription, including scans with no findings.
 
 ### Authentication requirement
 
-OIDC callers use the verified tenant claim. A supplied `X-Tenant-Id` header cannot override that claim. In `shared_secret` mode, an authenticated admin may supply `X-Tenant-Id` explicitly; viewer and operator tokens cannot select a tenant. Requests without a usable tenant return `403 {"error": "tenant_id not available; OIDC authentication required"}`. Tenant query parameters never determine graph scope.
+Callers use the tenant claim preserved by the token verifier in either authentication mode. A supplied `X-Tenant-Id` header cannot override that claim. An authenticated admin without a tenant claim may supply `X-Tenant-Id` explicitly; viewer and operator tokens cannot select a tenant. Requests without a usable tenant return `403 {"error": "tenant_id not available; OIDC authentication required"}`. Tenant query parameters never determine graph scope.
 
 ### Attack-path retention
 
-Attack paths are written per scan and are not automatically pruned. In long-running deployments, old scan paths accumulate in `attack_paths`. Retention policy (e.g. keep only the N most recent scans per tenant) is tracked in issue #333 and will be addressed in a follow-up.
+Attack paths are replaced by a newer successful scan within the same tenant/subscription. Clean scans remove prior paths even when there are no findings. Failed scans and delayed older scans retain the newer published evidence. Scope publication and traversal serialize on the same database lock.

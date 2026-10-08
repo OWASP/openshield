@@ -116,7 +116,7 @@ def test_malformed_limit_returns_400(client, tenant_auth_headers, endpoint, limi
     assert response.status_code == 400
 
 
-def test_verified_viewer_token_cannot_select_tenant_in_query(client, app):
+def test_verified_viewer_tenant_cannot_be_overridden_by_header_or_query(client, app):
     import jwt
 
     token = jwt.encode(
@@ -124,7 +124,16 @@ def test_verified_viewer_token_cannot_select_tenant_in_query(client, app):
         app.config["JWT_SECRET"],
         algorithm="HS256",
     )
-    response = client.get(
-        f"/api/attack-graph?tenant_id={_TENANT}", headers={"Authorization": f"Bearer {token}", "X-Tenant-Id": _TENANT}
-    )
-    assert response.status_code == 403
+    foreign = "00000000-0000-0000-0000-000000000099"
+    conn = MagicMock()
+    cursor = conn.cursor.return_value.__enter__.return_value
+    cursor.fetchall.return_value = []
+    db = MagicMock()
+    db.conn = conn
+    with patch("api.routes.attack_graph._get_db", return_value=db):
+        response = client.get(
+            f"/api/attack-graph?tenant_id={foreign}",
+            headers={"Authorization": f"Bearer {token}", "X-Tenant-Id": foreign},
+        )
+    assert response.status_code == 200
+    assert cursor.execute.call_args[0][1]["tenant_id"] == _TENANT

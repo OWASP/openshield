@@ -72,7 +72,8 @@ def test_successful_clean_scan_clears_previous_paths_from_authoritative_scope(pa
             nodes = [row[0] for row in cur.fetchall()]
             cur.execute(
                 "INSERT INTO attack_paths "
-                "(path_id,tenant_id,scan_id,source_node_id,target_node_id,path_node_ids,path_length,relationship_types) "
+                "(path_id,tenant_id,scan_id,source_node_id,target_node_id,"
+                "path_node_ids,path_length,relationship_types) "
                 "VALUES (%s,%s,%s,%s,%s,%s::uuid[],1,ARRAY['MEMBER_OF']) ON CONFLICT DO NOTHING",
                 (str(uuid.uuid4()), tenant, risky, nodes[0], nodes[1], nodes),
             )
@@ -149,3 +150,76 @@ def test_cleanup_keeps_other_tenants_paths(path_scope):
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM graph_nodes WHERE tenant_id=%s", (other_tenant,))
                 cur.execute("DELETE FROM graph_snapshot_scopes WHERE tenant_id=%s", (other_tenant,))
+
+
+def test_authenticated_graph_api_selects_only_current_verified_tenant_evidence(path_scope, client, app):
+    import time
+    import jwt
+    from scanner.arg_inventory import InventoryStatus
+
+    tenant, sub, dsn, scan = path_scope
+    first = scan()
+    risky_scan(tenant, sub, dsn, first)
+    partial = snapshot(tenant, sub, status=InventoryStatus.PARTIAL, linked=False)
+    populate_graph(scan(), replace(partial, resources=partial.resources[:1]), dsn)
+    token = jwt.encode(
+        {"sub": "graph-viewer", "role": "viewer", "tid": tenant, "exp": int(time.time()) + 60},
+        app.config["JWT_SECRET"],
+        algorithm="HS256",
+    )
+    foreign = str(uuid.uuid4())
+    response = client.get(
+        f"/api/attack-graph?subscription_id={sub}&tenant_id={foreign}",
+        headers={"Authorization": f"Bearer {token}", "X-Tenant-Id": foreign},
+    )
+    assert response.status_code == 200
+    result = response.get_json()
+    assert len(result["nodes"]) == 1
+    assert result["nodes"][0]["resource_id"] == partial.resources[0].resource_id.lower()
+    assert result["edges"] == []
+
+
+def test_delayed_older_traversal_cannot_delete_newer_paths(path_scope):
+    tenant, sub, dsn, scan = path_scope
+    older, newer = scan(), scan()
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE scans SET started_at=now()-interval '2 minutes' WHERE scan_id=%s", (older,))
+            cur.execute("UPDATE scans SET started_at=now()-interval '1 minute' WHERE scan_id=%s", (newer,))
+    risky_scan(tenant, sub, dsn, newer)
+    assert path_count(dsn, tenant, newer) == 1
+    assert compute_attack_paths(older, tenant, dsn) == 0
+    assert path_count(dsn, tenant, newer) == 1
+
+
+def test_traversal_waits_for_scope_publication_lock(path_scope):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    tenant, sub, dsn, scan = path_scope
+    sid = scan()
+    risky_scan(tenant, sub, dsn, sid)
+    entered = Event()
+    blocker = psycopg2.connect(dsn)
+    try:
+        with blocker.cursor() as cur:
+            cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (f"openshield-graph:{tenant}:{sub}",))
+
+        def traverse():
+            entered.set()
+            return compute_attack_paths(sid, tenant, dsn)
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(traverse)
+            assert entered.wait(2)
+            try:
+                future.result(timeout=0.3)
+                pytest.fail("traversal completed while its scope lock was held")
+            except TimeoutError:
+                pass
+            finally:
+                blocker.rollback()
+            assert future.result(timeout=5) == 0
+        assert path_count(dsn, tenant, sid) == 1
+    finally:
+        blocker.close()
