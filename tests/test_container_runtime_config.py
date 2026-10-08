@@ -121,7 +121,7 @@ def test_ci_builds_starts_and_scans_one_required_image():
     assert '"$IMAGE_TAG"' in start
     assert "--network host" in start
     assert "127.0.0.1:${POSTGRES_PORT}/ci_db" in start
-    assert _step(steps, "Start image")["env"]["POSTGRES_PORT"] == "${{ job.services.postgres.ports[5432] }}"
+    assert _step(steps, "Start image")["env"]["POSTGRES_PORT"] == "${{ job.services.postgres.ports['5432'] }}"
     assert "OPENSHIELD_ENV=production" in start
     assert "secrets.token_urlsafe(32)" in start
     assert "/ready" in verify
