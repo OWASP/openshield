@@ -16,7 +16,7 @@ import psycopg2.extras
 
 logger = logging.getLogger(__name__)
 
-# Paths longer than this are not persisted — they're rarely actionable and
+# Paths longer than this are not persisted â€” they're rarely actionable and
 # keeping them would inflate the table for large graphs.
 _MAX_PATH_LENGTH = 8
 
@@ -33,8 +33,8 @@ def _load_adjacency(conn: Any, tenant_id: str) -> dict[str, list[tuple[str, str,
             """
             SELECT e.source_node_id::text, e.target_node_id::text,
                    e.relationship_type, e.confidence
-            FROM graph_edges e
-            JOIN graph_nodes src ON src.node_id = e.source_node_id
+            FROM current_graph_edges e
+            JOIN current_graph_nodes src ON src.node_id = e.source_node_id
             WHERE src.tenant_id = %(tenant_id)s
             """,
             {"tenant_id": tenant_id},
@@ -59,7 +59,7 @@ def _load_finding_nodes(conn: Any, scan_id: str, tenant_id: str) -> list[str]:
             SELECT DISTINCT fgn.node_id::text
             FROM finding_graph_nodes fgn
             JOIN findings f ON f.id = fgn.finding_id
-            JOIN graph_nodes n ON n.node_id = fgn.node_id
+            JOIN current_graph_nodes n ON n.node_id = fgn.node_id
             WHERE f.scan_id = %(scan_id)s
               AND n.tenant_id = %(tenant_id)s
             """,
@@ -108,20 +108,14 @@ def _delete_stale_paths(conn: Any, scan_id: str, tenant_id: str) -> None:
     with conn.cursor() as cur:
         cur.execute(
             """
-            DELETE FROM attack_paths
-            WHERE tenant_id = %(tenant_id)s
-              AND scan_id != %(scan_id)s
-              AND scan_id IN (
-                  SELECT DISTINCT ap2.scan_id
-                  FROM attack_paths ap2
-                  JOIN findings f ON f.scan_id = ap2.scan_id
-                  WHERE ap2.tenant_id = %(tenant_id)s
-                    AND f.subscription_id = (
-                        SELECT subscription_id FROM findings
-                        WHERE scan_id = %(scan_id)s
-                        LIMIT 1
-                    )
-              )
+            DELETE FROM attack_paths ap
+            USING scans previous, scans current
+            WHERE ap.tenant_id = %(tenant_id)s
+              AND ap.scan_id <> %(scan_id)s
+              AND previous.scan_id::text = ap.scan_id
+              AND current.scan_id = %(scan_id)s::uuid
+              AND current.status = 'completed'
+              AND previous.subscription_id = current.subscription_id
             """,
             {"tenant_id": tenant_id, "scan_id": scan_id},
         )

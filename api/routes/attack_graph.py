@@ -79,7 +79,7 @@ def get_attack_graph():
                     SELECT n.node_id::text, n.resource_id, n.resource_type, n.name,
                            n.location, n.resource_group, n.subscription_id, n.snapshot_id,
                            n.updated_at
-                    FROM graph_nodes n
+                    FROM current_graph_nodes n
                     WHERE n.tenant_id = %(tenant_id)s
                       AND n.subscription_id = %(subscription_id)s
                     ORDER BY n.updated_at DESC
@@ -93,7 +93,7 @@ def get_attack_graph():
                     SELECT n.node_id::text, n.resource_id, n.resource_type, n.name,
                            n.location, n.resource_group, n.subscription_id, n.snapshot_id,
                            n.updated_at
-                    FROM graph_nodes n
+                    FROM current_graph_nodes n
                     WHERE n.tenant_id = %(tenant_id)s
                     ORDER BY n.updated_at DESC
                     LIMIT %(limit)s
@@ -109,7 +109,7 @@ def get_attack_graph():
                     """
                     SELECT e.edge_id::text, e.source_node_id::text, e.target_node_id::text,
                            e.relationship_type, e.confidence, e.evidence_source, e.collected_at
-                    FROM graph_edges e
+                    FROM current_graph_edges e
                     WHERE e.source_node_id = ANY(%(node_ids)s::uuid[])
                       AND e.target_node_id = ANY(%(node_ids)s::uuid[])
                     """,
