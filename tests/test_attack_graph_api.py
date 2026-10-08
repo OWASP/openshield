@@ -104,3 +104,27 @@ def test_get_attack_path_not_found_returns_404(client, tenant_auth_headers):
         with patch.dict("os.environ", {"DATABASE_URL": "postgresql://fake/db"}):
             resp = client.get(f"/api/attack-paths/{valid_uuid}", headers=tenant_auth_headers)
     assert resp.status_code == 404
+
+
+@pytest.mark.parametrize("limit", ["abc", "", "1.5", "0", "-1"])
+@pytest.mark.parametrize(
+    "endpoint", ["/api/attack-graph", "/api/attack-paths?scan_id=00000000-0000-0000-0000-000000000002"]
+)
+def test_malformed_limit_returns_400(client, tenant_auth_headers, endpoint, limit):
+    separator = "&" if "?" in endpoint else "?"
+    response = client.get(f"{endpoint}{separator}limit={limit}", headers=tenant_auth_headers)
+    assert response.status_code == 400
+
+
+def test_verified_viewer_token_cannot_select_tenant_in_query(client, app):
+    import jwt
+
+    token = jwt.encode(
+        {"sub": "viewer", "role": "viewer", "tid": _TENANT, "exp": int(time.time()) + 60},
+        app.config["JWT_SECRET"],
+        algorithm="HS256",
+    )
+    response = client.get(
+        f"/api/attack-graph?tenant_id={_TENANT}", headers={"Authorization": f"Bearer {token}", "X-Tenant-Id": _TENANT}
+    )
+    assert response.status_code == 403
