@@ -108,3 +108,13 @@ def link_findings_to_nodes(scan_id: str, tenant_id: str, dsn: str, *, connection
             cur.execute(_LINK_FINDINGS_SQL, {"scan_id": scan_id, "tenant_id": tenant_id})
             result = cur.rowcount if cur.rowcount >= 0 else 0
     return result
+
+
+def lock_graph_scopes(conn, tenant_id: str, subscriptions) -> None:
+    """Serialize all publications and traversals within the same scope."""
+    with conn.cursor() as cur:
+        for subscription in sorted(set(subscriptions)):
+            cur.execute(
+                "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                (f"openshield-graph:{tenant_id}:{subscription}",),
+            )

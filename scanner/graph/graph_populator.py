@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 
 from scanner.arg_inventory import InventoryResource, InventoryStatus
-from scanner.graph.node_service import graph_connection, link_findings_to_nodes, populate_nodes
+from scanner.graph.node_service import graph_connection, link_findings_to_nodes, lock_graph_scopes, populate_nodes
 from scanner.graph.edge_detector import detect_all_edges
 
 if TYPE_CHECKING:
@@ -126,6 +126,16 @@ def populate_graph(scan_id: str, snapshot: InventorySnapshot, dsn: str) -> None:
         # Publish the new scope only after every write succeeds. Partial snapshots
         # retain historical rows, but the views expose only explicit current evidence.
         with graph_connection(dsn) as conn:
+            lock_graph_scopes(conn, snapshot.tenant_id, snapshot.requested_subscriptions)
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM graph_snapshot_scopes WHERE tenant_id=%s "
+                    "AND subscription_id=ANY(%s) AND collected_at > %s::timestamptz LIMIT 1",
+                    (snapshot.tenant_id, list(snapshot.requested_subscriptions), snapshot.collected_at),
+                )
+                if cur.fetchone() is not None:
+                    logger.info("graph: ignored older snapshot for scan %s", scan_id)
+                    return
             node_count = populate_nodes(augmented_snapshot, dsn, connection=conn)
             edges = detect_all_edges(augmented_snapshot)
             edge_count = _write_edges(edges, snapshot.snapshot_id, snapshot.tenant_id, dsn, connection=conn)
