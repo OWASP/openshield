@@ -58,9 +58,13 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the project lead **Vishnu Ajith** at vishnu.ajith@owasp.org,
-or contact OWASP directly at <https://owasp.org/contact/>. Do not use the
-security advisory channel for conduct reports.
+reported through the published project contact for **Vishnu Ajith** at
+vishnu.ajith@owasp.org. Before sending sensitive incident details, request
+confirmation that the recipient accepts conduct reports at this address.
+Maintainers still need to confirm contact ownership, consent and monitoring.
+Alternatively, contact OWASP directly at <https://owasp.org/contact/> to ask
+for the appropriate conduct reporting channel. Do not use the security
+advisory channel for conduct reports.
 
 All complaints will be reviewed and investigated promptly and fairly.
 

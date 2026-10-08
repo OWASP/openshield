@@ -4,11 +4,13 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Email **vishnu.ajith@owasp.org** with your report. This is the current primary
-channel while GitHub private vulnerability reporting (PVR) is being enabled for
-this organization.
+The published project contact is **vishnu.ajith@owasp.org**. Before sending
+sensitive vulnerability details, request confirmation that this address is
+monitored for security reports and that the recipient can accept the report.
+Mailbox ownership, monitoring and the response targets below still require
+maintainer confirmation; this policy does not establish those operational facts.
 
-Once PVR is active, you will also be able to report via
+If maintainers enable GitHub private vulnerability reporting (PVR), you can report via
 [GitHub's private security advisory feature](https://github.com/OWASP/openshield/security/advisories/new).
 
 Please include:
@@ -20,6 +22,9 @@ Please include:
 - Any suggested fix (optional)
 
 ### Response timeline
+
+These are intended response targets, subject to confirmation of an operational
+reporting channel. They are not a guarantee of mailbox monitoring or delivery.
 
 | Stage | Target |
 |---|---|
@@ -67,7 +72,7 @@ does helps reporters accurately scope their findings.
 
 ### Out of scope
 
-- Vulnerabilities in third-party dependencies — report those to the upstream maintainer
+- Vulnerabilities in third-party dependencies: report those to the upstream maintainer
 - Security issues in infrastructure you deploy OpenShield to (your Azure environment, your PostgreSQL instance)
 - False-positive scan findings due to unsupported Azure API versions or preview features
 - Rate limiting or throttling by the Azure ARM API
