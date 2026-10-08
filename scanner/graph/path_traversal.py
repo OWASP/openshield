@@ -14,9 +14,11 @@ from typing import Any
 import psycopg2
 import psycopg2.extras
 
+from scanner.graph.node_service import lock_graph_scopes
+
 logger = logging.getLogger(__name__)
 
-# Paths longer than this are not persisted â€” they're rarely actionable and
+# Paths longer than this are not persisted because they are rarely actionable and
 # keeping them would inflate the table for large graphs.
 _MAX_PATH_LENGTH = 8
 
@@ -103,9 +105,25 @@ def _bfs_from(
     return paths
 
 
-def _delete_stale_paths(conn: Any, scan_id: str, tenant_id: str) -> None:
+def _delete_stale_paths(conn: Any, scan_id: str, tenant_id: str) -> bool:
     """Delete attack paths from previous scans for the same subscription, keeping only the current scan."""
     with conn.cursor() as cur:
+        cur.execute("SELECT subscription_id FROM scans WHERE scan_id=%s::uuid", (scan_id,))
+        scope = cur.fetchone()
+        if scope is None:
+            return False
+    lock_graph_scopes(conn, tenant_id, [scope[0]])
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT current.status='completed' AND NOT EXISTS ("
+            "SELECT 1 FROM scans newer WHERE newer.subscription_id=current.subscription_id "
+            "AND newer.status='completed' AND newer.started_at > current.started_at) "
+            "FROM scans current WHERE current.scan_id=%s::uuid",
+            (scan_id,),
+        )
+        row = cur.fetchone()
+        if row is None or not row[0]:
+            return False
         cur.execute(
             """
             DELETE FROM attack_paths ap
@@ -116,9 +134,12 @@ def _delete_stale_paths(conn: Any, scan_id: str, tenant_id: str) -> None:
               AND current.scan_id = %(scan_id)s::uuid
               AND current.status = 'completed'
               AND previous.subscription_id = current.subscription_id
+              AND previous.started_at <= current.started_at
             """,
             {"tenant_id": tenant_id, "scan_id": scan_id},
         )
+
+    return True
 
 
 def _write_paths(
@@ -169,7 +190,9 @@ def compute_attack_paths(scan_id: str, tenant_id: str, dsn: str) -> int:
         conn = psycopg2.connect(dsn)
         conn.autocommit = False
         try:
-            _delete_stale_paths(conn, scan_id, tenant_id)
+            if not _delete_stale_paths(conn, scan_id, tenant_id):
+                conn.commit()
+                return 0
             adj = _load_adjacency(conn, tenant_id)
             source_nodes = _load_finding_nodes(conn, scan_id, tenant_id)
             if not source_nodes:

@@ -26,8 +26,8 @@ def _get_db() -> DatabaseManager:
 def _tenant_id() -> str | None:
     """Resolve tenant_id from the verified principal.
 
-    OIDC mode: the 'tenant' field is populated from the 'tid' claim in the token.
-    Shared-secret mode: 'tenant' is always None; admins may supply
+    The 'tenant' field comes from the verified token's tenant claim.
+    For tokens without a tenant claim, admins may supply
     X-Tenant-Id as a request header (never a query param, which leaks into
     logs and caches). Non-admin tokens cannot override the header.
     """
@@ -60,14 +60,13 @@ def get_attack_graph():
         if limit > _MAX_LIMIT:
             limit = _MAX_LIMIT
         subscription_id = request.args.get("subscription_id")
-    except (ValidationError, ValueError) as exc:
-        return jsonify({"error": str(exc)}), 400
+    except (ValidationError, ValueError):
+        return jsonify({"error": "Invalid request parameters"}), 400
 
     tenant_id = _tenant_id()
     if not tenant_id:
-        # Shared-secret callers have no tenant claim; OIDC is required for
-        # tenant-scoped graph endpoints. Return 403 (not 400) since the
-        # request is well-formed but the auth method is insufficient.
+        # A caller without a verified tenant or admin fallback cannot access
+        # tenant-scoped graph evidence.
         return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
     try:
@@ -137,14 +136,13 @@ def list_attack_paths():
         limit = positive_integer(int(request.args.get("limit", _DEFAULT_LIMIT)), "limit")
         if limit > _MAX_LIMIT:
             limit = _MAX_LIMIT
-    except (ValidationError, ValueError) as exc:
-        return jsonify({"error": str(exc)}), 400
+    except (ValidationError, ValueError):
+        return jsonify({"error": "Invalid request parameters"}), 400
 
     tenant_id = _tenant_id()
     if not tenant_id:
-        # Shared-secret callers have no tenant claim; OIDC is required for
-        # tenant-scoped graph endpoints. Return 403 (not 400) since the
-        # request is well-formed but the auth method is insufficient.
+        # A caller without a verified tenant or admin fallback cannot access
+        # tenant-scoped graph evidence.
         return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
     try:
@@ -180,14 +178,13 @@ def get_attack_path(path_id: str):
     """Return a single attack path with full node detail for each hop."""
     try:
         path_id = uuid_string(path_id, "path_id")
-    except (ValidationError, ValueError) as exc:
-        return jsonify({"error": str(exc)}), 400
+    except (ValidationError, ValueError):
+        return jsonify({"error": "Invalid request parameters"}), 400
 
     tenant_id = _tenant_id()
     if not tenant_id:
-        # Shared-secret callers have no tenant claim; OIDC is required for
-        # tenant-scoped graph endpoints. Return 403 (not 400) since the
-        # request is well-formed but the auth method is insufficient.
+        # A caller without a verified tenant or admin fallback cannot access
+        # tenant-scoped graph evidence.
         return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
     try:
