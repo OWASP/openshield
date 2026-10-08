@@ -2,82 +2,99 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in OpenShield, please **do not open a public GitHub issue**.
-Opening a public issue exposes the vulnerability to bad actors before a fix is available.
+**Do not open a public GitHub issue for security vulnerabilities.**
 
+The published project contact is **vishnu.ajith@owasp.org**. Before sending
+sensitive vulnerability details, request confirmation that this address is
+monitored for security reports and that the recipient can accept the report.
+Mailbox ownership, monitoring and the response targets below still require
+maintainer confirmation; this policy does not establish those operational facts.
 
-We will acknowledge your report within 48 hours and work with you to coordinate a fix and responsible disclosure timeline.
+If maintainers enable GitHub private vulnerability reporting (PVR), you can report via
+[GitHub's private security advisory feature](https://github.com/OWASP/openshield/security/advisories/new).
 
-### What to include in your report
-
-To help us triage quickly, please include:
+Please include:
 
 - A description of the vulnerability and its potential impact
-- The affected component (scanner engine, REST API, auth logic, playbooks)
-- Steps to reproduce the issue
-- Any relevant logs, proof-of-concept code, or screenshots
-- The version of OpenShield you were testing (check `git log --oneline -1`)
+- The affected component (scanner engine, REST API, auth logic, playbooks, sentinel)
+- Steps to reproduce or a proof-of-concept (if available)
+- Affected versions or components
+- Any suggested fix (optional)
 
-The more detail you provide, the faster we can respond.
+### Response timeline
+
+These are intended response targets, subject to confirmation of an operational
+reporting channel. They are not a guarantee of mailbox monitoring or delivery.
+
+| Stage | Target |
+|---|---|
+| Acknowledgement | Within 48 hours |
+| Initial triage and severity assessment | Within 5 business days |
+| Fix or mitigation | Depends on severity; critical issues within 14 days |
+| Public disclosure | Coordinated with reporter after fix is merged |
+
+We follow coordinated disclosure. We will credit reporters in
+[SECURITY_ACKNOWLEDGEMENTS.md](https://github.com/OWASP/openshield/blob/main/SECURITY_ACKNOWLEDGEMENTS.md)
+unless they prefer to remain anonymous.
 
 ---
 
 ## Supported Versions
 
+We actively maintain the latest release on the `main` branch. Security fixes are
+applied to the current release only. We do not backport fixes to older versions.
+
 | Version | Supported |
-|---------|-----------|
-| 0.3.x   | Yes       |
-| 0.1.x   | No        |
-
-Older versions are not patched unless a GitHub Security Advisory explicitly says otherwise. Upgrade to the latest release before filing a report.
+|---|---|
+| Latest (`main`) | Yes |
+| Older releases | No |
 
 ---
 
-## Disclosure Process
+## Security Scope
 
-We follow a coordinated disclosure model:
-
-1. **Report received** -- you email the vulnerability privately
-2. **Acknowledgement** -- we respond within 48 hours to confirm receipt
-3. **Investigation** -- we reproduce and assess the impact
-4. **Fix developed** -- we write and test a patch
-5. **Coordinated release** -- we agree a disclosure date with you (typically 7-14 days after fix)
-6. **Public advisory** -- we publish a GitHub Security Advisory and release the fix
-
-We ask that you do not publicly disclose the vulnerability until step 6 is complete.
-
----
-
-## Scope
+OpenShield is a multi-component security tool. Understanding what each component
+does helps reporters accurately scope their findings.
 
 ### In scope
 
-- Scanner engine (`scanner/`) -- rule logic, Azure SDK calls, output handling
-- REST API (`api/`) -- authentication, authorisation, input validation, JWT handling
-- Compliance framework mappings (`compliance/`) -- data integrity
-- Sentinel integration (`sentinel/`) -- HMAC signing, data upload logic
-- Hardcoded secrets or credentials anywhere in the codebase
+| Component | What it does | Security relevance |
+|---|---|---|
+| `api/` | REST API with JWT/OIDC authentication and role-based access control | Auth bypass, privilege escalation, input validation, JWT handling |
+| `scanner/` | Reads Azure resource configuration via the Azure SDK; does not write | Credential handling, cross-tenant isolation, output integrity |
+| `playbooks/cli/` | Remediation scripts that modify Azure resources when run manually | Command injection, privilege escalation, unsafe Azure mutations |
+| `sentinel/` | Signs and uploads scan data to Azure Log Analytics via HMAC | HMAC signing, credential handling, data integrity |
+| `ai/` | RAG pipeline (embedding, retrieval, chunking) invoked by the API AI endpoints | Prompt injection, data leakage, path traversal on document loading |
+| `compliance/` | Compliance framework mappings consumed by the API and scanner | Logic errors that incorrectly map controls, suppressing true positives |
+| `frontend/` | React dashboard that displays scan results and compliance reports | XSS, CSRF, insecure API consumption, auth state handling |
+| `website/` | Astro project website and documentation | XSS, content injection, dependency vulnerabilities |
+| Hardcoded secrets | Anywhere in the codebase | Any real credential committed to the repo |
 
 ### Out of scope
 
-- Vulnerabilities in third-party dependencies -- report those to the upstream maintainer
+- Vulnerabilities solely in third-party dependencies without an OpenShield-specific impact: report those to the upstream maintainer. Report exploitable integration or deployment issues in the components listed above through the OpenShield reporting channel.
 - Security issues in infrastructure you deploy OpenShield to (your Azure environment, your PostgreSQL instance)
+- False-positive scan findings due to unsupported Azure API versions or preview features
+- Rate limiting or throttling by the Azure ARM API
 - Social engineering attacks
 - Physical security
 
----
+### Clarification on read-only behavior
 
-## Recognition
-
-We value responsible disclosure. Researchers who report valid vulnerabilities will be:
-
-- Acknowledged by name (or pseudonym if preferred) in the release notes for the fix
-- Listed in [`SECURITY_ACKNOWLEDGEMENTS.md`](../SECURITY_ACKNOWLEDGEMENTS.md)
-
-We do not currently offer a bug bounty programme, but we are grateful for every report.
+The `scanner/` component is read-only: it reads Azure configuration and does not
+modify resources. The `playbooks/cli/` scripts are separate executables that a
+human operator runs manually; they do modify Azure resources. The REST API and
+sentinel components are active network services.
 
 ---
 
-## Contact
+## Security Controls in This Repository
 
-**Email: vishnu.ajith@owasp.org**
+| Control | Implementation |
+|---|---|
+| Static analysis (SAST) | Semgrep, Bandit in CI + CodeQL (separate workflow) on every PR |
+| Dependency scanning | Dependabot alerts (GitHub) + pip-audit in CI |
+| Secret scanning | Gitleaks in CI |
+| Container scanning | Trivy in CI |
+| SBOM generation | Syft in CI |
+| DCO sign-off | DCO check runs on every pull request |
