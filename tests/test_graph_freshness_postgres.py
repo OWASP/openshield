@@ -137,3 +137,50 @@ def test_complete_snapshot_does_not_prune_another_tenant(graph_scope):
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM graph_nodes WHERE tenant_id=%s", (other,))
                 cur.execute("DELETE FROM graph_snapshot_scopes WHERE tenant_id=%s", (other,))
+
+
+def test_delayed_older_snapshot_cannot_replace_or_prune_current_scope(graph_scope):
+    tenant, sub, dsn = graph_scope
+    newer = replace(snapshot(tenant, sub), collected_at="2026-10-07T00:02:00Z")
+    older = replace(snapshot(tenant, sub, empty=True), collected_at="2026-10-07T00:01:00Z")
+    populate_graph(str(uuid.uuid4()), newer, dsn)
+    populate_graph(str(uuid.uuid4()), older, dsn)
+    assert counts(dsn, tenant, sub, current=True) == (2, 1)
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT snapshot_id FROM graph_snapshot_scopes WHERE tenant_id=%s AND subscription_id=%s", (tenant, sub)
+            )
+            assert cur.fetchone()[0] == newer.snapshot_id
+
+
+def test_publication_waits_for_scope_transaction_lock(graph_scope):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    tenant, sub, dsn = graph_scope
+    entered = Event()
+    pending = snapshot(tenant, sub)
+    blocker = psycopg2.connect(dsn)
+    try:
+        with blocker.cursor() as cur:
+            cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (f"openshield-graph:{tenant}:{sub}",))
+
+        def publish():
+            entered.set()
+            populate_graph(str(uuid.uuid4()), pending, dsn)
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(publish)
+            assert entered.wait(2)
+            try:
+                future.result(timeout=0.3)
+                pytest.fail("publication completed while its scope lock was held")
+            except TimeoutError:
+                pass
+            finally:
+                blocker.rollback()
+            future.result(timeout=5)
+        assert counts(dsn, tenant, sub, current=True) == (2, 1)
+    finally:
+        blocker.close()
