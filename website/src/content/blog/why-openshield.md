@@ -26,7 +26,7 @@ OpenShield was born to bridge this gap. One service principal with the built-in 
 - A compliance mapping per finding, declared in the rule itself, covering CIS Azure, NIST CSF, ISO 27001 and SOC 2.
 - A remediation playbook reference, so the distance between "found" and "fixed" is one shell script.
 
-![One finding mapped to four frameworks: CIS 3.5, NIST PR.AC-3, ISO 27001 A.9.4.1 and SOC 2 CC6.1](/openshield/diagrams/compliance-map.svg)
+![One finding mapped to four frameworks: CIS 3.5, NIST PR.AC-3, ISO 27001 A.8.3 and SOC 2 CC6.1](/openshield/diagrams/compliance-map.svg)
 
 *Fig. 2: compliance evidence is data on the rule, not a sales deck.*
 

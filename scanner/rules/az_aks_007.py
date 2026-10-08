@@ -8,7 +8,7 @@ RULE_ID = "AZ-AKS-007"
 RULE_NAME = "AKS API Server Lacks Approved IP Restrictions"
 SEVERITY = "HIGH"
 CATEGORY = "Kubernetes"
-FRAMEWORKS = {"CIS": "N/A-AKS-007", "NIST": "PR.AC-3", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-AKS-007", "NIST": "PR.AC-3", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = "A public AKS API server accepts traffic from sources outside the organization-approved IP ranges."
 REMEDIATION = (
     "Use a private cluster or restrict API server authorized IP ranges to the approved administration networks."

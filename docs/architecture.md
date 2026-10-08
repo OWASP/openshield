@@ -148,7 +148,7 @@ Every finding returned by a rule must conform to this schema:
     "description": str,
     "remediation": str,
     "playbook": str,  # path to the CLI remediation script
-    "frameworks": dict,  # {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.9.4.1"}
+    "frameworks": dict,  # {"CIS": "3.5", "NIST": "PR.AC-3", "ISO27001": "A.8.3"}
     "metadata": dict,  # optional rule-specific context
     "detected_at": str,  # ISO 8601, added by engine
     "scan_id": str,  # UUID, added by engine

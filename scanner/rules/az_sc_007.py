@@ -7,7 +7,7 @@ RULE_ID = "AZ-SC-007"
 RULE_NAME = "Pipeline Service Connection Scoped to Subscription"
 SEVERITY = "HIGH"
 CATEGORY = "Supply Chain"
-FRAMEWORKS = {"CIS": "N/A-SC-007", "NIST": "PR.AC-4", "ISO27001": "A.9.2.3", "SOC2": "CC6.1"}
+FRAMEWORKS = {"CIS": "N/A-SC-007", "NIST": "PR.AC-4", "ISO27001": "A.8.2", "SOC2": "CC6.1"}
 
 DESCRIPTION = (
     "An Azure DevOps service connection is scoped to the entire subscription rather than a "

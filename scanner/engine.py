@@ -139,7 +139,7 @@ class ScanEngine:
         for rule in self.rules:
             rule_id = getattr(rule, "RULE_ID", "UNKNOWN")
             try:
-                if len(inspect.signature(rule.scan).parameters) >= 3:
+                if "snapshot" in inspect.signature(rule.scan).parameters:
                     rule_findings = rule.scan(self.client, self.subscription_id, snapshot)
                 else:
                     rule_findings = rule.scan(self.client, self.subscription_id)

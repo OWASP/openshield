@@ -9,7 +9,7 @@ RULE_ID = "AZ-NET-020"
 RULE_NAME = "Private Endpoint Lacks Private DNS Zone Association"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-020", "NIST": "PR.AC-5", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-NET-020", "NIST": "PR.AC-5", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = "An approved Private Endpoint has no associated Private DNS zone group."
 REMEDIATION = (
     "Associate the service's documented privatelink DNS zone with the Private Endpoint "

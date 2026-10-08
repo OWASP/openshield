@@ -9,7 +9,7 @@ RULE_ID = "AZ-DB-002"
 RULE_NAME = "Azure SQL Server Has No Auditing Configured"
 SEVERITY = "MEDIUM"
 CATEGORY = "Database"
-FRAMEWORKS = {"CIS": "4.1.3", "NIST": "DE.CM-7", "ISO27001": "A.12.4.1"}
+FRAMEWORKS = {"CIS": "4.1.3", "NIST": "DE.CM-7", "ISO27001": "A.8.15"}
 DESCRIPTION = (
     "Azure SQL Server auditing is disabled. Without auditing, database access, "
     "schema changes, and failed login attempts are not logged, making forensic "

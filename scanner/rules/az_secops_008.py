@@ -12,7 +12,7 @@ RULE_ID = "AZ-SECOPS-008"
 RULE_NAME = "Required Microsoft Sentinel Data Connector Disconnected or Unhealthy"
 SEVERITY = "HIGH"
 CATEGORY = "Security Operations"
-FRAMEWORKS = {"CIS": "N/A-SECOPS-008", "NIST": "DE.AE-3", "ISO27001": "A.12.4.1", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "N/A-SECOPS-008", "NIST": "DE.AE-3", "ISO27001": "A.8.16", "SOC2": "CC7.2"}
 DESCRIPTION = (
     "An organisation-required Microsoft Sentinel data connector is either missing from a "
     "Sentinel-onboarded workspace or present with every one of its log data types disabled, which "

@@ -18,7 +18,7 @@ RULE_ID = "AZ-SECOPS-003"
 RULE_NAME = "Critical Resource Missing Required Diagnostic Settings"
 SEVERITY = "HIGH"
 CATEGORY = "Security Operations"
-FRAMEWORKS = {"CIS": "5.4", "NIST": "DE.AE-3", "ISO27001": "A.12.4.1", "SOC2": "CC7.2"}
+FRAMEWORKS = {"CIS": "5.4", "NIST": "DE.AE-3", "ISO27001": "A.8.15", "SOC2": "CC7.2"}
 DESCRIPTION = (
     "A resource of an organisation-defined critical type has no diagnostic setting exporting to "
     "an approved central destination. Critical resources (e.g. Key Vaults, SQL servers, Storage "

@@ -6,7 +6,7 @@ RULE_ID = "AZ-NET-002"
 RULE_NAME = "NSG Allows Unrestricted Inbound RDP from Any Source"
 SEVERITY = "HIGH"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "6.3", "NIST": "PR.AC-3", "ISO27001": "A.13.1.1"}
+FRAMEWORKS = {"CIS": "6.3", "NIST": "PR.AC-3", "ISO27001": "A.8.20"}
 DESCRIPTION = (
     "The Network Security Group has an Allow rule for inbound TCP port 3389 (RDP) "
     "from any source address (0.0.0.0/0, *, or Internet). Exposing RDP to the "

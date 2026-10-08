@@ -9,7 +9,7 @@ RULE_ID = "AZ-NET-017"
 RULE_NAME = "User-Defined Default Route Uses Direct Internet Next Hop"
 SEVERITY = "MEDIUM"
 CATEGORY = "Network"
-FRAMEWORKS = {"CIS": "N/A-NET-017", "NIST": "SC-7", "ISO27001": "A.13.1.1", "SOC2": "CC6.6"}
+FRAMEWORKS = {"CIS": "N/A-NET-017", "NIST": "SC-7", "ISO27001": "A.8.20", "SOC2": "CC6.6"}
 DESCRIPTION = (
     "A user-defined IPv4 or IPv6 default route explicitly sends traffic to the Internet next hop. This bypasses "
     "a virtual appliance or virtual network gateway that would otherwise provide controlled egress inspection."

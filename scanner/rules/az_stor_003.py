@@ -18,7 +18,7 @@ CATEGORY = "Storage"
 FRAMEWORKS = {
     "CIS": "3.7",
     "NIST": "PR.DS-3",
-    "ISO27001": "A.8.3.1",
+    "ISO27001": "A.7.10",
 }
 DESCRIPTION = (
     "The storage account has no lifecycle management policy configured. "
