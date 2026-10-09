@@ -227,3 +227,63 @@ def test_context_manager_closes_sdk_client():
         pass
 
     client.close.assert_called_once_with()
+
+
+def test_default_query_contains_bag_merge_and_identity():
+    """DEFAULT_QUERY must merge the top-level identity column into properties.
+
+    ARG does not include the identity field in the properties column by default.
+    The bag_merge call ensures it is accessible as properties.identity so that
+    IdentityToResourceDetector can read it without special-casing the query caller.
+    """
+    from scanner.arg_inventory import DEFAULT_QUERY
+
+    assert "bag_merge" in DEFAULT_QUERY
+    assert "identity" in DEFAULT_QUERY
+
+
+def test_identity_field_merged_into_properties_is_parsed_by_identity_detector():
+    """A row whose identity is merged into properties by bag_merge is detected correctly.
+
+    Simulates the ARG response shape produced by DEFAULT_QUERY: the top-level
+    identity column is merged into the properties dict before ArgInventoryClient
+    returns it, so IdentityToResourceDetector should find userAssignedIdentities there.
+    """
+    from scanner.arg_inventory import InventoryResource, InventorySnapshot, InventoryStatus
+    from scanner.graph.edge_detector import IdentityToResourceDetector
+
+    vm_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm1"
+    identity_id = "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mid1"
+
+    # Simulate what ARG returns after bag_merge(properties, pack('identity', identity)):
+    # the resource row has properties.identity set with userAssignedIdentities.
+    resource = InventoryResource(
+        snapshot_id="snap-kql",
+        tenant_id=TENANT_ID,
+        subscription_id=SUBSCRIPTION_A,
+        resource_id=vm_id,
+        resource_type="microsoft.compute/virtualmachines",
+        name="vm1",
+        location="eastus",
+        resource_group="rg",
+        tags={},
+        properties={"identity": {"userAssignedIdentities": {identity_id: {}}}},
+    )
+    snapshot = InventorySnapshot(
+        snapshot_id="snap-kql",
+        tenant_id=TENANT_ID,
+        requested_subscriptions=(SUBSCRIPTION_A,),
+        status=InventoryStatus.COMPLETE,
+        collected_at="2026-09-24T00:00:00+00:00",
+        duration_ms=1,
+        pages=1,
+        resources=(resource,),
+        errors=(),
+    )
+
+    edges = IdentityToResourceDetector().detect(snapshot)
+
+    assert len(edges) == 1
+    assert edges[0].relationship_type == "HAS_IDENTITY"
+    assert edges[0].source_resource_id == identity_id
+    assert edges[0].target_resource_id == vm_id
