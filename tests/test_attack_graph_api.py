@@ -108,7 +108,7 @@ def test_get_attack_path_not_found_returns_404(client, tenant_auth_headers):
 
 @pytest.mark.parametrize("limit", ["abc", "", "1.5", "0", "-1"])
 @pytest.mark.parametrize(
-    "endpoint", ["/api/attack-graph", "/api/attack-paths?scan_id=00000000-0000-0000-0000-000000000002"]
+    "endpoint", ["/api/v1/attack-graph", "/api/v1/attack-paths?scan_id=00000000-0000-0000-0000-000000000002"]
 )
 def test_malformed_limit_returns_400(client, tenant_auth_headers, endpoint, limit):
     separator = "&" if "?" in endpoint else "?"
@@ -132,7 +132,7 @@ def test_verified_viewer_tenant_cannot_be_overridden_by_header_or_query(client, 
     db.conn = conn
     with patch("api.routes.attack_graph._get_db", return_value=db):
         response = client.get(
-            f"/api/attack-graph?tenant_id={foreign}",
+            f"/api/v1/attack-graph?tenant_id={foreign}",
             headers={"Authorization": f"Bearer {token}", "X-Tenant-Id": foreign},
         )
     assert response.status_code == 200
