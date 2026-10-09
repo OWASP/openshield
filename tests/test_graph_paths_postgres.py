@@ -169,7 +169,7 @@ def test_authenticated_graph_api_selects_only_current_verified_tenant_evidence(p
     )
     foreign = str(uuid.uuid4())
     response = client.get(
-        f"/api/attack-graph?subscription_id={sub}&tenant_id={foreign}",
+        f"/api/v1/attack-graph?subscription_id={sub}&tenant_id={foreign}",
         headers={"Authorization": f"Bearer {token}", "X-Tenant-Id": foreign},
     )
     assert response.status_code == 200
