@@ -49,7 +49,7 @@ def _close_db(exc):
         db.close()
 
 
-@attack_graph_bp.get("/api/attack-graph")
+@attack_graph_bp.get("/api/v1/attack-graph")
 def get_attack_graph():
     """Return graph nodes and edges for the caller's tenant (latest snapshot).
 
@@ -122,7 +122,7 @@ def get_attack_graph():
     return jsonify({"nodes": [dict(r) for r in nodes], "edges": [dict(r) for r in edges]})
 
 
-@attack_graph_bp.get("/api/attack-paths")
+@attack_graph_bp.get("/api/v1/attack-paths")
 def list_attack_paths():
     """Return pre-computed attack paths for a scan.
 
@@ -173,7 +173,7 @@ def list_attack_paths():
     return jsonify({"scan_id": scan_id, "paths": [dict(r) for r in rows]})
 
 
-@attack_graph_bp.get("/api/attack-paths/<path_id>")
+@attack_graph_bp.get("/api/v1/attack-paths/<path_id>")
 def get_attack_path(path_id: str):
     """Return a single attack path with full node detail for each hop."""
     try:
