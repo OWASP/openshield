@@ -230,7 +230,7 @@ def test_nic_to_subnet_member_of_edge_written(db_conn, populated_graph):
 
 
 def test_vm_to_identity_has_identity_edge_written(db_conn, populated_graph):
-    """VM -> UAMI HAS_IDENTITY edge must be written (identity field from bag_merge in ARG query)."""
+    """UAMI -> VM HAS_IDENTITY edge must be written (BFS traverses this in reverse for attack paths)."""
     with db_conn.cursor() as cur:
         cur.execute(
             """
@@ -242,10 +242,10 @@ def test_vm_to_identity_has_identity_edge_written(db_conn, populated_graph):
               AND lower(tgt.resource_id) = lower(%s)
               AND ge.evidence_snapshot_id = %s
             """,
-            (_VM_ID, _IDENTITY_ID, _SNAP),
+            (_IDENTITY_ID, _VM_ID, _SNAP),
         )
         row = cur.fetchone()
-    assert row is not None, "HAS_IDENTITY edge from VM to UAMI must be in graph_edges"
+    assert row is not None, "HAS_IDENTITY edge from UAMI to VM must be in graph_edges"
     assert row[0] == "HAS_IDENTITY"
 
 
