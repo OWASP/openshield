@@ -1,6 +1,7 @@
 """Scan engine: loads rules dynamically and orchestrates a full subscription scan."""
 
 import importlib.util
+import inspect
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -11,6 +12,7 @@ from api.observability import RULE_ERRORS_TOTAL
 from openshield.severity import CONTRACT_VERSION, SeverityContractError, normalize_severity, score_findings
 from scanner.azure_client import AzureClient
 from scanner.evaluation import EvaluationStatus, RuleEvaluation, subscription_scope_id
+from scanner.graph.snapshot_bridge import collect_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +112,12 @@ class ScanEngine:
         started_at = datetime.now(timezone.utc).isoformat()
         findings: List[Dict[str, Any]] = []
         evaluations: List[RuleEvaluation] = []
+        rule_outcomes: List[Dict[str, Any]] = []
         detected_at = datetime.now(timezone.utc).isoformat()
+
+        # Collect an ARG inventory snapshot for graph population and rule enrichment.
+        # Failure is non-fatal: rules fall back to direct SDK calls.
+        snapshot = collect_snapshot(self.client, self.subscription_id)
 
         logger.info(
             "Scan %s starting against subscription %s — %d rules loaded",
@@ -130,11 +137,24 @@ class ScanEngine:
 
         for rule in self.rules:
             rule_id = getattr(rule, "RULE_ID", "UNKNOWN")
+            outcome_status = "FAILED"
+            rule_started = datetime.now(timezone.utc).isoformat()
             try:
-                rule_findings = rule.scan(self.client, self.subscription_id)
+                if "snapshot" in inspect.signature(rule.scan).parameters:
+                    rule_findings = rule.scan(self.client, self.subscription_id, snapshot)
+                else:
+                    rule_findings = rule.scan(self.client, self.subscription_id)
                 if not isinstance(rule_findings, list):
                     logger.warning("Rule %s returned %s instead of list — skipped", rule_id, type(rule_findings))
                     failed_rule_ids.append(rule_id)
+                    rule_outcomes.append(
+                        {
+                            "rule_id": rule_id,
+                            "status": "FAILED",
+                            "started_at": rule_started,
+                            "completed_at": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
                     continue
 
                 validated_findings = []
@@ -149,6 +169,7 @@ class ScanEngine:
                     finding.setdefault("scan_id", scan_id)
                     validated_findings.append(finding)
                 findings.extend(validated_findings)
+                outcome_status = "SUCCESS" if validated_findings else "EMPTY_SUCCESS"
                 logger.info("Rule %s produced %d finding(s)", rule_id, len(validated_findings))
             except SeverityContractError:
                 RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
@@ -158,7 +179,19 @@ class ScanEngine:
                 RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
                 logger.error("Rule %s raised an exception: %s", rule_id, exc, exc_info=True)
                 failed_rule_ids.append(rule_id)
+                if isinstance(exc, PermissionError) or getattr(exc, "status_code", None) == 403:
+                    outcome_status = "PERMISSION_DENIED"
+                elif isinstance(exc, TimeoutError):
+                    outcome_status = "TIMEOUT"
 
+            rule_outcomes.append(
+                {
+                    "rule_id": rule_id,
+                    "status": outcome_status,
+                    "started_at": rule_started,
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
             evaluations.extend(self._evaluate_rule(rule, rule_id))
 
         # A FAIL evaluation contributes its own finding only if scan() hasn't
@@ -192,9 +225,12 @@ class ScanEngine:
             "total_findings": len(findings),
             "score": score,
             "severity_contract_version": CONTRACT_VERSION,
+            "snapshot_id": snapshot.snapshot_id if snapshot else None,
+            "snapshot_status": snapshot.status.value if snapshot else None,
             "findings": findings,
             "evaluations": [e.to_dict() for e in evaluations],
             "failed_rule_ids": failed_rule_ids,
+            "rule_outcomes": rule_outcomes,
         }
 
         logger.info("Scan %s complete — %d total finding(s). Normalising results...", scan_id, len(findings))

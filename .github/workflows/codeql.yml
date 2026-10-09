@@ -5,6 +5,10 @@ on:
     branches:
       - dev
       - main
+      - feat/311-finding-lifecycle
+      - feat/331-evidence-graph-foundation
+      - feat/332-evidence-graph-node-edge-population
+
   push:
     branches:
       - dev
