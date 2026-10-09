@@ -241,11 +241,11 @@ def run_worker():
                         subscription_id=subscription_id,
                         tenant_id=tenant_id,
                     )
-                except Exception as lc_exc:
+                except Exception:
                     logger.error(
-                        "Lifecycle/pattern update failed for scan %s (scan data intact): %s",
+                        "Lifecycle/pattern update failed for scan %s (scan data intact)",
                         scan_id,
-                        lc_exc,
+                        exc_info=True,
                         extra={"scan_id": scan_id},
                     )
 

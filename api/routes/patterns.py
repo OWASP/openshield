@@ -40,7 +40,7 @@ def _validate_limit(raw: str) -> int:
     return value
 
 
-def _effective_tenant(effective_sub: str) -> str:
+def _effective_tenant() -> str:
     """Use the token's verified tenant; deployment configuration cannot override it."""
     tenant = (getattr(g, "user", {}) or {}).get("tenant")
     if not tenant:
@@ -106,7 +106,7 @@ def list_patterns():
             limit = _validate_limit(request.args["limit"])
 
         effective_sub = _effective_subscription(subscription_id_param)
-        tenant_id = _effective_tenant(effective_sub)
+        tenant_id = _effective_tenant()
 
         db = _get_db()
         conn = db._get_conn()
@@ -169,7 +169,7 @@ def get_pattern(pattern_id: int):
 
         # Resolve scope first so an unscoped caller cannot enumerate IDs.
         effective_sub = _effective_subscription(None)
-        tenant_id = _effective_tenant(effective_sub)
+        tenant_id = _effective_tenant()
 
         db = _get_db()
         conn = db._get_conn()

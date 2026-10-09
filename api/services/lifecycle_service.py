@@ -87,6 +87,9 @@ class LifecycleService:
         """
         findings = findings or []
 
+        if getattr(db_conn, "autocommit", False):
+            raise ValueError("db_conn must have autocommit=False for transactional lifecycle apply")
+
         try:
             with db_conn.cursor() as cur:
                 # --- Idempotency check ----------------------------------------
