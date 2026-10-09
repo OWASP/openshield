@@ -33,9 +33,9 @@ SELECT
     now(),
     '{}'::jsonb
 FROM graph_nodes src, graph_nodes tgt
-WHERE lower(src.resource_id) = lower(%(source_resource_id)s)
+WHERE src.resource_id = lower(%(source_resource_id)s)
   AND src.tenant_id = %(tenant_id)s
-  AND lower(tgt.resource_id) = lower(%(target_resource_id)s)
+  AND tgt.resource_id = lower(%(target_resource_id)s)
   AND tgt.tenant_id = %(tenant_id)s
   AND src.snapshot_id = %(evidence_snapshot_id)s
   AND tgt.snapshot_id = %(evidence_snapshot_id)s

@@ -42,7 +42,7 @@ INSERT INTO finding_graph_nodes (finding_id, node_id)
 SELECT f.id, n.node_id
 FROM findings f
 JOIN scans s ON s.scan_id = f.scan_id
-JOIN current_graph_nodes n ON lower(f.resource_id) = lower(n.resource_id)
+JOIN current_graph_nodes n ON lower(f.resource_id) = n.resource_id
     AND n.tenant_id = %(tenant_id)s
     AND n.subscription_id = s.subscription_id
 WHERE f.scan_id = %(scan_id)s
