@@ -139,6 +139,17 @@ class LifecycleService:
                     o["rule_id"]: o["status"] for o in rule_outcomes if "rule_id" in o and "status" in o
                 }
 
+                # evaluate()-only rules (engine skips scan() for them, so they
+                # never produce a rule_outcomes entry). Treat such a rule as having
+                # completed cleanly if it produced at least one non-ERROR evaluation.
+                evaluated_cleanly: set = {
+                    e.get("rule_id")
+                    for e in (evaluations or [])
+                    if isinstance(e.get("rule_id"), str)
+                    and e.get("rule_id") not in outcome_by_rule
+                    and e.get("status") != "ERROR"
+                }
+
                 # Rule-level completion is not proof that any particular resource
                 # passed. Conflicting or incomplete coverage must fail closed.
                 resource_statuses: Dict[tuple, set] = {}
@@ -152,7 +163,10 @@ class LifecycleService:
                 passing_resources = {
                     key
                     for key, statuses in resource_statuses.items()
-                    if statuses == {"PASS"} and outcome_by_rule.get(key[0]) in _RESOLVING_STATUSES
+                    if statuses == {"PASS"} and (
+                        outcome_by_rule.get(key[0]) in _RESOLVING_STATUSES
+                        or key[0] in evaluated_cleanly
+                    )
                 }
                 # A violation contradicts a PASS for the same rule/resource,
                 # even when the new finding has a different evidence fingerprint.

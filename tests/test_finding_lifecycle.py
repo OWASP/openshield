@@ -463,3 +463,34 @@ def test_current_finding_overrides_contradictory_resource_pass():
         evaluations=[{"rule_id": "RULE-001", "resource_id": "/rg/foo", "status": "PASS"}],
     )
     assert not any("FROM finding_lifecycles fl" in sql for sql, _ in conn.all_executed())
+
+
+def test_evaluate_only_rule_can_resolve_without_rule_outcomes_entry():
+    """evaluate()-only rules (PR #381+) never emit rule_outcomes; they must still resolve."""
+    conn = _FakeConn([None, [(10, "OPEN", 0, "EVAL-RULE", "/rg/res")], None, None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [],  # no rule_outcomes -- engine skipped scan() for this evaluate()-only rule
+        [],
+        evaluations=[{"rule_id": "EVAL-RULE", "resource_id": "/rg/res", "status": "PASS"}],
+    )
+    resolved_sqls = [sql for sql, _ in conn.all_executed() if "SET state = 'RESOLVED'" in sql]
+    assert resolved_sqls, "evaluate()-only PASS should resolve the finding"
+
+
+def test_evaluate_only_rule_with_error_status_cannot_resolve():
+    """An evaluate()-only rule where all evaluations are ERROR must not resolve."""
+    conn = _FakeConn([None, None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [],
+        [],
+        evaluations=[{"rule_id": "EVAL-RULE", "resource_id": "/rg/res", "status": "ERROR"}],
+    )
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
