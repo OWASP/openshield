@@ -54,7 +54,7 @@ def test_get_attack_graph_returns_empty_nodes_and_edges(client, tenant_auth_head
     conn = _mock_conn([[]])
     with patch("api.routes.attack_graph.psycopg2.connect", return_value=conn):
         with patch.dict("os.environ", {"DATABASE_URL": "postgresql://fake/db"}):
-            resp = client.get("/api/attack-graph", headers=tenant_auth_headers)
+            resp = client.get("/api/v1/attack-graph", headers=tenant_auth_headers)
     assert resp.status_code == 200
     data = resp.get_json()
     assert "nodes" in data
@@ -77,23 +77,23 @@ def test_get_attack_graph_viewer_cannot_supply_tenant_header(client, app):
         "Authorization": f"Bearer {token}",
         "X-Tenant-Id": _TENANT,
     }
-    resp = client.get("/api/attack-graph", headers=headers)
+    resp = client.get("/api/v1/attack-graph", headers=headers)
     assert resp.status_code == 403
 
 
 def test_list_attack_paths_missing_scan_id_returns_400(client, tenant_auth_headers):
-    resp = client.get("/api/attack-paths", headers=tenant_auth_headers)
+    resp = client.get("/api/v1/attack-paths", headers=tenant_auth_headers)
     assert resp.status_code == 400
     assert b"scan_id" in resp.data
 
 
 def test_list_attack_paths_invalid_uuid_returns_400(client, tenant_auth_headers):
-    resp = client.get("/api/attack-paths?scan_id=not-a-uuid", headers=tenant_auth_headers)
+    resp = client.get("/api/v1/attack-paths?scan_id=not-a-uuid", headers=tenant_auth_headers)
     assert resp.status_code == 400
 
 
 def test_get_attack_path_invalid_uuid_returns_400(client, tenant_auth_headers):
-    resp = client.get("/api/attack-paths/not-a-uuid", headers=tenant_auth_headers)
+    resp = client.get("/api/v1/attack-paths/not-a-uuid", headers=tenant_auth_headers)
     assert resp.status_code == 400
 
 
@@ -102,7 +102,7 @@ def test_get_attack_path_not_found_returns_404(client, tenant_auth_headers):
     conn = _mock_conn([[]])
     with patch("api.routes.attack_graph.psycopg2.connect", return_value=conn):
         with patch.dict("os.environ", {"DATABASE_URL": "postgresql://fake/db"}):
-            resp = client.get(f"/api/attack-paths/{valid_uuid}", headers=tenant_auth_headers)
+            resp = client.get(f"/api/v1/attack-paths/{valid_uuid}", headers=tenant_auth_headers)
     assert resp.status_code == 404
 
 
