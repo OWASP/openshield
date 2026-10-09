@@ -163,10 +163,8 @@ class LifecycleService:
                 passing_resources = {
                     key
                     for key, statuses in resource_statuses.items()
-                    if statuses == {"PASS"} and (
-                        outcome_by_rule.get(key[0]) in _RESOLVING_STATUSES
-                        or key[0] in evaluated_cleanly
-                    )
+                    if statuses == {"PASS"}
+                    and (outcome_by_rule.get(key[0]) in _RESOLVING_STATUSES or key[0] in evaluated_cleanly)
                 }
                 # A violation contradicts a PASS for the same rule/resource,
                 # even when the new finding has a different evidence fingerprint.
