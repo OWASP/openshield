@@ -110,6 +110,7 @@ class ScanEngine:
         started_at = datetime.now(timezone.utc).isoformat()
         findings: List[Dict[str, Any]] = []
         evaluations: List[RuleEvaluation] = []
+        rule_outcomes: List[Dict[str, Any]] = []
         detected_at = datetime.now(timezone.utc).isoformat()
 
         logger.info(
@@ -130,11 +131,21 @@ class ScanEngine:
 
         for rule in self.rules:
             rule_id = getattr(rule, "RULE_ID", "UNKNOWN")
+            outcome_status = "FAILED"
+            rule_started = datetime.now(timezone.utc).isoformat()
             try:
                 rule_findings = rule.scan(self.client, self.subscription_id)
                 if not isinstance(rule_findings, list):
                     logger.warning("Rule %s returned %s instead of list — skipped", rule_id, type(rule_findings))
                     failed_rule_ids.append(rule_id)
+                    rule_outcomes.append(
+                        {
+                            "rule_id": rule_id,
+                            "status": "FAILED",
+                            "started_at": rule_started,
+                            "completed_at": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
                     continue
 
                 validated_findings = []
@@ -149,6 +160,7 @@ class ScanEngine:
                     finding.setdefault("scan_id", scan_id)
                     validated_findings.append(finding)
                 findings.extend(validated_findings)
+                outcome_status = "SUCCESS" if validated_findings else "EMPTY_SUCCESS"
                 logger.info("Rule %s produced %d finding(s)", rule_id, len(validated_findings))
             except SeverityContractError:
                 RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
@@ -158,7 +170,19 @@ class ScanEngine:
                 RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
                 logger.error("Rule %s raised an exception: %s", rule_id, exc, exc_info=True)
                 failed_rule_ids.append(rule_id)
+                if isinstance(exc, PermissionError) or getattr(exc, "status_code", None) == 403:
+                    outcome_status = "PERMISSION_DENIED"
+                elif isinstance(exc, TimeoutError):
+                    outcome_status = "TIMEOUT"
 
+            rule_outcomes.append(
+                {
+                    "rule_id": rule_id,
+                    "status": outcome_status,
+                    "started_at": rule_started,
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
             evaluations.extend(self._evaluate_rule(rule, rule_id))
 
         # A FAIL evaluation contributes its own finding only if scan() hasn't
@@ -195,6 +219,7 @@ class ScanEngine:
             "findings": findings,
             "evaluations": [e.to_dict() for e in evaluations],
             "failed_rule_ids": failed_rule_ids,
+            "rule_outcomes": rule_outcomes,
         }
 
         logger.info("Scan %s complete — %d total finding(s). Normalising results...", scan_id, len(findings))

@@ -25,6 +25,8 @@ from api.observability import (
     configure_logging,
     init_sentry,
 )
+from api.services.lifecycle_service import LifecycleService
+from api.services.pattern_service import PatternService
 from scanner.engine import ScanEngine
 from scanner.enrichment_worker import process_enrichment_job
 
@@ -216,6 +218,37 @@ def run_worker():
                 if heartbeat.lost.is_set():
                     raise LostLease(f"Scan {scan_id} lost its lease before completion")
                 db.save_scan(result, worker_id, fencing_token)
+
+                # Apply lifecycle tracking. Lifecycle failures are non-fatal:
+                # the scan is already persisted, so we log and continue rather
+                # than marking the scan as failed.
+                try:
+                    tenant_id = os.environ.get("OPENSHIELD_TENANT_ID", subscription_id)
+                    lc_svc = LifecycleService()
+                    lc_svc.apply_scan(
+                        db_conn=db._get_conn(),
+                        scan_id=scan_id,
+                        subscription_id=subscription_id,
+                        tenant_id=tenant_id,
+                        rule_outcomes=result.get("rule_outcomes", []),
+                        findings=result.get("findings", []),
+                        evaluations=result.get("evaluations", []),
+                    )
+                    pat_svc = PatternService()
+                    pat_svc.detect_and_publish(
+                        db_conn=db._get_conn(),
+                        scan_id=scan_id,
+                        subscription_id=subscription_id,
+                        tenant_id=tenant_id,
+                    )
+                except Exception:
+                    logger.error(
+                        "Lifecycle/pattern update failed for scan %s (scan data intact)",
+                        scan_id,
+                        exc_info=True,
+                        extra={"scan_id": scan_id},
+                    )
+
                 SCANS_TOTAL.labels(status="completed").inc()
                 logger.info(
                     "Successfully completed scan %s",
