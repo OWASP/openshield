@@ -157,6 +157,7 @@ def populated_graph(db_conn):
     base_snapshot = _snapshot(_VNET, _NSG, _NIC, _VM, _PIP, _IDENTITY)
     subnet_resources = _synthesise_subnet_resources(base_snapshot)
     from dataclasses import replace as dc_replace
+
     augmented = dc_replace(base_snapshot, resources=base_snapshot.resources + tuple(subnet_resources))
 
     populate_nodes(augmented, _DSN)
