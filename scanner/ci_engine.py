@@ -5,14 +5,24 @@ RuleEvaluation objects with PASS/FAIL/UNKNOWN status for each
 workflow file, compatible with the existing evaluation contract
 in scanner/evaluation.py.
 
-Usage:
+Usage (in-process):
     from scanner.ci_engine import CIScanEngine
     engine = CIScanEngine(owner="my-org", repo="my-repo")
     results = engine.run_scan()
+
+Usage (with persistence):
+    engine = CIScanEngine(owner="my-org", repo="my-repo", dsn=DATABASE_URL)
+    scan_id, results = engine.run_and_persist()
+
+CLI:
+    python -m scanner.ci_engine --owner <org> --repo <name> [--json]
 """
 
 import logging
-from typing import List, Optional
+import uuid
+from typing import List, Optional, Tuple
+
+from api.models.ci_scan import CIDatabase
 
 import scanner.rules.az_ci_001 as az_ci_001
 import scanner.rules.az_ci_002 as az_ci_002
@@ -44,10 +54,20 @@ class CIScanEngine:
     Each rule is run against every workflow file. Results are returned
     as RuleEvaluation objects with PASS/FAIL/UNKNOWN status.
 
-    PASS   — workflow was evaluated and is compliant.
-    FAIL   — workflow was evaluated and has a finding.
-    UNKNOWN — workflow content could not be read or permissions
-               could not be determined.
+    PASS        — workflow was evaluated and is compliant.
+    FAIL        — workflow was evaluated and has a finding.
+    UNKNOWN     — workflow content could not be read or permissions
+                  could not be determined.
+    NOT_APPLICABLE — repository has no workflow files.
+    ERROR       — rule raised an unexpected exception.
+
+    Args:
+        owner:  GitHub organisation or user name.
+        repo:   Repository name.
+        token:  GitHub personal access token. Falls back to GITHUB_TOKEN
+                env var inside GitHubClient when not supplied.
+        dsn:    PostgreSQL DSN for run_and_persist(). Falls back to the
+                DATABASE_URL env var. Not required for run_scan()-only use.
     """
 
     def __init__(
@@ -55,9 +75,11 @@ class CIScanEngine:
         owner: str,
         repo: str,
         token: Optional[str] = None,
+        dsn: Optional[str] = None,
     ) -> None:
         self.owner = owner
         self.repo = repo
+        self.dsn = dsn
         self.client = GitHubClient(owner=owner, repo=repo, token=token)
 
     def run_scan(self) -> List[RuleEvaluation]:
@@ -204,34 +226,136 @@ class CIScanEngine:
 
         return evaluations
 
+    def run_and_persist(
+        self,
+        scan_id: Optional[str] = None,
+        dsn: Optional[str] = None,
+    ) -> Tuple[str, List[RuleEvaluation]]:
+        """Run all AZ-CI-* rules and persist the results to the database.
+
+        Creates a ``ci_scans`` header row (pending → running → completed/failed)
+        and a ``ci_scan_evaluations`` row for every RuleEvaluation, all in a
+        single atomic transaction via ``CIDatabase.save_ci_scan()``.
+
+        Args:
+            scan_id: UUID string to use for this scan. Generated if not supplied.
+                     The caller (PR 3/3 API route) supplies this so the scan_id
+                     can be returned in the 202 response before the scan runs.
+            dsn:     Override the DSN set on the engine instance. Useful when
+                     the caller already resolved DATABASE_URL.
+
+        Returns:
+            (scan_id, evaluations) — the UUID used and the full result list.
+
+        Raises:
+            RuntimeError: if no DSN is available (engine dsn + dsn arg + env var
+                          all unset).
+            Exception:    any unhandled rule or DB error after logging.
+        """
+        # Lazy import keeps the engine usable without psycopg2 installed when
+        # callers only call run_scan() (e.g. the CLI without a DB).
+        import os
+
+        resolved_dsn = dsn or self.dsn or os.environ.get("DATABASE_URL", "")
+        if not resolved_dsn:
+            raise RuntimeError(
+                "run_and_persist() requires a DSN: pass dsn=, set CIScanEngine(dsn=...), "
+                "or set the DATABASE_URL environment variable."
+            )
+
+        scan_id = scan_id or str(uuid.uuid4())
+        db = CIDatabase(resolved_dsn)
+        db.connect()
+
+        try:
+            # Mark as running so a concurrent caller or /api/ci-scans/<id>
+            # poll sees a non-pending status immediately.
+            db.create_pending_ci_scan(scan_id, self.owner, self.repo)
+            db.update_ci_scan_status(scan_id, "running")
+
+            evaluations = self.run_scan()
+
+            db.save_ci_scan(
+                scan_id=scan_id,
+                owner=self.owner,
+                repo=self.repo,
+                evaluations=[ev.to_dict() for ev in evaluations],
+            )
+
+            logger.info(
+                "run_and_persist: CI scan %s complete for %s/%s — %d evaluations",
+                scan_id,
+                self.owner,
+                self.repo,
+                len(evaluations),
+            )
+            return scan_id, evaluations
+
+        except Exception as exc:
+            logger.error(
+                "run_and_persist: CI scan %s failed for %s/%s: %s",
+                scan_id,
+                self.owner,
+                self.repo,
+                exc,
+                exc_info=True,
+            )
+            try:
+                db.update_ci_scan_status(scan_id, "failed", error_message=str(exc))
+            except Exception as status_exc:
+                logger.error(
+                    "run_and_persist: could not record failed status for scan %s: %s",
+                    scan_id,
+                    status_exc,
+                )
+            raise
+        finally:
+            db.close()
+
 
 def _main() -> int:
     """CLI entry point: run AZ-CI-001..004 against a repository.
 
     Usage:
-        python -m scanner.ci_engine --owner <org> --repo <name> [--json]
+        python -m scanner.ci_engine --owner <org> --repo <name> [--json] [--persist]
 
-    Interim executable runner for the CI/CD controls. Persisted-scan storage
-    and an API route that invoke CIScanEngine are scoped to issue #259 PR 3/3;
-    this CLI ensures the rules are runnable rather than merged as dead code.
+    Pass --persist to write results to the database (DATABASE_URL must be set).
+    Without --persist the CLI prints results and exits without touching the DB,
+    preserving the behaviour shipped in PR 1/3.
     """
     import argparse
     import json as _json
 
-    parser = argparse.ArgumentParser(description="Run OpenShield CI/CD workflow security rules (AZ-CI-001..004)")
+    parser = argparse.ArgumentParser(
+        description="Run OpenShield CI/CD workflow security rules (AZ-CI-001..004)"
+    )
     parser.add_argument("--owner", required=True, help="GitHub organisation or user")
     parser.add_argument("--repo", required=True, help="Repository name")
     parser.add_argument("--json", action="store_true", help="Emit results as JSON")
+    parser.add_argument(
+        "--persist",
+        action="store_true",
+        help="Persist results to the database (DATABASE_URL must be set)",
+    )
     args = parser.parse_args()
 
     engine = CIScanEngine(owner=args.owner, repo=args.repo)
-    results = engine.run_scan()
 
-    if args.json:
-        print(_json.dumps([r.to_dict() for r in results], indent=2))
+    if args.persist:
+        scan_id, results = engine.run_and_persist()
+        if args.json:
+            print(_json.dumps({"scan_id": scan_id, "evaluations": [r.to_dict() for r in results]}, indent=2))
+        else:
+            print(f"scan_id: {scan_id}")
+            for r in results:
+                print(f"{r.status:15} {r.rule_id:10} {r.resource_id}")
     else:
-        for r in results:
-            print(f"{r.status:15} {r.rule_id:10} {r.resource_id}")
+        results = engine.run_scan()
+        if args.json:
+            print(_json.dumps([r.to_dict() for r in results], indent=2))
+        else:
+            for r in results:
+                print(f"{r.status:15} {r.rule_id:10} {r.resource_id}")
 
     # Non-zero exit when any rule FAILed so a CI/CD job can gate on it.
     return 1 if any(r.status == EvaluationStatus.FAIL for r in results) else 0
