@@ -697,3 +697,17 @@ The following endpoints are called by the frontend but have no backend implement
 | Endpoint | Used by | Status |
 |---|---|---|
 | `GET /api/monitoring` | Monitoring page — score trend chart, category distribution | Deferred. Score and findings data come from `GET /api/score` and `GET /api/findings` instead. |
+
+---
+
+## Attack graph endpoints
+
+`GET /api/attack-graph` returns explicitly observed nodes and relationships from the latest published inventory snapshot for each subscription in the caller's tenant. Complete snapshots expire absent resources and relationships within their tenant/subscription scope. Partial snapshots retain historical evidence in storage, while current graph queries and traversal exclude unobserved resources and relationships. Failed collection keeps the previous published snapshot. `GET /api/attack-paths` and `GET /api/attack-paths/<path_id>` expose paths computed for a requested scan. Successful subsequent scans replace prior paths for the same tenant/subscription, including scans with no findings.
+
+### Authentication requirement
+
+Callers use the tenant claim preserved by the token verifier in either authentication mode. A supplied `X-Tenant-Id` header cannot override that claim. An authenticated admin without a tenant claim may supply `X-Tenant-Id` explicitly; viewer and operator tokens cannot select a tenant. Requests without a usable tenant return `403 {"error": "tenant_id not available; OIDC authentication required"}`. Tenant query parameters never determine graph scope.
+
+### Attack-path retention
+
+Attack paths are replaced by a newer successful scan within the same tenant/subscription. Clean scans remove prior paths even when there are no findings. Failed scans and delayed older scans retain the newer published evidence. Scope publication and traversal serialize on the same database lock.
