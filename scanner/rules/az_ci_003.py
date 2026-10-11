@@ -17,7 +17,7 @@ CATEGORY = "CI/CD Security"
 FRAMEWORKS = {
     "CIS": "N/A-CI-003",
     "NIST": "PR.IP-1",
-    "ISO27001": "A.12.1.2",
+    "ISO27001": "A.5.21",
     "SOC2": "CC7.1",
 }
 DESCRIPTION = (

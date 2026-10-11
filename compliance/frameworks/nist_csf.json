@@ -1734,6 +1734,54 @@
       "owner": null,
       "review_status": "pending_review",
       "review_date": null
+    },
+    "AZ-CI-001": {
+      "control_id": "PR.AC-1",
+      "control_name": "Identities and credentials are issued, managed, verified, revoked, and audited for authorized devices, users and processes",
+      "description": "CI/CD workflows should use workload identity federation (OIDC) instead of long-lived client secrets or storage keys stored as repository secrets.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-1",
+      "rationale": "NIST CSF 1.1 subcategory control PR.AC-1 ('Identities and credentials are issued, managed, verified, revoked, and audited for authorized devices, users and processes') describes a broader outcome than one technical setting. OpenShield rule AZ-CI-001 ('CI/CD Workflow Uses Long-Lived Azure Credentials') evaluates one GitHub Actions workflow setting that provides supporting automated evidence toward it; it does not by itself establish conformance.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-CI-002": {
+      "control_id": "PR.AC-4",
+      "control_name": "Access permissions and authorizations are managed, incorporating the principles of least privilege and separation of duties",
+      "description": "Workflow GITHUB_TOKEN permissions should follow least privilege with an explicit permissions block granting only required scopes.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-4",
+      "rationale": "NIST CSF 1.1 subcategory control PR.AC-4 ('Access permissions and authorizations are managed, incorporating the principles of least privilege and separation of duties') describes a broader outcome than one technical setting. OpenShield rule AZ-CI-002 ('CI/CD Workflow Has Unnecessarily Broad Token Permissions') evaluates one GitHub Actions workflow setting that provides supporting automated evidence toward it; it does not by itself establish conformance.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-CI-003": {
+      "control_id": "PR.IP-1",
+      "control_name": "A baseline configuration of information technology systems is created and maintained incorporating appropriate security principles",
+      "description": "Third-party GitHub Actions must be pinned to a full 40-character commit SHA to prevent supply-chain attacks via mutable tags.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.IP-1",
+      "rationale": "NIST CSF 1.1 subcategory control PR.IP-1 ('A baseline configuration of information technology systems is created and maintained incorporating appropriate security principles') describes a broader outcome than one technical setting. OpenShield rule AZ-CI-003 ('Third-Party Workflow Action Not Pinned to Immutable Commit SHA') evaluates one GitHub Actions workflow setting that provides supporting automated evidence toward it; it does not by itself establish conformance.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-CI-004": {
+      "control_id": "PR.AC-4",
+      "control_name": "Access permissions and authorizations are managed, incorporating the principles of least privilege and separation of duties",
+      "description": "Workflows triggered by pull_request_target or workflow_run must not check out or execute untrusted PR code in a context with secret access.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.AC-4",
+      "rationale": "NIST CSF 1.1 subcategory control PR.AC-4 ('Access permissions and authorizations are managed, incorporating the principles of least privilege and separation of duties') describes a broader outcome than one technical setting. OpenShield rule AZ-CI-004 ('Untrusted Pull-Request Input Reaches Privileged Workflow Context') evaluates one GitHub Actions workflow setting that provides supporting automated evidence toward it; it does not by itself establish conformance.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   }
 }
