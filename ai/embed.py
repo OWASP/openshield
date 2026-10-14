@@ -58,7 +58,7 @@ def _tokenize(text: str) -> list:
     return [t for t in re.split(r"[^a-z0-9]+", text.lower()) if len(t) > 2 and t not in _STOPWORDS]
 
 
-def build_vectorstore() -> int:
+def build_vectorstore(index_path: Path | None = None) -> int:
     """Build BM25 index from all documents and persist to JSON.
 
     Returns the number of chunks indexed.
@@ -96,12 +96,13 @@ def build_vectorstore() -> int:
 
     index = {"version": "1", "avg_dl": avg_dl, "idf": idf, "chunks": processed}
 
-    VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = INDEX_PATH.with_suffix(".tmp")
+    destination = index_path if index_path is not None else INDEX_PATH
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    tmp = destination.with_suffix(".tmp")
     tmp.write_text(json.dumps(index, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(INDEX_PATH)
+    tmp.replace(destination)
 
-    logger.info("BM25 index written to %s (%d chunks)", INDEX_PATH, n)
+    logger.info("BM25 index written to %s (%d chunks)", destination, n)
     return n
 
 

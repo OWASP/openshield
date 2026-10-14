@@ -56,3 +56,8 @@ At query time (`retriever.py`):
 1. Tokenizes the query
 2. Scores each chunk with the BM25 formula (k1=1.5, b=0.75)
 3. Returns the top-N chunks sorted by score
+
+## Evaluating retrieval and answers
+
+See [evaluation/README.md](evaluation/README.md) for the synthetic dataset,
+offline benchmark, optional bounded live run, and human answer-review rubric.

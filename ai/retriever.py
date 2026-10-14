@@ -60,11 +60,12 @@ def _tokenize(text: str) -> list:
     return [t for t in re.split(r"[^a-z0-9]+", text.lower()) if len(t) > 2 and t not in _STOPWORDS]
 
 
-def _load_index() -> dict:
-    if not INDEX_PATH.exists():
+def _load_index(index_path: Path | None = None) -> dict:
+    path = index_path if index_path is not None else INDEX_PATH
+    if not path.exists():
         raise VectorStoreNotBuilt("BM25 index not found. Run 'python -m ai.embed' first.")
     try:
-        index = json.loads(INDEX_PATH.read_text(encoding="utf-8"))
+        index = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
         raise VectorStoreNotBuilt(f"BM25 index unreadable: {exc}") from exc
     _validate_index(index)
@@ -134,12 +135,12 @@ def _bm25_score(query_terms: list, doc_terms: dict, dl: int, avg_dl: float, idf:
     return score
 
 
-def retrieve(query: str, n_results: int = 5) -> list:
+def retrieve(query: str, n_results: int = 5, *, index_path: Path | None = None) -> list:
     """Return the most relevant knowledge chunks for a query.
 
     Each result is a dict with 'text', 'source', and 'source_meta'.
     """
-    index = _load_index()
+    index = _load_index(index_path)
     avg_dl = index["avg_dl"]
     idf = index["idf"]
     query_terms = _tokenize(query)

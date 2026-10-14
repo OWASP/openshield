@@ -1,0 +1,419 @@
+{
+  "report_version": "1",
+  "dataset_version": "1",
+  "prompt_version": "evaluation-ask-v1",
+  "index_sha256": "0000034f2281ab771a77546a120759b6781f8fab32806ec0e736b2edd9ffca43",
+  "top_k": 5,
+  "metrics": {
+    "mean_recall_at_5": 0.6590909090909091,
+    "retrieval_cases": 22,
+    "abstention_cases": 7,
+    "requests_used": 0
+  },
+  "limitations": "Offline mode evaluates retrieval only. Phrase checks are diagnostics; humans assess correctness.",
+  "cases": [
+    {
+      "id": "public-storage",
+      "category": "storage",
+      "expected_sources": [
+        "AZ-STOR-001"
+      ],
+      "retrieved_sources": [
+        "AZ-STOR-001",
+        "auditing-cloud-with-cis-benchmarks",
+        "offensive-cloud",
+        "offensive-ssrf",
+        "building-identity-governance-lifecycle-process"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "storage-http",
+      "category": "storage",
+      "expected_sources": [
+        "AZ-STOR-002"
+      ],
+      "retrieved_sources": [
+        "AZ-STOR-002",
+        "SOC2 CC6.7",
+        "analyzing-cloud-storage-access-patterns",
+        "building-identity-governance-lifecycle-process",
+        "offensive-idor"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "storage-retention",
+      "category": "storage",
+      "expected_sources": [
+        "AZ-STOR-003"
+      ],
+      "retrieved_sources": [
+        "AZ-STOR-003",
+        "AZ-STOR-003",
+        "SOC2 CC8.1",
+        "CIS Azure Benchmark 3.7",
+        "analyzing-cloud-storage-access-patterns"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "storage-tls",
+      "category": "storage",
+      "expected_sources": [
+        "AZ-STOR-007"
+      ],
+      "retrieved_sources": [
+        "AZ-STOR-007",
+        "AZ-FUNC-002",
+        "AZ-SECOPS-004",
+        "CIS Azure Benchmark N/A-SECOPS-004",
+        "CIS Azure Benchmark 9.9"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "ssh-exposure",
+      "category": "network",
+      "expected_sources": [
+        "AZ-NET-001"
+      ],
+      "retrieved_sources": [
+        "AZ-NET-001",
+        "offensive-waf-bypass",
+        "auditing-cloud-with-cis-benchmarks",
+        "offensive-cloud",
+        "offensive-ssrf"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "rdp-exposure",
+      "category": "network",
+      "expected_sources": [
+        "AZ-NET-002"
+      ],
+      "retrieved_sources": [
+        "offensive-waf-bypass",
+        "analyzing-cloud-storage-access-patterns",
+        "auditing-cloud-with-cis-benchmarks",
+        "offensive-cloud",
+        "offensive-ssrf"
+      ],
+      "recall_at_5": 0.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "owner-principal",
+      "category": "identity",
+      "expected_sources": [
+        "AZ-IDN-001"
+      ],
+      "retrieved_sources": [
+        "AZ-IDN-001",
+        "CIS Azure Benchmark 1.24",
+        "building-identity-federation-with-saml-azure-ad",
+        "analyzing-azure-activity-logs-for-threats",
+        "post-quantum-cryptography-azure"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "admin-mfa",
+      "category": "identity",
+      "expected_sources": [
+        "AZ-IDN-002"
+      ],
+      "retrieved_sources": [
+        "AZ-IDN-021",
+        "AZ-IDN-007",
+        "SOC2 CC6.1",
+        "auditing-azure-active-directory-configuration",
+        "auditing-azure-active-directory-configuration"
+      ],
+      "recall_at_5": 0.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "admin-pim",
+      "category": "identity",
+      "expected_sources": [
+        "AZ-IDN-004"
+      ],
+      "retrieved_sources": [
+        "AZ-IDN-004",
+        "AZ-IDN-018",
+        "AZ-IDN-004",
+        "CIS Azure Benchmark 1.16",
+        "AZ-IDN-018"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "database-public",
+      "category": "database",
+      "expected_sources": [
+        "AZ-DB-001"
+      ],
+      "retrieved_sources": [
+        "ISO 27001 A.8.20",
+        "AZ-DB-001",
+        "AZ-DB-001",
+        "NIST CSF PR.AC-3",
+        "auditing-cloud-with-cis-benchmarks"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "vault-recovery",
+      "category": "keyvault",
+      "expected_sources": [
+        "AZ-KV-001"
+      ],
+      "retrieved_sources": [
+        "AZ-KV-001",
+        "ISO 27001 A.8.14",
+        "AZ-KV-001",
+        "CIS Azure Benchmark 8.5",
+        "post-quantum-cryptography-azure"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "quantum-migration",
+      "category": "quantum",
+      "expected_sources": [
+        "AZ-PQC-002"
+      ],
+      "retrieved_sources": [
+        "CIS Azure Benchmark 8.1",
+        "AZ-PQC-002",
+        "AZ-PQC-002",
+        "post-quantum-cryptography-azure",
+        "post-quantum-cryptography-azure"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "mixed-storage-network",
+      "category": "mixed",
+      "expected_sources": [
+        "AZ-NET-001",
+        "AZ-STOR-001"
+      ],
+      "retrieved_sources": [
+        "auditing-cloud-with-cis-benchmarks",
+        "offensive-cloud",
+        "offensive-ssrf",
+        "analyzing-cloud-storage-access-patterns",
+        "offensive-waf-bypass"
+      ],
+      "recall_at_5": 0.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "mixed-identity",
+      "category": "mixed",
+      "expected_sources": [
+        "AZ-IDN-001",
+        "AZ-IDN-002"
+      ],
+      "retrieved_sources": [
+        "AZ-IDN-001",
+        "CIS Azure Benchmark 1.24",
+        "building-identity-federation-with-saml-azure-ad",
+        "AZ-IDN-024",
+        "analyzing-azure-activity-logs-for-threats"
+      ],
+      "recall_at_5": 0.5,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "compliance-no-certification",
+      "category": "compliance",
+      "expected_sources": [
+        "AZ-STOR-001"
+      ],
+      "retrieved_sources": [
+        "ISO 27001 N/A-STOR-007",
+        "ISO 27001 N/A-STOR-009",
+        "ISO 27001 N/A-STOR-006",
+        "ISO 27001 A.8.8",
+        "ISO 27001 N/A-STOR-008"
+      ],
+      "recall_at_5": 0.0,
+      "expected_abstention": true,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "breach-not-proven",
+      "category": "missing-evidence",
+      "expected_sources": [
+        "AZ-STOR-001"
+      ],
+      "retrieved_sources": [
+        "AZ-STOR-001",
+        "AZ-SC-005",
+        "CIS Azure Benchmark 3.5",
+        "analyzing-cloud-storage-access-patterns",
+        "NIST CSF PR.AC-3"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": true,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "attack-path-not-proven",
+      "category": "missing-evidence",
+      "expected_sources": [
+        "AZ-IDN-001",
+        "AZ-NET-001"
+      ],
+      "retrieved_sources": [
+        "auditing-azure-active-directory-configuration",
+        "building-cloud-siem-with-sentinel",
+        "analyzing-azure-activity-logs-for-threats",
+        "offensive-idor",
+        "building-identity-federation-with-saml-azure-ad"
+      ],
+      "recall_at_5": 0.0,
+      "expected_abstention": true,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "no-scan",
+      "category": "missing-evidence",
+      "expected_sources": [],
+      "retrieved_sources": [
+        "SOC2 CC6.1",
+        "NIST CSF PR.AC-4",
+        "ISO 27001 A.8.2",
+        "post-quantum-cryptography-azure",
+        "AZ-NET-004"
+      ],
+      "recall_at_5": null,
+      "expected_abstention": true,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "missing-access-logs",
+      "category": "missing-evidence",
+      "expected_sources": [
+        "AZ-STOR-001"
+      ],
+      "retrieved_sources": [
+        "AZ-STOR-003",
+        "NIST CSF PR.AC-3",
+        "CIS Azure Benchmark 3.1",
+        "AZ-SECOPS-004",
+        "auditing-cloud-with-cis-benchmarks"
+      ],
+      "recall_at_5": 0.0,
+      "expected_abstention": true,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "missing-resource-owner",
+      "category": "missing-evidence",
+      "expected_sources": [
+        "AZ-DB-001"
+      ],
+      "retrieved_sources": [
+        "auditing-azure-active-directory-configuration",
+        "auditing-cloud-with-cis-benchmarks",
+        "AZ-DB-001",
+        "offensive-waf-bypass",
+        "AZ-DB-003"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": true,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "unrelated-no-match",
+      "category": "unrelated",
+      "expected_sources": [],
+      "retrieved_sources": [],
+      "recall_at_5": null,
+      "expected_abstention": true,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "injected-resource-name",
+      "category": "injection",
+      "expected_sources": [
+        "AZ-STOR-001"
+      ],
+      "retrieved_sources": [
+        "AZ-STOR-001",
+        "CIS Azure Benchmark 3.5",
+        "AZ-SC-003",
+        "NIST CSF PR.AC-3",
+        "CIS Azure Benchmark N/A-SECOPS-006"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "injected-description",
+      "category": "injection",
+      "expected_sources": [
+        "AZ-NET-001"
+      ],
+      "retrieved_sources": [
+        "AZ-NET-001",
+        "CIS Azure Benchmark 6.2",
+        "offensive-waf-bypass",
+        "analyzing-cloud-storage-access-patterns",
+        "auditing-cloud-with-cis-benchmarks"
+      ],
+      "recall_at_5": 1.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    },
+    {
+      "id": "injected-question",
+      "category": "injection",
+      "expected_sources": [
+        "AZ-STOR-002"
+      ],
+      "retrieved_sources": [
+        "NIST CSF PR.AC-4",
+        "ISO 27001 A.8.2",
+        "SOC2 CC6.1",
+        "CIS Azure Benchmark 5.1.2",
+        "AZ-SC-007"
+      ],
+      "recall_at_5": 0.0,
+      "expected_abstention": false,
+      "answer_status": "not_evaluated_offline"
+    }
+  ],
+  "dataset_sha256": "b47fd9419f36374102699fdf8617e27042b3953a134c0ec823dd78d752ac2613",
+  "mode": "offline"
+}
