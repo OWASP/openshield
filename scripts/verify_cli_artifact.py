@@ -109,7 +109,9 @@ with patch('scanner.engine.ScanEngine', AuthFailure):
     assert json.loads(output.getvalue())['status'] == 'authentication_failed'
 """
             run(str(python), "-c", verification, cwd=target)
-            invalid = subprocess.run(
+            # The executable is inside our newly created venv and arguments are
+            # a fixed list; no shell parses the artifact path or user input.
+            invalid = subprocess.run(  # nosemgrep: dangerous-subprocess-use-tainted-env-args
                 [str(openshield), "scan", "--subscription-id", "invalid", "--format", "json"],
                 cwd=target,
                 capture_output=True,
