@@ -149,28 +149,59 @@ When a helper returns `None`, skip the resource and log a warning. Never create 
 
 ---
 
-## Optional: Reporting Evaluation Coverage (`evaluate()`)
+## Reporting Evaluation Coverage (`evaluate()`)
 
-`scan()` only ever reports violations, so a scan with no findings for your rule is indistinguishable from "everything is compliant," "nothing of this resource type exists," and "the rule errored before it could check anything." A rule can additionally expose:
+`scan()` only ever reports violations, so a scan with no findings for your rule is indistinguishable from "everything is compliant," "nothing of this resource type exists," and "the rule errored before it could check anything." New rules should expose `evaluate()` and keep `scan()` as a thin wrapper over it:
 
 ```python
-from scanner.evaluation import EvaluationStatus, RuleEvaluation, subscription_scope_id
+from scanner.evaluation import (
+    EvaluationStatus,
+    RuleEvaluation,
+    fail_findings,
+    inventory_unavailable,
+    no_resources_found,
+)
+
+RESOURCE_TYPE = "Microsoft.Xxx/yyy"
+
+
+def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
+    return fail_findings(evaluate(azure_client, subscription_id))
 
 
 def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
     """Report a status for every resource this rule looked at, PASS included."""
+    resources = azure_client.list_xxx()  # None means the list call failed
+    if resources is None:
+        return [inventory_unavailable(RULE_ID, RESOURCE_TYPE, subscription_id)]
+    if not resources:
+        return [no_resources_found(RULE_ID, RESOURCE_TYPE, subscription_id)]
+    ...
 ```
 
-to state a `PASS`/`FAIL`/`UNKNOWN`/`ERROR`/`NOT_APPLICABLE` result per resource instead of only per violation. This is additive: `scan()` keeps working unchanged, and a rule without `evaluate()` still runs, its coverage is just recorded as `UNKNOWN`/`LEGACY_RULE_NOT_MIGRATED` rather than assumed to be a pass.
+When a rule exposes `evaluate()`, the engine runs it **instead of** `scan()` and takes the rule's findings from its `FAIL` evaluations. A rule without `evaluate()` still runs through `scan()`, but its coverage is recorded as `UNKNOWN`/`LEGACY_RULE_NOT_MIGRATED` and every compliance control mapped to it reads `UNKNOWN`. Migration of the existing rules is tracked in #380.
+
+The scan result's `failed_rule_ids` identifies evaluator crashes, malformed evaluator output, and rules that returned only `ERROR` evaluations (including inventory-wide failures with no usable outcomes). Partial `ERROR` rows do not mark a rule failed when it also returned a usable `PASS`, `FAIL`, `UNKNOWN`, or `NOT_APPLICABLE` outcome; the error rows remain in `evaluations` and still affect compliance roll-up. Thus even all-error per-resource results count as a rule failure because none of the rule's coverage could be used.
 
 Rules of the contract (see `scanner/evaluation.py` and `scanner/rules/az_kv_006.py` for the reference implementation):
 
-- `resource_id` must be a real, non-empty identifier. For a subscription-level result with no single resource to blame, use `subscription_scope_id(subscription_id)`, never `""`.
-- `UNKNOWN`, `ERROR`, and `NOT_APPLICABLE` require a `reason_code` explaining why — never leave one unexplained.
-- A `FAIL` result may attach `finding=` with the same dict shape `scan()` returns; the engine deduplicates it against anything `scan()` already reported for the same `(rule_id, resource_id)`, so implementing both never double-counts.
-- If you can't tell "no resources of this type exist" apart from "the list call failed" (a real gap in some `AzureClient` methods today), report `NOT_APPLICABLE` rather than guessing `PASS`.
+- Use an inventory call that returns `None` on failure (`list_storage_accounts()`, `list_key_vaults()`, and the `Optional[List]` getters such as `get_managed_clusters()`). A failed inventory must be `ERROR`, never `PASS` or `NOT_APPLICABLE`. If the method you need returns `[]` on failure, add a `list_*()` variant next to it.
+- Every path that would otherwise be a silent `continue` gets an explicit status, using the standard reason codes:
 
-You don't need to migrate an existing rule's `scan()` to add `evaluate()` — most rules can leave `scan()` exactly as-is.
+  | Situation | Status | `reason_code` |
+  |---|---|---|
+  | Inventory call failed | `ERROR` | `INVENTORY_UNAVAILABLE` |
+  | Inventory succeeded but is empty | `NOT_APPLICABLE` | `NO_RESOURCES_FOUND` |
+  | Per-resource lookup returned `None` | `UNKNOWN` | `EVIDENCE_UNAVAILABLE` |
+  | Resource lacks a required field | `UNKNOWN` | `MISSING_PROPERTIES` |
+  | Opt-in policy tag not set | `NOT_APPLICABLE` | `POLICY_NOT_REQUIRED` |
+  | Approved exception tag set | `NOT_APPLICABLE` | `APPROVED_EXCEPTION` |
+
+- `resource_id` must be a real, non-empty identifier. For a subscription-level result with no single resource to blame, use `subscription_scope_id(subscription_id)`, never `""`.
+- `UNKNOWN`, `ERROR`, and `NOT_APPLICABLE` require a `reason_code`.
+- Every `FAIL` must attach `finding=` with the same dict shape `scan()` returns; a `FAIL` without one is dropped from the findings list.
+- Record the value(s) you checked in `evidence`, for example `{"enable_rbac_authorization": False}`.
+- Register a fixture with at least one compliant and one non-compliant resource in `tests/test_rule_evaluation_contract.py`. That test runs against every rule exposing `evaluate()` and checks the failure, empty, finding-shape and `scan()` parity rules above.
 
 ---
 
