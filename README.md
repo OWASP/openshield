@@ -31,6 +31,36 @@
 Release artifacts include SHA-256 checksums, an SBOM, and identity-bound
 provenance attestations. See [release verification](docs/release-verification.md).
 
+## Scanner CLI
+
+After the first PyPI release, install the standalone Azure scanner with
+`pip install owasp-openshield`. The distribution name is `owasp-openshield`;
+the command is `openshield`. The unrelated `openshield` PyPI distribution is
+not this project.
+
+Authenticate with Azure using a method supported by `DefaultAzureCredential`
+(for example, `az login`), then run:
+
+```sh
+openshield scan --subscription-id 00000000-0000-0000-0000-000000000001
+openshield scan --subscription-id 00000000-0000-0000-0000-000000000001 --format json
+```
+
+`AZURE_SUBSCRIPTION_ID` may replace the flag. A completed scan exits 0 even
+when it has findings. Invalid configuration, authentication failure, or an
+incomplete rule run exits nonzero. Both output formats list failed rule IDs.
+The JSON output uses the scanner result contract. Remediation playbooks are
+included as reference files and are never run by the CLI.
+
+The CLI runs without the hosted Flask API or PostgreSQL. A PyPI project owner
+must configure a Trusted Publisher for `OWASP/openshield`, workflow
+`release.yml`, environment `pypi` before the first signed release. The
+publisher must recheck the distribution name immediately before release;
+pending publisher registration does not reserve it.
+
+See the [scanner CLI guide](docs/cli.md) for permissions, output, exit codes,
+coverage limits, security boundaries, and the release blueprint.
+
 ---
 
 ## Project Leadership

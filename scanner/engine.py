@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from api.observability import RULE_ERRORS_TOTAL
+from openshield.metrics import RULE_ERRORS_TOTAL
 from openshield.severity import CONTRACT_VERSION, SeverityContractError, normalize_severity, score_findings
 from scanner.azure_client import AzureClient
 from scanner.evaluation import EvaluationStatus, RuleEvaluation, subscription_scope_id
@@ -61,6 +61,7 @@ class ScanEngine:
         self.subscription_id = subscription_id
         self.client = AzureClient(subscription_id)
         self.rules: List[Any] = []
+        self.rule_load_failures: List[str] = []
         self.load_rules()
 
     # ------------------------------------------------------------------ #
@@ -72,7 +73,19 @@ class ScanEngine:
         # Keep runtime discovery identical to CI validation and documentation
         # counts. A misnamed scratch module must never execute against a real
         # subscription without first passing the rule checks.
-        for rule_path in sorted(RULES_DIR.glob("az_*.py")):
+        rule_paths = sorted(RULES_DIR.glob("az_*.py"))
+        manifest = RULES_DIR / "manifest.txt"
+        if manifest.exists():
+            expected = set(manifest.read_text(encoding="utf-8").splitlines())
+            present = {path.stem for path in rule_paths}
+            self.rule_load_failures.extend(name.upper().replace("_", "-") for name in sorted(expected - present))
+        elif RULES_DIR == Path(__file__).parent / "rules":
+            self.rule_load_failures.append("RULE_MANIFEST")
+        if not rule_paths:
+            if not self.rule_load_failures:
+                self.rule_load_failures.append("RULE_DISCOVERY")
+            logger.error("No scanner rule modules found in %s", RULES_DIR)
+        for rule_path in rule_paths:
             try:
                 spec = importlib.util.spec_from_file_location(rule_path.stem, rule_path)
                 module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
@@ -86,6 +99,7 @@ class ScanEngine:
                     logger.info("Loaded rule: %s", rule_id)
                 else:
                     logger.warning("Rule file %s has no scan() function or RULE_ID — skipped", rule_path.name)
+                    self.rule_load_failures.append(rule_path.stem.upper().replace("_", "-"))
             except SeverityContractError:
                 # A rule outside the contract must fail startup rather than be
                 # silently skipped and later appear as a clean evaluation.
@@ -93,6 +107,7 @@ class ScanEngine:
                 raise
             except Exception as exc:
                 logger.error("Failed to load rule %s: %s", rule_path.name, exc)
+                self.rule_load_failures.append(rule_path.stem.upper().replace("_", "-"))
 
     # ------------------------------------------------------------------ #
     # Scan execution                                                        #
@@ -134,7 +149,7 @@ class ScanEngine:
         # is ERROR, the rule supplied no usable coverage and is failed. This
         # also covers inventory-wide failures, while preserving valid results
         # from other inventories/resources.
-        failed_rule_ids: List[str] = []
+        failed_rule_ids: List[str] = list(getattr(self, "rule_load_failures", []))
 
         for rule in self.rules:
             rule_id = getattr(rule, "RULE_ID", "UNKNOWN")

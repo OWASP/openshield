@@ -1,16 +1,16 @@
 # Verifying OpenShield Releases
 
-For the current OWASP-hosted container workflow, see
+For the OWASP-hosted container workflow, see
 [container release integrity](container-release-integrity.md), including owner
-opt-in, the new GHCR namespace and digest verification. The commands below retain
-the historical source-artifact identity for releases from `openshield-org`;
-for new OWASP-hosted source releases substitute `OWASP/openshield` in both
-`--repo` and `--signer-workflow`.
+opt-in, the GHCR namespace and digest verification. Historical releases from
+`openshield-org` require that repository identity in the verification command;
+the examples here apply to new `OWASP/openshield` releases.
 
 OpenShield release artifacts are produced only from a GitHub-verified signed
 annotated tag. GitHub Actions generates a deterministic source archive, a
-CycloneDX SBOM and SHA-256 checksums, then creates identity-bound Sigstore
-provenance attestations before uploading the files to the release.
+CycloneDX SBOM, Python wheel and source distribution, and SHA-256 checksums,
+then creates identity-bound Sigstore provenance attestations before uploading
+the files to the release.
 
 ## Verify checksums
 
@@ -26,16 +26,24 @@ Install the GitHub CLI and verify each artifact against this repository:
 
 ```bash
 gh attestation verify openshield-vX.Y.Z.tar.gz \
-  --repo openshield-org/openshield \
-  --signer-workflow openshield-org/openshield/.github/workflows/release.yml
+  --repo OWASP/openshield \
+  --signer-workflow OWASP/openshield/.github/workflows/release.yml
 
 gh attestation verify openshield-vX.Y.Z-sbom.cyclonedx.json \
-  --repo openshield-org/openshield \
-  --signer-workflow openshield-org/openshield/.github/workflows/release.yml
+  --repo OWASP/openshield \
+  --signer-workflow OWASP/openshield/.github/workflows/release.yml
 
 gh attestation verify SHA256SUMS \
-  --repo openshield-org/openshield \
-  --signer-workflow openshield-org/openshield/.github/workflows/release.yml
+  --repo OWASP/openshield \
+  --signer-workflow OWASP/openshield/.github/workflows/release.yml
+
+gh attestation verify owasp_openshield-X.Y.Z-py3-none-any.whl \
+  --repo OWASP/openshield \
+  --signer-workflow OWASP/openshield/.github/workflows/release.yml
+
+gh attestation verify owasp_openshield-X.Y.Z.tar.gz \
+  --repo OWASP/openshield \
+  --signer-workflow OWASP/openshield/.github/workflows/release.yml
 ```
 
 Successful verification proves that the artifact digest was attested by the
@@ -52,6 +60,24 @@ GitHub or Sigstore audited the source code.
 4. Push only the tag: `git push origin vX.Y.Z`.
 5. The workflow independently asks GitHub to verify the tag signature. A
    lightweight or unverified tag fails before artifacts are produced.
-6. After publication, download and verify every asset using the commands above.
+6. Before the first PyPI publication, a PyPI project owner registers the
+   `OWASP/openshield` repository, `release.yml` workflow, and protected `pypi`
+   environment as a Trusted Publisher. Recheck the `owasp-openshield` name
+   immediately before the release. Pending publisher registration does not
+   reserve it.
+7. After publication, download and verify every GitHub Release asset using
+   the commands above. Separately verify the PyPI project and install from
+   the public index in a clean environment:
+
+   ```bash
+   python -m venv verify-venv
+   verify-venv/bin/python -m pip install --index-url https://pypi.org/simple owasp-openshield==X.Y.Z
+   verify-venv/bin/python -m pip check
+   verify-venv/bin/openshield --version
+   ```
+
+   On Windows, use `verify-venv\Scripts\python.exe` and
+   `verify-venv\Scripts\openshield.exe`. A successful GitHub Release job does
+   not prove PyPI publication; inspect the separate `pypi` job.
 
 Existing historical lightweight tags are not retroactively described as signed.

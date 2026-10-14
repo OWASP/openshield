@@ -1,0 +1,13 @@
+include LICENSE README.md pyproject.toml setup.py
+include docs/pypi-readme.md
+recursive-include scanner *.py
+exclude scanner/worker.py scanner/enrichment_worker.py
+include scanner/rules/manifest.txt
+recursive-include openshield *.py
+recursive-include contracts *.py *.json
+recursive-include playbooks *.py *.sh
+prune api
+prune tests
+prune website
+prune frontend
+prune infra

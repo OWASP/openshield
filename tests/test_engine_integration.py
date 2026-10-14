@@ -81,6 +81,23 @@ def test_engine_discovery_matches_ci_and_ignores_misnamed_modules(monkeypatch, t
     assert [rule.RULE_ID for rule in eng.rules] == ["AZ-VALID-001"]
 
 
+def test_missing_manifest_rule_is_reported(monkeypatch, tmp_path):
+    (tmp_path / "manifest.txt").write_text("az_missing_001\n", encoding="utf-8")
+    monkeypatch.setattr(engine_mod, "RULES_DIR", tmp_path)
+    _patch_engine_client(monkeypatch, _offline_mock())
+    result = ScanEngine(_SUB).run_scan()
+    assert "AZ-MISSING-001" in result["failed_rule_ids"]
+
+
+def test_unloadable_rule_is_reported(monkeypatch, tmp_path):
+    (tmp_path / "manifest.txt").write_text("az_broken_001\n", encoding="utf-8")
+    (tmp_path / "az_broken_001.py").write_text("raise ImportError('missing dependency')\n", encoding="utf-8")
+    monkeypatch.setattr(engine_mod, "RULES_DIR", tmp_path)
+    _patch_engine_client(monkeypatch, _offline_mock())
+    result = ScanEngine(_SUB).run_scan()
+    assert "AZ-BROKEN-001" in result["failed_rule_ids"]
+
+
 @pytest.mark.parametrize("severity", ["INFORMATIONAL", "URGENT"])
 def test_engine_rejects_noncanonical_rule_declarations(monkeypatch, tmp_path, severity):
     (tmp_path / "az_invalid_001.py").write_text(
