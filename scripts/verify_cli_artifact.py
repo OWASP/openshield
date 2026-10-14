@@ -8,8 +8,8 @@ import venv
 from pathlib import Path
 
 
-def run(*args, cwd, env=None):
-    subprocess.run(args, cwd=cwd, env=env, check=True)
+def run(*args, cwd, env=None, check=True, capture_output=False):
+    return subprocess.run(args, cwd=cwd, env=env, check=check, capture_output=capture_output, text=capture_output)
 
 
 def main() -> None:
@@ -109,13 +109,16 @@ with patch('scanner.engine.ScanEngine', AuthFailure):
     assert json.loads(output.getvalue())['status'] == 'authentication_failed'
 """
             run(str(python), "-c", verification, cwd=target)
-            # The executable is inside our newly created venv and arguments are
-            # a fixed list; no shell parses the artifact path or user input.
-            invalid = subprocess.run(
-                [str(openshield), "scan", "--subscription-id", "invalid", "--format", "json"],  # nosemgrep
+            invalid = run(
+                str(openshield),
+                "scan",
+                "--subscription-id",
+                "invalid",
+                "--format",
+                "json",
                 cwd=target,
+                check=False,
                 capture_output=True,
-                text=True,
             )
             assert invalid.returncode == 2 and '"status": "invalid_configuration"' in invalid.stdout
             print(f"Verified {artifact.name}")
