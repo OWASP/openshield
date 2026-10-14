@@ -9,6 +9,8 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add an offline-first AI evaluation benchmark with 24 synthetic cases, retrieval baseline, optional bounded live runs, and an answer-review rubric (#385).
+
 - Add the remediation approval, idempotency, audit and rescan gate (`api/models/remediation.py`, `docs/remediation-gate.md`) for issue #266: approved-only, allowlisted, at-most-once execution grants with an append-only audit trail and rescan-based verification. Proposal-only; nothing executes a playbook.
 - Add all ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate.
 - Branch protection declared as versioned GitHub rulesets for `dev` and `main`, with a scheduled drift audit that retains evidence (#298)
