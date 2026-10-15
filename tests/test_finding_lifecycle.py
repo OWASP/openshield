@@ -494,3 +494,24 @@ def test_evaluate_only_rule_with_error_status_cannot_resolve():
         evaluations=[{"rule_id": "EVAL-RULE", "resource_id": "/rg/res", "status": "ERROR"}],
     )
     assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
+
+
+def test_failed_rule_id_blocks_resolution_despite_pass_evaluation():
+    """A rule in failed_rule_ids must not resolve findings even when evaluations include PASS."""
+    conn = _FakeConn([None, [(10, "OPEN", 0, "PARTIAL-RULE", "/rg/res")], None, None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [],
+        [],
+        evaluations=[
+            {"rule_id": "PARTIAL-RULE", "resource_id": "/rg/res", "status": "PASS"},
+            {"rule_id": "PARTIAL-RULE", "resource_id": "/rg/res2", "status": "ERROR"},
+        ],
+        failed_rule_ids={"PARTIAL-RULE"},
+    )
+    assert not any(
+        "SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed()
+    ), "PASS resource from a failed rule must not be resolved"

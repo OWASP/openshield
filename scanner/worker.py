@@ -239,6 +239,7 @@ def run_worker():
                         rule_outcomes=result.get("rule_outcomes", []),
                         findings=result.get("findings", []),
                         evaluations=result.get("evaluations", []),
+                        failed_rule_ids=set(result.get("failed_rule_ids", [])),
                     )
                     pat_svc = PatternService()
                     pat_svc.detect_and_publish(

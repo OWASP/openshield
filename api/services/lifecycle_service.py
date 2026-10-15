@@ -72,6 +72,7 @@ class LifecycleService:
         rule_outcomes: List[Dict[str, Any]],
         findings: Optional[List[Dict[str, Any]]] = None,
         evaluations: Optional[List[Dict[str, Any]]] = None,
+        failed_rule_ids: Optional[set] = None,
     ) -> None:
         """Apply a completed scan's findings to the lifecycle tables.
 
@@ -84,8 +85,12 @@ class LifecycleService:
             evaluations: Current per-resource PASS/FAIL/UNKNOWN coverage.
             findings: List of finding dicts with keys 'rule_id', 'resource_id',
                 and optionally 'evidence_key'. Defaults to empty list.
+            failed_rule_ids: Set of rule IDs the engine flagged as partially or
+                fully failed. PASS evaluations from these rules never resolve
+                findings, keeping lifecycle state consistent with compliance scoring.
         """
         findings = findings or []
+        _failed = failed_rule_ids or set()
 
         if getattr(db_conn, "autocommit", False):
             raise ValueError("db_conn must have autocommit=False for transactional lifecycle apply")
@@ -141,12 +146,15 @@ class LifecycleService:
 
                 # evaluate()-only rules (engine skips scan() for them, so they
                 # never produce a rule_outcomes entry). Treat such a rule as having
-                # completed cleanly if it produced at least one non-ERROR evaluation.
+                # completed cleanly if it produced at least one non-ERROR evaluation
+                # AND it is not in failed_rule_ids (a partially-failed rule must not
+                # resolve findings even if some of its evaluations are PASS).
                 evaluated_cleanly: set = {
                     e.get("rule_id")
                     for e in (evaluations or [])
                     if isinstance(e.get("rule_id"), str)
                     and e.get("rule_id") not in outcome_by_rule
+                    and e.get("rule_id") not in _failed
                     and e.get("status") != "ERROR"
                 }
 
@@ -164,6 +172,7 @@ class LifecycleService:
                     key
                     for key, statuses in resource_statuses.items()
                     if statuses == {"PASS"}
+                    and key[0] not in _failed
                     and (outcome_by_rule.get(key[0]) in _RESOLVING_STATUSES or key[0] in evaluated_cleanly)
                 }
                 # A violation contradicts a PASS for the same rule/resource,
