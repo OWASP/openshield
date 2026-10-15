@@ -112,7 +112,7 @@ class CIScanEngine:
             try:
                 findings = rule.scan(self.client, self.owner, self.repo)
             except Exception as exc:
-                logger.error("Error running rule %s: %s", rule.RULE_ID, exc)
+                logger.error("Error running rule %s: %s", rule.RULE_ID, exc, exc_info=True)
                 evaluations.append(
                     RuleEvaluation(
                         rule_id=rule.RULE_ID,

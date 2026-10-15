@@ -113,7 +113,7 @@ class GitHubClient:
             resp.raise_for_status()
             return resp
         except Exception as exc:
-            logger.error("GitHub API request failed for %s: %s", url, exc)
+            logger.error("GitHub API request failed for %s: %s", url, exc, exc_info=True)
             return None
 
     def get_workflows(self) -> Optional[List[Dict[str, Any]]]:
@@ -147,7 +147,7 @@ class GitHubClient:
                 url = next_url
                 params = {}  # URL already contains query params for subsequent pages
             except Exception as exc:
-                logger.error("Failed to parse workflows response: %s", exc)
+                logger.error("Failed to parse workflows response: %s", exc, exc_info=True)
                 self._workflows_cache = None
                 return None
         self._workflows_cache = workflows
@@ -182,7 +182,7 @@ class GitHubClient:
             self._workflow_files_cache[path] = decoded
             return decoded
         except Exception as exc:
-            logger.error("Failed to decode workflow file %s: %s", path, exc)
+            logger.error("Failed to decode workflow file %s: %s", path, exc, exc_info=True)
             self._workflow_files_cache[path] = None
             return None
 
@@ -194,7 +194,7 @@ class GitHubClient:
         try:
             return resp.json()
         except Exception as exc:
-            logger.error("Failed to parse repo info: %s", exc)
+            logger.error("Failed to parse repo info: %s", exc, exc_info=True)
             return None
 
     def get_workflow_permissions(self) -> Optional[str]:
@@ -215,5 +215,5 @@ class GitHubClient:
         try:
             return resp.json().get("default_workflow_permissions")
         except Exception as exc:
-            logger.error("Failed to parse workflow permissions: %s", exc)
+            logger.error("Failed to parse workflow permissions: %s", exc, exc_info=True)
             return None
