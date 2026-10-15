@@ -53,6 +53,13 @@ A [terminal recording of an installed local wheel](assets/cli-installed-wheel.ca
 
 `status: incomplete` and `failed_rule_ids` identify a known rule failure. A rule may produce findings and still be incomplete. A missing packaged rule is reported by comparing the installed modules with `scanner/rules/manifest.txt`.
 
+## Troubleshooting
+
+- `authentication_failed`: renew the credential used by `DefaultAzureCredential`. For an Azure CLI login, run `az login`, then verify ARM token acquisition with `az account get-access-token --resource https://management.azure.com/ --subscription <id> --query expiresOn -o tsv`. This displays only the expiry. Never paste the token into an issue or PR.
+- `subscription_unavailable`: verify the subscription ID, selected tenant, and read access with `az account show --subscription <id>`. Subscription Reader access alone may not cover Graph or Azure DevOps rules.
+- `incomplete`: inspect `failed_rule_ids` in the result. If a packaged rule is missing or fails to import, reinstall a verified wheel. If a rule cannot query an Azure API, check the identity's service-specific permissions. Do not interpret the remaining findings as complete coverage.
+- Package not found on PyPI: the first signed release has not published yet, or publishing was skipped by the protected setup gate. Use a verified GitHub Release wheel when one exists. Installing the unrelated `openshield` distribution will not provide this CLI.
+
 **Coverage limit:** Most legacy rules have not yet migrated to per-resource `evaluate()` results. Their `UNKNOWN` evaluation placeholders mean that a zero-finding completed scan is not proof that every resource was inspected or compliant. See the [evaluation contract](../scanner/evaluation.py) and [rule migration epic](https://github.com/OWASP/openshield/issues/380). Some Azure SDK helpers handle service failures internally; the CLI's subscription preflight cannot prove that every downstream API call succeeded. Review `evaluations` and rule logs before making assurance claims.
 
 ## Safety and data handling
