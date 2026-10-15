@@ -200,7 +200,7 @@ class TokenVerifier:
         return {
             "sub": claims["sub"],
             "role": role,
-            "tenant": _verified_scope_claim(claims, "tid"),
+            "tenant": (_verified_scope_claim(claims, "tid") or "").lower() or None,
             "issuer": claims.get("iss"),
             "auth_mode": SHARED_SECRET_MODE,
             **_subscription_scope(claims),

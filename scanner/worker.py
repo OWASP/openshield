@@ -223,7 +223,13 @@ def run_worker():
                 # the scan is already persisted, so we log and continue rather
                 # than marking the scan as failed.
                 try:
-                    tenant_id = os.environ.get("OPENSHIELD_TENANT_ID", subscription_id)
+                    _raw_tenant = os.environ.get("OPENSHIELD_TENANT_ID")
+                    if not _raw_tenant:
+                        logger.warning(
+                            "OPENSHIELD_TENANT_ID not set; lifecycle patterns will be scoped "
+                            "by subscription_id which may not match token tenant claims"
+                        )
+                    tenant_id = (_raw_tenant or subscription_id).lower()
                     lc_svc = LifecycleService()
                     lc_svc.apply_scan(
                         db_conn=db._get_conn(),
