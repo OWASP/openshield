@@ -25,10 +25,9 @@ from api.observability import (
     configure_logging,
     init_sentry,
 )
-from api.services.lifecycle_service import LifecycleService
-from api.services.pattern_service import PatternService
 from scanner.engine import ScanEngine
 from scanner.enrichment_worker import process_enrichment_job
+from scanner.lifecycle_worker import process_lifecycle_job
 
 configure_logging()
 logger = logging.getLogger("scanner.worker")
@@ -159,6 +158,7 @@ def run_worker():
             # 1. Cleanup stale scans from previous crashes
             db.recover_stale_scans()
             db.recover_stale_enrichment_jobs()
+            db.recover_stale_lifecycle_jobs()
 
             # 2. Publish current queue depth
             PENDING_SCANS.set(len(db.get_pending_scans()))
@@ -172,12 +172,16 @@ def run_worker():
             if enrichment_job:
                 process_enrichment_job(db, enrichment_job, worker_id, lease_seconds)
 
+            lifecycle_job = db.claim_next_lifecycle_job(worker_id, lease_seconds)
+            if lifecycle_job:
+                process_lifecycle_job(db, lifecycle_job, worker_id, lease_seconds)
+
             # 4. Atomic scan claim
             scan = db.claim_next_pending_scan(worker_id, lease_seconds)
             if not scan:
                 # Only idle when there was no work at all; an iteration that
-                # ran an enrichment job polls again immediately.
-                if not enrichment_job:
+                # ran an enrichment or lifecycle job polls again immediately.
+                if not enrichment_job and not lifecycle_job:
                     time.sleep(POLL_INTERVAL_SECONDS)
                 continue
 
@@ -219,43 +223,9 @@ def run_worker():
                     raise LostLease(f"Scan {scan_id} lost its lease before completion")
                 db.save_scan(result, worker_id, fencing_token)
 
-                # Apply lifecycle tracking. Lifecycle failures are non-fatal:
-                # the scan is already persisted, so we log and continue rather
-                # than marking the scan as failed.
-                try:
-                    _raw_tenant = os.environ.get("OPENSHIELD_TENANT_ID")
-                    if not _raw_tenant:
-                        logger.warning(
-                            "OPENSHIELD_TENANT_ID not set; lifecycle patterns will be scoped "
-                            "by subscription_id which may not match token tenant claims"
-                        )
-                    tenant_id = (_raw_tenant or subscription_id).lower()
-                    lc_svc = LifecycleService()
-                    lc_svc.apply_scan(
-                        db_conn=db._get_conn(),
-                        scan_id=scan_id,
-                        subscription_id=subscription_id,
-                        tenant_id=tenant_id,
-                        rule_outcomes=result.get("rule_outcomes", []),
-                        findings=result.get("findings", []),
-                        evaluations=result.get("evaluations", []),
-                        failed_rule_ids=set(result.get("failed_rule_ids", [])),
-                    )
-                    pat_svc = PatternService()
-                    pat_svc.detect_and_publish(
-                        db_conn=db._get_conn(),
-                        scan_id=scan_id,
-                        subscription_id=subscription_id,
-                        tenant_id=tenant_id,
-                    )
-                except Exception:
-                    logger.error(
-                        "Lifecycle/pattern update failed for scan %s (scan data intact)",
-                        scan_id,
-                        exc_info=True,
-                        extra={"scan_id": scan_id},
-                    )
-
+                # Lifecycle application is now durable: save_scan() enqueues a
+                # lifecycle_job in the same transaction, so apply_scan() will
+                # run even if this worker crashes immediately after saving.
                 SCANS_TOTAL.labels(status="completed").inc()
                 logger.info(
                     "Successfully completed scan %s",
