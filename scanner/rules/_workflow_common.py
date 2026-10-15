@@ -102,7 +102,7 @@ def uses_workload_identity(yaml_content: str, parsed: Optional[Dict[str, Any]] =
         # Check top-level permissions
         top_perms = parsed.get("permissions") or {}
         if isinstance(top_perms, dict):
-            has_oidc_permission = top_perms.get("id-token", "").lower() == "write"
+            has_oidc_permission = str(top_perms.get("id-token") or "").lower() == "write"
         # Check job-level permissions if top-level not set
         if not has_oidc_permission:
             jobs = parsed.get("jobs") or {}
@@ -111,7 +111,7 @@ def uses_workload_identity(yaml_content: str, parsed: Optional[Dict[str, Any]] =
                     continue
                 job_perms = job.get("permissions") or {}
                 if isinstance(job_perms, dict):
-                    if job_perms.get("id-token", "").lower() == "write":
+                    if str(job_perms.get("id-token") or "").lower() == "write":
                         has_oidc_permission = True
                         break
     else:

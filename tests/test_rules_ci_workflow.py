@@ -293,6 +293,10 @@ MALFORMED_YAML = "on: [push\njobs: {"
 
 def _make_client(workflows=None, contents=None):
     client = MagicMock()
+    # A bare MagicMock returns a truthy Mock here, which silently skips AZ-CI-002's
+    # "repo default unreadable" (None -> UNKNOWN) branch. Default to None, the real
+    # "could not read it" value; tests that need a value override it.
+    client.get_workflow_permissions.return_value = None
     if workflows is None:
         client.get_workflows.return_value = [{"path": ".github/workflows/ci.yml"}]
     else:
@@ -447,9 +451,11 @@ class TestAzCi002:
         assert findings[0]["rule_id"] == "AZ-CI-002"
 
     def test_no_permissions_block_returns_finding(self):
+        # Repo default unreadable (None) -> the finding carries the UNKNOWN marker.
         client = _make_client(contents=NO_PERMISSIONS_WORKFLOW)
         findings = az_ci_002.scan(client, OWNER, REPO)
         assert len(findings) == 1
+        assert findings[0]["metadata"]["effective_permissions"] == "UNKNOWN"
 
     def test_least_privilege_no_finding(self):
         client = _make_client(contents=SECURE_WORKFLOW)
@@ -697,6 +703,8 @@ class TestCIScanEngine:
         else:
             engine.client.get_workflow_content = lambda p: contents
         engine.client.get_repo_info = lambda: repo_info or {}
+        # Never hit the network: an unreadable repo default is the safe baseline.
+        engine.client.get_workflow_permissions = lambda: None
         return engine
 
     def test_secure_workflow_returns_all_pass(self):
@@ -728,6 +736,17 @@ class TestCIScanEngine:
         results = engine.run_scan()
         assert all(r.status == EvaluationStatus.UNKNOWN for r in results)
         assert all(r.reason_code == "WORKFLOWS_UNAVAILABLE" for r in results)
+
+    def test_unreadable_default_permissions_emits_unknown(self):
+        """No permissions block and an unreadable repo default -> UNKNOWN, never PASS/FAIL."""
+        from scanner.evaluation import EvaluationStatus
+
+        engine = self._make_engine(contents=NO_PERMISSIONS_WORKFLOW)
+        engine.client.get_workflow_permissions = lambda: None
+        results = [r for r in engine.run_scan() if r.rule_id == "AZ-CI-002"]
+        assert len(results) == 1
+        assert results[0].status == EvaluationStatus.UNKNOWN
+        assert results[0].reason_code == "PERMISSIONS_DEFAULT_UNKNOWN"
 
     def test_empty_repo_returns_not_applicable(self):
         """A repo with no workflows returns NOT_APPLICABLE for all rules."""
@@ -761,3 +780,23 @@ class TestCIScanEngine:
         results = engine.run_scan()
         rule_ids = {r.rule_id for r in results}
         assert rule_ids == {"AZ-CI-001", "AZ-CI-002", "AZ-CI-003", "AZ-CI-004"}
+
+
+def test_null_id_token_permission_does_not_crash_az_ci_001():
+    """`id-token:` with no value parses to None; it must be evaluated, not raise."""
+    import scanner.rules.az_ci_001 as az_ci_001_rule
+
+    workflow = (
+        "name: Deploy\n"
+        "on: push\n"
+        "permissions:\n"
+        "  id-token:\n"
+        "  contents: read\n"
+        "jobs:\n"
+        "  deploy:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - uses: azure/login@v2\n"
+    )
+    findings = az_ci_001_rule.scan(_make_client(contents=workflow), OWNER, REPO)
+    assert isinstance(findings, list)
