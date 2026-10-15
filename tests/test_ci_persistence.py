@@ -8,7 +8,7 @@ pattern used in the existing CI rule tests (tests/test_rules_ci_workflow.py).
 import json
 import uuid
 from typing import Any, Dict, List
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -115,9 +115,6 @@ class TestCIDatabaseConnection:
 
     def test_missing_dsn_raises(self):
         with patch.dict("os.environ", {}, clear=True):
-            # Ensure DATABASE_URL is absent
-            import os
-            os.environ.pop("DATABASE_URL", None)
             with pytest.raises(RuntimeError, match="DSN or DATABASE_URL"):
                 CIDatabase("")
 
@@ -344,8 +341,6 @@ class TestRunAndPersist:
 
     @patch("scanner.ci_engine.CIDatabase")
     def test_missing_dsn_raises_before_db_call(self, MockDB):
-        import os
-        os.environ.pop("DATABASE_URL", None)
         engine = CIScanEngine(owner=OWNER, repo=REPO)  # no dsn
         with patch.dict("os.environ", {}, clear=True):
             with pytest.raises(RuntimeError, match="DSN"):
@@ -381,3 +376,22 @@ class TestRunAndPersist:
             engine.run_and_persist(scan_id=SCAN_ID)
 
         mock_db.close.assert_called_once()
+
+
+class TestReviewFollowUps:
+    def test_save_raises_when_scan_id_belongs_to_another_repo(self, mock_pool):
+        _, conn, cursor = mock_pool
+        cursor.rowcount = 0  # upsert WHERE clause matched nothing
+        db = CIDatabase(DSN)
+        db.connect()
+        with pytest.raises(ValueError, match="different repository"):
+            db.save_ci_scan(SCAN_ID, OWNER, REPO, [])
+        conn.rollback.assert_called_once()
+        conn.commit.assert_not_called()
+
+    def test_failed_status_sets_completed_at(self, mock_pool):
+        _, _, cursor = mock_pool
+        db = CIDatabase(DSN)
+        db.connect()
+        db.update_ci_scan_status(SCAN_ID, "failed", error_message="boom")
+        assert "completed_at" in cursor.execute.call_args[0][0]

@@ -1,6 +1,6 @@
 """Add ci_scans and ci_scan_evaluations tables for GitHub CI/CD scanning.
 
-Revision ID: e1f2a3b4c5d6
+Revision ID: 4d8a2f6c9b13
 Revises: b6d2f8a4c1e7
 Create Date: 2026-10-10 00:00:00.000000
 
@@ -19,7 +19,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # Revision identifiers, used by Alembic.
-revision: str = "e1f2a3b4c5d6"
+revision: str = "4d8a2f6c9b13"
 down_revision: Union[str, Sequence[str], None] = "b6d2f8a4c1e7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

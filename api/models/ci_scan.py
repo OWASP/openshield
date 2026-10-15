@@ -134,6 +134,8 @@ class CIDatabase:
                         total_evaluations  = EXCLUDED.total_evaluations,
                         fail_count         = EXCLUDED.fail_count,
                         error_message      = EXCLUDED.error_message
+                    WHERE ci_scans.owner = EXCLUDED.owner
+                      AND ci_scans.repo  = EXCLUDED.repo
                     """,
                     (
                         scan_id,
@@ -149,6 +151,11 @@ class CIDatabase:
                         error_message,
                     ),
                 )
+
+                if cur.rowcount == 0:
+                    raise ValueError(
+                        f"scan_id {scan_id} already exists for a different repository; refusing to overwrite"
+                    )
 
                 # Replace evaluation rows atomically on retry — same pattern as
                 # DatabaseManager.save_scan() for findings.
@@ -224,10 +231,13 @@ class CIDatabase:
                 cur.execute(
                     """
                     UPDATE ci_scans
-                    SET status = %s, error_message = %s
+                    SET status = %s,
+                        error_message = %s,
+                        completed_at = CASE WHEN %s::text = 'failed'
+                                            THEN CURRENT_TIMESTAMP ELSE completed_at END
                     WHERE scan_id = %s
                     """,
-                    (status, error_message, scan_id),
+                    (status, error_message, status, scan_id),
                 )
         conn.commit()
         logger.info("CIDatabase: updated CI scan %s status to %s", scan_id, status)
