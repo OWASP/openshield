@@ -60,7 +60,7 @@ does helps reporters accurately scope their findings.
 
 | Component | What it does | Security relevance |
 |---|---|---|
-| `api/` | REST API with JWT/OIDC authentication and role-based access control | Auth bypass, privilege escalation, input validation, JWT handling |
+| `api/` | REST API with JWT/OIDC authentication, role-based access control, and remediation approval/grant flow (`api/models/remediation.py`) | Auth bypass, privilege escalation, input validation, JWT handling, grant bypass |
 | `scanner/` | Reads Azure resource configuration via the Azure SDK; does not write | Credential handling, cross-tenant isolation, output integrity |
 | `playbooks/cli/` | Remediation scripts that modify Azure resources when run manually | Command injection, privilege escalation, unsafe Azure mutations |
 | `sentinel/` | Signs and uploads scan data to Azure Log Analytics via HMAC | HMAC signing, credential handling, data integrity |
