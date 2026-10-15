@@ -1,0 +1,10 @@
+{"version": 2, "width": 80, "height": 24, "timestamp": 1792070631, "env": {"SHELL": "/bin/zsh", "TERM": "xterm-256color"}}
+[0.0152, "o", "$ python -m pip check\r\n"]
+[0.308049, "o", "No broken requirements found.\r\n"]
+[0.322338, "o", "\r\n$ openshield --version\r\n"]
+[0.687149, "o", "openshield 0.3.1.dev216+g443be0c\r\n"]
+[0.705884, "o", "\r\n$ openshield scan --help\r\n"]
+[0.838457, "o", "usage: openshield scan [-h] [--subscription-id SUBSCRIPTION_ID]\r\n                       [--format {text,json}]\r\n\r\noptions:\r\n  -h, --help            show this help message and exit\r\n  --subscription-id SUBSCRIPTION_ID\r\n                        Azure subscription UUID (defaults to\r\n                        AZURE_SUBSCRIPTION_ID)\r\n  --format {text,json}\r\n"]
+[0.8571, "o", "\r\n$ openshield scan --subscription-id invalid --format json\r\n"]
+[0.994346, "o", "{\"status\": \"invalid_configuration\", \"subscription_id\": \"invalid\", \"failed_rule_ids\": [], \"error\": \"Provide a valid UUID with --subscription-id or AZURE_SUBSCRIPTION_ID.\"}\r\n"]
+[1.01221, "o", "exit code: 2\r\n"]

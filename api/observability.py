@@ -29,6 +29,8 @@ from prometheus_client import (
     Histogram,
     generate_latest,
 )
+from openshield.metrics import NVD_REQUEST_LATENCY_SECONDS as NVD_REQUEST_LATENCY_SECONDS
+from openshield.metrics import RULE_ERRORS_TOTAL as RULE_ERRORS_TOTAL
 
 # python-json-logger moved ``JsonFormatter`` from ``pythonjsonlogger.jsonlogger``
 # to ``pythonjsonlogger.json`` in 3.1. Prefer the new path, fall back for <3.1.
@@ -95,15 +97,6 @@ RETRY_ATTEMPTS = Gauge(
 LAST_SUCCESSFUL_SCAN_TIMESTAMP = Gauge(
     "openshield_last_successful_scan_timestamp_seconds",
     "Unix timestamp of the most recently completed scan, or zero when none exist.",
-)
-RULE_ERRORS_TOTAL = Counter(
-    "openshield_rule_errors_total",
-    "Total number of times a scanner rule raised an exception.",
-    ["rule_id"],
-)
-NVD_REQUEST_LATENCY_SECONDS = Histogram(
-    "openshield_nvd_request_latency_seconds",
-    "Latency of outbound NVD HTTP requests in seconds.",
 )
 LLM_PROVIDER_LATENCY_SECONDS = Histogram(
     "openshield_llm_provider_latency_seconds",

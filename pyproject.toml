@@ -1,3 +1,77 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "owasp-openshield"
+dynamic = ["version"]
+description = "OpenShield Azure security posture scanner CLI"
+readme = "docs/pypi-readme.md"
+license = "MIT"
+requires-python = ">=3.11"
+keywords = ["azure", "cloud-security", "cspm", "security-scanner", "owasp"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: System Administrators",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Security",
+]
+dependencies = [
+  "azure-identity>=1.25,<2",
+  "azure-mgmt-storage>=21,<22",
+  "azure-mgmt-network>=25,<26",
+  "azure-mgmt-compute>=30,<31",
+  "azure-mgmt-resource>=23,<24",
+  "azure-mgmt-resourcegraph>=8,<9",
+  "azure-mgmt-sql>=3,<4",
+  "azure-mgmt-cosmosdb>=10,<11",
+  "azure-mgmt-redis>=14,<15",
+  "azure-mgmt-keyvault>=10,<11",
+  "azure-mgmt-rdbms>=10,<11",
+  "azure-mgmt-authorization>=4,<5",
+  "azure-mgmt-web>=7,<8",
+  "azure-mgmt-monitor>=6,<7",
+  "azure-mgmt-security>=7,<8",
+  "azure-mgmt-securityinsight>=1,<2",
+  "azure-mgmt-loganalytics>=14,<15",
+  "azure-mgmt-dns>=8,<9",
+  "azure-mgmt-containerservice>=41,<42",
+  "azure-mgmt-recoveryservices>=4,<5",
+  "azure-mgmt-postgresqlflexibleservers>=1.0.0b1,<2",
+  "azure-mgmt-containerregistry>=15,<16",
+  "azure-keyvault-certificates>=4,<5",
+  "azure-keyvault-keys>=4,<5",
+  "azure-devops>=7.1.0b4,<8",
+  "kubernetes>=36,<37",
+  "msrest>=0.7,<1",
+  "requests>=2.34,<3",
+  "prometheus-client>=0.19,<1",
+]
+
+[project.scripts]
+openshield = "openshield.cli:main"
+
+[project.urls]
+Homepage = "https://owasp.github.io/openshield/"
+Documentation = "https://github.com/OWASP/openshield/blob/dev/docs/cli.md"
+Source = "https://github.com/OWASP/openshield"
+Issues = "https://github.com/OWASP/openshield/issues"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["openshield*", "scanner*", "playbooks*", "contracts*"]
+exclude = ["api*", "tests*", "website*", "frontend*"]
+
+[tool.setuptools.package-data]
+"contracts" = ["severity.v1.json"]
+"scanner.rules" = ["manifest.txt"]
+"playbooks.cli" = ["*.sh"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 120
