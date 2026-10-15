@@ -3,13 +3,52 @@
 import os
 import subprocess
 import sys
+import tarfile
 import tempfile
 import venv
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 
 
 def run(*args, cwd, env=None, check=True, capture_output=False):
     return subprocess.run(args, cwd=cwd, env=env, check=check, capture_output=capture_output, text=capture_output)
+
+
+def verify_archive_scope(artifact: Path) -> None:
+    """Reject files from hosted services or other repository products."""
+    if artifact.suffix == ".whl":
+        with zipfile.ZipFile(artifact) as archive:
+            members = archive.namelist()
+        paths = [PurePosixPath(name) for name in members]
+        allowed = {"openshield", "scanner", "contracts", "playbooks"}
+        assert all(path.parts[0] in allowed or path.parts[0].endswith(".dist-info") for path in paths)
+    else:
+        with tarfile.open(artifact, "r:gz") as archive:
+            members = archive.getnames()
+        paths = [
+            PurePosixPath(*PurePosixPath(name).parts[1:]) for name in members if len(PurePosixPath(name).parts) > 1
+        ]
+        allowed = {
+            "openshield",
+            "scanner",
+            "contracts",
+            "playbooks",
+            "docs",
+            "LICENSE",
+            "MANIFEST.in",
+            "PKG-INFO",
+            "README.md",
+            "owasp_openshield.egg-info",
+            "pyproject.toml",
+            "setup.cfg",
+            "setup.py",
+        }
+        assert all(path.parts[0] in allowed for path in paths)
+        assert all(
+            path.parts[0] != "docs" or path == PurePosixPath("docs/pypi-readme.md") or path == PurePosixPath("docs")
+            for path in paths
+        )
+    assert not any(path.name in {"worker.py", "enrichment_worker.py"} for path in paths)
 
 
 def main() -> None:
@@ -17,6 +56,8 @@ def main() -> None:
     files = list(artifacts.glob("owasp_openshield-*.whl")) + list(artifacts.glob("owasp_openshield-*.tar.gz"))
     if len(files) != 2:
         raise SystemExit(f"Expected one wheel and one sdist, found {files}")
+    for artifact in files:
+        verify_archive_scope(artifact)
     with tempfile.TemporaryDirectory(prefix="openshield-package-") as temporary:
         root = Path(temporary)
         for index, artifact in enumerate(files):
