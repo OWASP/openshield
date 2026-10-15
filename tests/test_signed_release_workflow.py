@@ -44,3 +44,10 @@ def test_release_artifact_is_deterministic_and_checksums_are_published():
     assert "gzip --no-name" in source
     assert "sha256sum" in source
     assert "files: dist/*" in source
+
+
+def test_pypi_publication_requires_explicit_owner_readiness_gate():
+    job = _workflow()["jobs"]["pypi"]
+    assert job["if"] == "${{ vars.PYPI_TRUSTED_PUBLISHING_READY == 'true' }}"
+    assert job["environment"]["name"] == "pypi"
+    assert job["permissions"] == {"id-token": "write"}

@@ -60,11 +60,15 @@ GitHub or Sigstore audited the source code.
 4. Push only the tag: `git push origin vX.Y.Z`.
 5. The workflow independently asks GitHub to verify the tag signature. A
    lightweight or unverified tag fails before artifacts are produced.
-6. Before the first PyPI publication, a PyPI project owner registers the
-   `OWASP/openshield` repository, `release.yml` workflow, and protected `pypi`
-   environment as a Trusted Publisher. Recheck the `owasp-openshield` name
-   immediately before the release. Pending publisher registration does not
-   reserve it.
+6. Before the first PyPI publication, a GitHub repository administrator creates
+   the `pypi` environment with required reviewer protection. A PyPI project
+   owner registers `OWASP/openshield`, `release.yml`, and the `pypi` environment
+   as a Trusted Publisher. Recheck the `owasp-openshield` name immediately
+   before the release; pending publisher registration does not reserve it.
+   After verifying both settings, set the repository variable
+   `PYPI_TRUSTED_PUBLISHING_READY` to `true`. Until then, the PyPI job is skipped
+   so a tag cannot auto-create an unprotected environment. The GitHub Release
+   still publishes its verified Python artifacts and checksums.
 7. After publication, download and verify every GitHub Release asset using
    the commands above. Separately verify the PyPI project and install from
    the public index in a clean environment:

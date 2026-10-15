@@ -160,6 +160,10 @@ jobs:
 
   pypi:
     needs: release
+    # Keep first-release publishing disabled until owners configure the
+    # protected environment and PyPI Trusted Publisher. Otherwise Actions can
+    # create an unprotected environment when a tag first reaches this job.
+    if: ${{ vars.PYPI_TRUSTED_PUBLISHING_READY == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: pypi
