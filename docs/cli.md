@@ -44,6 +44,8 @@ Findings: 1
 Failed rules: none
 ```
 
+A [terminal recording of an installed local wheel](assets/cli-installed-wheel.cast) captures `pip check`, `openshield --version`, `openshield scan --help`, and invalid-configuration JSON with exit code 2. Play it with `asciinema play docs/assets/cli-installed-wheel.cast` if asciinema is installed. The recorded development version came from the PR checkout; the recording does not show a live Azure scan or an install from PyPI.
+
 | Exit | Meaning |
 | --- | --- |
 | 0 | The engine completed its run. Findings may be present. |
