@@ -36,11 +36,20 @@ API_HOST = "api.github.com"
 # Promotion to main must never be approvable by its own author alone.
 MIN_APPROVALS = {"dev": 1, "main": 2}
 REQUIRED_RULE_TYPES = ("deletion", "non_fast_forward", "pull_request", "required_status_checks")
+# Flags required on every protected branch.
 PULL_REQUEST_FLAGS = (
-    "dismiss_stale_reviews_on_push",
     "require_code_owner_review",
-    "require_last_push_approval",
     "required_review_thread_resolution",
+)
+# Additional flags required only on main. dismiss_stale_reviews_on_push and
+# require_last_push_approval are omitted from dev because Mergify's serial
+# queue rebases that branch, and GitHub's native ruleset would dismiss the
+# approval or require re-approval after every Mergify rebase, deadlocking the
+# queue. Mergify's own dismiss_reviews rule (changes_requested: false,
+# sender!=mergify[bot]) provides equivalent freshness guarantees on dev.
+PULL_REQUEST_FLAGS_MAIN_ONLY = (
+    "dismiss_stale_reviews_on_push",
+    "require_last_push_approval",
 )
 
 Fetcher = Callable[[str], Any]
@@ -79,11 +88,12 @@ def validate_declared(branch: str, ruleset: Dict[str, Any]) -> List[str]:
         if not _rules_by_type(rules, rule_type):
             problems.append(f"{branch}: declared ruleset is missing the '{rule_type}' rule")
 
+    effective_flags = PULL_REQUEST_FLAGS + (PULL_REQUEST_FLAGS_MAIN_ONLY if branch == "main" else ())
     for rule in _rules_by_type(rules, "pull_request"):
         params = rule.get("parameters") or {}
         if params.get("required_approving_review_count", 0) < MIN_APPROVALS.get(branch, 1):
             problems.append(f"{branch}: declared ruleset requires fewer than {MIN_APPROVALS.get(branch, 1)} approvals")
-        for flag in PULL_REQUEST_FLAGS:
+        for flag in effective_flags:
             if params.get(flag) is not True:
                 problems.append(f"{branch}: declared pull_request rule must set {flag}")
 
@@ -118,7 +128,8 @@ def compare_effective(
         actual = max(p.get("required_approving_review_count", 0) for p in effective_pr)
         if actual < wanted:
             problems.append(f"{branch}: requires {actual} approving review(s), expected at least {wanted}")
-        for flag in PULL_REQUEST_FLAGS:
+        effective_flags = PULL_REQUEST_FLAGS + (PULL_REQUEST_FLAGS_MAIN_ONLY if branch == "main" else ())
+        for flag in effective_flags:
             if params.get(flag) and not any(p.get(flag) for p in effective_pr):
                 problems.append(f"{branch}: pull_request rule does not enforce {flag}")
 
