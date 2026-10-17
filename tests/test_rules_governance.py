@@ -250,3 +250,60 @@ def test_gov_005_missing_locks_evidence_is_unknown(run):
 )
 def test_missing_evidence_never_becomes_failure(run, module, source):
     assert run(module, {source: None}) == []
+
+
+class TestLoadContextCaching:
+    """load_context must cache by subscription_id to prevent cross-subscription stale replays."""
+
+    def _make_client(self):
+        class _FakeCollector:
+            def __init__(self, credential, subscription_id):
+                self.subscription_id = subscription_id
+
+            def collect(self):
+                return {"sub": self.subscription_id}
+
+        class _FakeClient:
+            credential = object()
+
+        return _FakeClient(), _FakeCollector
+
+    def test_cache_is_populated_on_first_call(self, monkeypatch, tmp_path):
+        client, FakeCollector = self._make_client()
+        monkeypatch.setattr(common, "GovernanceCollector", FakeCollector)
+        policy_file = tmp_path / "policy.json"
+        policy_file.write_text('{"approved_management_group_ids": []}')
+        monkeypatch.setenv(common.POLICY_ENV, str(policy_file))
+        monkeypatch.setattr(common, "load_governance_policy", lambda _path: object())
+        common.load_context(client, "sub-A", "AZ-GOV-001")
+        assert getattr(client, "_governance_snapshot_cache_sub") == "sub-A"
+        assert getattr(client, "_governance_snapshot_cache") == {"sub": "sub-A"}
+
+    def test_cache_is_reused_for_same_subscription(self, monkeypatch, tmp_path):
+        client, FakeCollector = self._make_client()
+        call_count = 0
+
+        class _CountingCollector(FakeCollector):
+            def __init__(self, credential, subscription_id):
+                nonlocal call_count
+                call_count += 1
+                super().__init__(credential, subscription_id)
+
+        monkeypatch.setattr(common, "GovernanceCollector", _CountingCollector)
+        monkeypatch.setenv(common.POLICY_ENV, str(tmp_path / "p.json"))
+        (tmp_path / "p.json").write_text("{}")
+        monkeypatch.setattr(common, "load_governance_policy", lambda _path: object())
+        common.load_context(client, "sub-A", "AZ-GOV-001")
+        common.load_context(client, "sub-A", "AZ-GOV-002")
+        assert call_count == 1, "Second call with the same subscription must reuse the cache"
+
+    def test_cache_is_invalidated_on_new_subscription(self, monkeypatch, tmp_path):
+        client, FakeCollector = self._make_client()
+        monkeypatch.setattr(common, "GovernanceCollector", FakeCollector)
+        monkeypatch.setenv(common.POLICY_ENV, str(tmp_path / "p.json"))
+        (tmp_path / "p.json").write_text("{}")
+        monkeypatch.setattr(common, "load_governance_policy", lambda _path: object())
+        common.load_context(client, "sub-A", "AZ-GOV-001")
+        common.load_context(client, "sub-B", "AZ-GOV-001")
+        assert getattr(client, "_governance_snapshot_cache") == {"sub": "sub-B"}
+        assert getattr(client, "_governance_snapshot_cache_sub") == "sub-B"
