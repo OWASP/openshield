@@ -106,6 +106,31 @@ class LifecycleService:
                     logger.info("Scan %s already applied; skipping lifecycle update", scan_id)
                     return
 
+                # --- Scan ordering guard --------------------------------------
+                # A delayed retry must not rewind state set by a newer scan.
+                # Skip if any scan completed after this one has already been
+                # applied for the same (subscription, tenant).
+                cur.execute(
+                    """
+                    SELECT sla.scan_id
+                    FROM scan_lifecycle_applications sla
+                    JOIN scans s USING (scan_id)
+                    WHERE s.subscription_id = %s
+                      AND s.tenant_id = %s
+                      AND s.completed_at > (
+                          SELECT completed_at FROM scans WHERE scan_id = %s
+                      )
+                    LIMIT 1
+                    """,
+                    (subscription_id, tenant_id, scan_id),
+                )
+                if cur.fetchone() is not None:
+                    logger.info(
+                        "Scan %s is older than a previously applied scan for %s/%s; skipping",
+                        scan_id, tenant_id, subscription_id,
+                    )
+                    return
+
                 # --- Write durable per-rule outcome records -------------------
                 # UNIQUE(scan_id, rule_id) prevents duplicates on double-writes.
                 for outcome in rule_outcomes:

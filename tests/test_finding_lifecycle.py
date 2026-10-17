@@ -496,6 +496,26 @@ def test_evaluate_only_rule_with_error_status_cannot_resolve():
     assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
 
 
+def test_older_scan_does_not_overwrite_newer_scan_state():
+    """An older scan applied after a newer one must be silently skipped."""
+    # Idempotency check: None (not already applied).
+    # Ordering guard: returns a row (a newer scan was applied for this sub/tenant).
+    conn = _FakeConn([None, ("newer-scan-id",)])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [{"rule_id": "RULE-A", "status": "SUCCESS"}],
+        [{"rule_id": "RULE-A", "resource_id": "/rg/res"}],
+    )
+    assert not conn.committed, "Older scan must not commit when a newer scan was already applied"
+    executed_sqls = [sql for sql, _ in conn.all_executed()]
+    assert not any("INSERT INTO finding" in sql for sql in executed_sqls), (
+        "Older scan must not write any finding rows"
+    )
+
+
 def test_failed_rule_id_blocks_resolution_despite_pass_evaluation():
     """A rule in failed_rule_ids must not resolve findings even when evaluations include PASS."""
     conn = _FakeConn([None, [(10, "OPEN", 0, "PARTIAL-RULE", "/rg/res")], None, None, None])
