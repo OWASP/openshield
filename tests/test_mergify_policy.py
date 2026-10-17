@@ -48,7 +48,18 @@ def test_fresh_approval_and_resolved_threads_are_required(conditions):
 
 
 @pytest.mark.parametrize("conditions", STAGES, ids=["entry", "merge"])
-@pytest.mark.parametrize("path", ["GOVERNANCE.md", "MAINTAINERS.md", ".mergify.yml", "docs/merge-queue.md"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "GOVERNANCE.md",
+        "MAINTAINERS.md",
+        ".mergify.yml",
+        "docs/merge-queue.md",
+        ".github/branch-protection/dev.json",
+        ".github/branch-protection/main.json",
+        "scripts/check_branch_protection.py",
+    ],
+)
 def test_each_governed_path_requires_two_approvals_including_lead(conditions, path):
     exemption, approval_gate = _governance_gate(conditions)
     assert exemption.startswith("-files~=")

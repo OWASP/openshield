@@ -29,9 +29,10 @@ are true:
   terraform-touching PRs, so a plain `check-success` condition would stall
   every other PR)
 - At least one approving review exists and is current for the latest push
-- If the PR touches `GOVERNANCE.md`, `MAINTAINERS.md`, `.mergify.yml`, or
-  `docs/merge-queue.md`: at least two approving reviews, and the project
-  lead (`@Vishnu2707`) must be one of the approvers (per GOVERNANCE.md §5)
+- If the PR touches `GOVERNANCE.md`, `MAINTAINERS.md`, `.mergify.yml`,
+  `docs/merge-queue.md`, `.github/branch-protection/*.json`, or
+  `scripts/check_branch_protection.py`: at least two approving reviews, and the
+  project lead (`@Vishnu2707`) must be one of the approvers (per GOVERNANCE.md §5)
 - No active `CHANGES_REQUESTED` review exists
 - All review conversations are resolved
 - The pull request is not a draft
@@ -135,18 +136,21 @@ contributor pushed a fix:
 
 ## Governance-policy changes
 
-Changes to `GOVERNANCE.md`, `MAINTAINERS.md`, `.mergify.yml`, or
-`docs/merge-queue.md` require two approvals before they can merge through the
-queue, and the project lead (`@Vishnu2707`) must be one of the two approvers.
-This matches the project-lead plus one additional maintainer requirement in
-GOVERNANCE.md §5. `MAINTAINERS.md` is included because it names the
-role-holders referenced by that policy.
+Changes to `GOVERNANCE.md`, `MAINTAINERS.md`, `.mergify.yml`,
+`docs/merge-queue.md`, `.github/branch-protection/*.json`, or
+`scripts/check_branch_protection.py` require two approvals before they can
+merge through the queue, and the project lead (`@Vishnu2707`) must be one of
+the two approvers. This matches the project-lead plus one additional maintainer
+requirement in GOVERNANCE.md §5. `MAINTAINERS.md` is included because it names
+the role-holders referenced by that policy. The branch-protection files and the
+audit script are included because they define the protection this merge policy
+depends on.
 
 The queue enforces this via the condition:
 
 ```
 or:
-  - -files~=^(GOVERNANCE\.md|MAINTAINERS\.md|\.mergify\.yml|docs/merge-queue\.md)$
+  - -files~=^(GOVERNANCE\.md|MAINTAINERS\.md|\.mergify\.yml|docs/merge-queue\.md|\.github/branch-protection/.+|scripts/check_branch_protection\.py)$
   - and:
       - "#approved-reviews-by>=2"
       - approved-reviews-by=Vishnu2707
@@ -209,9 +213,10 @@ Expected behavior:
 
 **Scenario 3: Governance-policy change with only one approval does not auto-merge**
 
-A PR modifies `.mergify.yml`, `GOVERNANCE.md`, `MAINTAINERS.md`, or
-`docs/merge-queue.md` and receives exactly one approving review, with all CI
-checks green.
+A PR modifies `.mergify.yml`, `GOVERNANCE.md`, `MAINTAINERS.md`,
+`docs/merge-queue.md`, `.github/branch-protection/*.json`, or
+`scripts/check_branch_protection.py` and receives exactly one approving review,
+with all CI checks green.
 
 Expected behavior:
 - The left side of the `or` condition is false (the PR touches governance files).
@@ -228,6 +233,32 @@ Mergify does not replace or weaken GitHub branch protection. It operates
 on top of it. Any protection rules set directly in GitHub repository
 settings remain the source of truth and are enforced independently of
 Mergify.
+
+### Ruleset interaction on dev
+
+The `dev` ruleset (`.github/branch-protection/dev.json`) intentionally omits
+`dismiss_stale_reviews_on_push` and `require_last_push_approval`. Both flags
+are present on `main`, but they conflict with how Mergify operates the serial
+queue on `dev`:
+
+- Mergify's serial queue updates a queued PR against the current `dev` HEAD
+  before merging. That update is a push to the PR branch.
+- With `dismiss_stale_reviews_on_push: true`, GitHub's native ruleset dismisses
+  the queued PR's approval on every Mergify rebase, requiring a fresh human
+  approval after each queue update. Combined with `max_parallel_checks: 1`,
+  this creates a deadlock: the queue can never merge because each update
+  invalidates the approval that allowed entry.
+- With `require_last_push_approval: true`, GitHub requires that the last push
+  to the PR was approved by someone other than the author. Mergify's rebase
+  commits are by `mergify[bot]`, so every queue update would require additional
+  human approval before the PR could land.
+
+Mergify's own `dismiss_reviews` rule (`approved: true`, `changes_requested:
+false`, `sender!=mergify[bot]`) provides the equivalent guarantee on dev:
+contributor pushes dismiss stale approvals, Mergify's own queue rebases do not.
+`strict_required_status_checks_policy: true` is kept in the dev ruleset so a PR
+must be up to date with `dev` before merging, which complements Mergify's
+update step rather than conflicting with it.
 
 ## Pausing the queue
 

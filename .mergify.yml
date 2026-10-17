@@ -69,7 +69,7 @@ queue_rules:
       # This condition enforces that: either the PR does not touch governance
       # files, or it has two approvals AND the project lead has approved.
       - or:
-          - -files~=^(GOVERNANCE\.md|MAINTAINERS\.md|\.mergify\.yml|docs/merge-queue\.md)$
+          - -files~=^(GOVERNANCE\.md|MAINTAINERS\.md|\.mergify\.yml|docs/merge-queue\.md|\.github/branch-protection/.+|scripts/check_branch_protection\.py)$
           - and:
               - "#approved-reviews-by>=2"
               - approved-reviews-by=Vishnu2707
@@ -122,7 +122,7 @@ pull_request_rules:
           - check-success=Terraform fmt / validate / plan
       - "#approved-reviews-by>=1"
       - or:
-          - -files~=^(GOVERNANCE\.md|MAINTAINERS\.md|\.mergify\.yml|docs/merge-queue\.md)$
+          - -files~=^(GOVERNANCE\.md|MAINTAINERS\.md|\.mergify\.yml|docs/merge-queue\.md|\.github/branch-protection/.+|scripts/check_branch_protection\.py)$
           - and:
               - "#approved-reviews-by>=2"
               - approved-reviews-by=Vishnu2707
