@@ -116,7 +116,7 @@ def test_finding_graph_nodes_columns(engine):
 
 def test_downgrade_removes_tables(engine):
     cfg = Config("alembic.ini")
-    command.downgrade(cfg, "e1f2a3b4c5d6-1")
+    command.downgrade(cfg, "b7c3d9e2f841-1")
     inspector = inspect(engine)
     tables = inspector.get_table_names()
     assert "graph_nodes" not in tables
