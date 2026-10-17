@@ -193,7 +193,7 @@ def test_delayed_older_traversal_cannot_delete_newer_paths(path_scope):
 
 
 def test_traversal_waits_for_scope_publication_lock(path_scope):
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
     from threading import Event
 
     tenant, sub, dsn, scan = path_scope
@@ -215,7 +215,7 @@ def test_traversal_waits_for_scope_publication_lock(path_scope):
             try:
                 future.result(timeout=0.3)
                 pytest.fail("traversal completed while its scope lock was held")
-            except TimeoutError:
+            except FuturesTimeoutError:
                 pass
             finally:
                 blocker.rollback()

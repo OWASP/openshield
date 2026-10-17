@@ -28,8 +28,15 @@ _MAX_PATH_LENGTH = 8
 _REVERSE_RELS: frozenset[str] = frozenset({"EXPOSES", "HAS_IDENTITY"})
 
 
+_MAX_ADJACENCY_EDGES = 50_000
+
+
 def _load_adjacency(conn: Any, tenant_id: str) -> dict[str, list[tuple[str, str, float]]]:
-    """Return {source_node_id: [(target_node_id, relationship_type, confidence)]}."""
+    """Return {source_node_id: [(target_node_id, relationship_type, confidence)]}.
+
+    Capped at _MAX_ADJACENCY_EDGES rows. Tenants that exceed this threshold get
+    a partial graph; BFS still runs correctly on the subset.
+    """
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -38,8 +45,9 @@ def _load_adjacency(conn: Any, tenant_id: str) -> dict[str, list[tuple[str, str,
             FROM current_graph_edges e
             JOIN current_graph_nodes src ON src.node_id = e.source_node_id
             WHERE src.tenant_id = %(tenant_id)s
+            LIMIT %(max_edges)s
             """,
-            {"tenant_id": tenant_id},
+            {"tenant_id": tenant_id, "max_edges": _MAX_ADJACENCY_EDGES},
         )
         # Only traverse in reverse for relationships where the reverse direction
         # is semantically meaningful. MEMBER_OF and PROTECTS are not reversed:

@@ -111,8 +111,9 @@ def get_attack_graph():
                     FROM current_graph_edges e
                     WHERE e.source_node_id = ANY(%(node_ids)s::uuid[])
                       AND e.target_node_id = ANY(%(node_ids)s::uuid[])
+                    LIMIT %(edges_limit)s
                     """,
-                    {"node_ids": node_ids},
+                    {"node_ids": node_ids, "edges_limit": limit * 10},
                 )
                 edges = cur.fetchall()
     except Exception:
