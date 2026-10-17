@@ -52,8 +52,9 @@ def engine(scratch_database):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def run_migrations(engine):
+def run_migrations(scratch_database):
     cfg = Config("alembic.ini")
+    cfg.set_main_option("sqlalchemy.url", scratch_database)
     command.upgrade(cfg, "head")
     yield
 
@@ -114,8 +115,9 @@ def test_finding_graph_nodes_columns(engine):
     assert cols >= {"finding_id", "node_id"}
 
 
-def test_downgrade_removes_tables(engine):
+def test_downgrade_removes_tables(engine, scratch_database):
     cfg = Config("alembic.ini")
+    cfg.set_main_option("sqlalchemy.url", scratch_database)
     command.downgrade(cfg, "b7c3d9e2f841-1")
     inspector = inspect(engine)
     tables = inspector.get_table_names()
@@ -126,8 +128,9 @@ def test_downgrade_removes_tables(engine):
     command.upgrade(cfg, "head")
 
 
-def test_upgrade_from_current_dev(engine):
+def test_upgrade_from_current_dev(engine, scratch_database):
     cfg = Config("alembic.ini")
+    cfg.set_main_option("sqlalchemy.url", scratch_database)
     command.downgrade(cfg, "b6d2f8a4c1e7")
     command.upgrade(cfg, "head")
     assert "graph_nodes" in inspect(engine).get_table_names()
