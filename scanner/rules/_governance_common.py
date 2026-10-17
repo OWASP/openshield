@@ -42,9 +42,11 @@ def load_context(azure_client: Any, subscription_id: str, rule_id: str) -> tuple
         logger.warning("%s: governance policy is invalid or unavailable: %s", rule_id, exc)
         return None
     cache = getattr(azure_client, "_governance_snapshot_cache", None)
-    if cache is None:
+    cache_sub = getattr(azure_client, "_governance_snapshot_cache_sub", None)
+    if cache is None or cache_sub != subscription_id:
         cache = GovernanceCollector(azure_client.credential, subscription_id).collect()
         setattr(azure_client, "_governance_snapshot_cache", cache)
+        setattr(azure_client, "_governance_snapshot_cache_sub", subscription_id)
     return policy, cache
 
 
