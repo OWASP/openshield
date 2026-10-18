@@ -62,6 +62,7 @@ def test_list_wrappers_return_results_and_fail_closed(client, method, patch_targ
     [
         ("list_storage_accounts", "scanner.azure_client.StorageManagementClient", "storage_accounts.list"),
         ("list_key_vaults", "scanner.azure_client.KeyVaultManagementClient", "vaults.list_by_subscription"),
+        ("list_sql_servers", "scanner.azure_client.SqlManagementClient", "servers.list"),
     ],
 )
 def test_fallible_list_wrappers_distinguish_empty_from_failure(client, method, patch_target, operation):

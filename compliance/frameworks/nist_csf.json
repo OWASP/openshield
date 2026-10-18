@@ -127,6 +127,18 @@
       "review_status": "pending_review",
       "review_date": null
     },
+    "AZ-DB-008": {
+    "control_id": "PR.DS-2",
+    "control_name": "Data-in-transit is protected",
+    "description": "Enforcing a minimum TLS version of 1.2 on the SQL server ensures data in transit between clients and the database is protected using current, secure protocols.",
+    "mapping_type": "supporting",
+    "evidence_type": "automated_configuration_scan",
+    "primary_source": "NIST Cybersecurity Framework 1.1, subcategory PR.DS-2",
+    "rationale": "NIST CSF 1.1 subcategory PR.DS-2 ('Data-in-transit is protected') describes a broader security outcome that requires organizational process in addition to technical configuration. OpenShield rule AZ-DB-008 evaluates one Azure technical control that provides supporting automated evidence toward this outcome; it does not by itself fully satisfy the subcategory.",
+    "owner": null,
+    "review_status": "pending_review",
+    "review_date": null
+    },
     "AZ-COSMOS-001": {
       "control_id": "PR.AC-6",
       "control_name": "Identity proofing and authentication",
