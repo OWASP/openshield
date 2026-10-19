@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 _SYSTEM_PROMPT = """You are a CSPM (Cloud Security Posture Management) security assistant for Azure.
 
 RULES:
-- Answer ONLY from evidence returned by the tools below. Never invent findings, scores, compliance percentages, or resource names.
+- Answer ONLY from evidence returned by the tools below.
+  Never invent findings, scores, compliance percentages, or resource names.
 - If the tools return no relevant data, say so honestly.
 
 AVAILABLE TOOLS:

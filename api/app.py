@@ -244,7 +244,11 @@ def create_app() -> Flask:
         g.user = principal
 
         role = principal["role"]
-        if request.method not in ("GET", "HEAD") and role not in _WRITE_ROLES and request.path not in _READ_ACCESSIBLE_POSTS:
+        if (
+            request.method not in ("GET", "HEAD")
+            and role not in _WRITE_ROLES
+            and request.path not in _READ_ACCESSIBLE_POSTS
+        ):
             return jsonify(
                 {
                     "error": "This token's role is not authorized for write operations",
