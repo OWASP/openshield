@@ -38,7 +38,7 @@ class TestAgentQueryRoute:
     def test_valid_request_returns_200(self, client, auth_headers):
         with patch("api.routes.agent.run_agent", return_value=_GOOD_RESULT) as mock_run, \
              patch("api.routes.agent._get_db", return_value=_mock_db()):
-            resp = self._post(client, auth_headers, {"question": "What are my critical findings?"})
+            resp = self._post(client, auth_headers, {"question": "What are my critical findings?", "subscription_id": "sub-001"})
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["answer"] == _GOOD_RESULT["answer"]
@@ -85,7 +85,7 @@ class TestAgentQueryRoute:
              patch.dict("os.environ", {"AI_API_KEY": "test-key"}):
             resp = client.post(
                 "/api/agent/query",
-                json={"question": "What are my findings?"},
+                json={"question": "What are my findings?", "subscription_id": "sub-001"},
                 headers=auth_headers,
             )
         assert resp.status_code == 500
@@ -112,22 +112,22 @@ class TestAgentQueryRoute:
                     for _ in range(20):
                         r = client.post(
                             "/api/agent/query",
-                            json={"question": "test"},
+                            json={"question": "test", "subscription_id": "sub-001"},
                             headers=auth_headers,
                         )
                         assert r.status_code == 200
                     r21 = client.post(
                         "/api/agent/query",
-                        json={"question": "test"},
+                        json={"question": "test", "subscription_id": "sub-001"},
                         headers=auth_headers,
                     )
                     assert r21.status_code == 429
                 finally:
                     client.application.config["TESTING"] = True
 
-    # 7. tenant_id and subscription_id come from g (JWT), not request body
-    def test_tenant_and_subscription_from_jwt_not_body(self, client, auth_headers):
-        """Verify run_agent receives tenant_id/subscription_id from g, not request body."""
+    # 7. tenant_id comes from JWT (g.user), not from request body
+    def test_tenant_from_jwt_not_body(self, client, auth_headers):
+        """Verify run_agent receives tenant_id from g.user, never from request body."""
         captured = {}
 
         def fake_run_agent(**kwargs):
@@ -137,20 +137,17 @@ class TestAgentQueryRoute:
         with patch("api.routes.agent.run_agent", side_effect=fake_run_agent), \
              patch("api.routes.agent._get_db", return_value=_mock_db()), \
              patch.dict("os.environ", {"AI_API_KEY": "test-key"}):
-            # Inject rogue tenant_id and subscription_id in request body
             resp = client.post(
                 "/api/agent/query",
                 json={
                     "question": "What are my findings?",
+                    "subscription_id": "sub-001",
                     "tenant_id": "attacker-tenant",
-                    "subscription_id": "attacker-sub",
                 },
                 headers=auth_headers,
             )
         assert resp.status_code == 200
-        # tenant_id and subscription_id must NOT be attacker-supplied values
+        # tenant_id must NOT be the attacker-supplied value from the request body
         assert captured.get("tenant_id") != "attacker-tenant"
-        assert captured.get("subscription_id") != "attacker-sub"
-        # They should come from g (empty string in test since JWT fixture has no tid/sub)
+        # tenant_id is a string (from g.user["tenant"], empty string in test JWT)
         assert isinstance(captured.get("tenant_id"), str)
-        assert isinstance(captured.get("subscription_id"), str)

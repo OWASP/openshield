@@ -26,8 +26,9 @@ def agent_query():
     """Answer a natural-language CSPM question using the ReAct agent loop.
 
     Request body:
-        question  (str, required) -- the user's question
-        framework (str, optional) -- compliance framework context
+        question         (str, required) -- the user's question
+        subscription_id  (str, optional) -- falls back to AZURE_SUBSCRIPTION_ID env var
+        framework        (str, optional) -- compliance framework context
 
     Returns 200 with answer, tools_used, iterations, confidence on success.
     """
@@ -44,8 +45,10 @@ def agent_query():
     if not api_key:
         return jsonify({"error": "AI provider not configured"}), 503
 
-    tenant_id = getattr(g, "tenant_id", None) or ""
-    subscription_id = getattr(g, "subscription_id", None) or ""
+    tenant_id = (g.user.get("tenant") or "") if hasattr(g, "user") and g.user else ""
+    subscription_id = body.get("subscription_id") or os.environ.get("AZURE_SUBSCRIPTION_ID", "")
+    if not subscription_id:
+        return jsonify({"error": "subscription_id is required"}), 400
 
     try:
         db = _get_db()
