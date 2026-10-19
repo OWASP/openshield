@@ -78,7 +78,7 @@ def get_findings(
         " FROM finding_lifecycles fl"
         " JOIN finding_fingerprints ff ON ff.fingerprint_id = fl.fingerprint_id"
         " JOIN scan_rule_outcomes sro ON sro.outcome_id = fl.outcome_id"
-        " WHERE " + " AND ".join(where_clauses) +
+        " WHERE " + " AND ".join(where_clauses) +  # nosec B608 - clauses are string literals, values are parameterized
         " LIMIT 200"
     )
     try:

@@ -1,6 +1,5 @@
 """Integration tests for POST /api/agent/query."""
 
-import secrets
 import time
 from unittest.mock import MagicMock, patch
 
@@ -38,9 +37,12 @@ class TestAgentQueryRoute:
 
     # 1. Valid request returns 200 with all expected fields
     def test_valid_request_returns_200(self, client, auth_headers):
-        with patch("api.routes.agent.run_agent", return_value=_GOOD_RESULT) as mock_run, \
+        with patch("api.routes.agent.run_agent", return_value=_GOOD_RESULT), \
              patch("api.routes.agent._get_db", return_value=_mock_db()):
-            resp = self._post(client, auth_headers, {"question": "What are my critical findings?", "subscription_id": "sub-001"})
+            resp = self._post(
+                client, auth_headers,
+                {"question": "What are my critical findings?", "subscription_id": "sub-001"},
+            )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["answer"] == _GOOD_RESULT["answer"]

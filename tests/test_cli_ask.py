@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -90,7 +87,6 @@ class TestAskCommand:
 
     def test_missing_subscription_exits_before_http_call(self):
         """When subscription is absent (no arg, no env var), exit 1 without HTTP."""
-        env_without_sub = {}
         # Ensure AZURE_SUBSCRIPTION_ID is not set
         with patch("requests.post") as mock_post, \
              patch.dict("os.environ", {}, clear=True):

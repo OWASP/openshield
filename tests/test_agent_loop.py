@@ -11,7 +11,7 @@ from api.agent.agent import run_agent
 
 
 _PROVIDER = "anthropic"
-_API_KEY = "test-key"
+_PROVIDER_TOKEN = "test-key"
 _SUB_ID = "sub-123"
 _TENANT_ID = "tenant-abc"
 
@@ -41,7 +41,7 @@ class TestSingleTurnAnswer(unittest.TestCase):
             tenant_id=_TENANT_ID,
             db_conn=_fake_db(),
             provider=_PROVIDER,
-            api_key=_API_KEY,
+            api_key=_PROVIDER_TOKEN,
         )
 
         self.assertEqual(result["answer"], "Everything looks good.")
@@ -68,7 +68,7 @@ class TestToolCallThenAnswer(unittest.TestCase):
             tenant_id=_TENANT_ID,
             db_conn=_fake_db(),
             provider=_PROVIDER,
-            api_key=_API_KEY,
+            api_key=_PROVIDER_TOKEN,
         )
 
         self.assertEqual(result["answer"], "Found 1 HIGH finding.")
@@ -91,7 +91,7 @@ class TestMaxIterationsReached(unittest.TestCase):
             tenant_id=_TENANT_ID,
             db_conn=_fake_db(),
             provider=_PROVIDER,
-            api_key=_API_KEY,
+            api_key=_PROVIDER_TOKEN,
             max_iterations=8,
         )
 
@@ -113,7 +113,7 @@ class TestEmptyQuestionRaisesValueError(unittest.TestCase):
                 tenant_id=_TENANT_ID,
                 db_conn=_fake_db(),
                 provider=_PROVIDER,
-                api_key=_API_KEY,
+                api_key=_PROVIDER_TOKEN,
             )
         self.assertIn("required", str(ctx.exception).lower())
         mock_llm.assert_not_called()
@@ -127,7 +127,7 @@ class TestEmptyQuestionRaisesValueError(unittest.TestCase):
                 tenant_id=_TENANT_ID,
                 db_conn=_fake_db(),
                 provider=_PROVIDER,
-                api_key=_API_KEY,
+                api_key=_PROVIDER_TOKEN,
             )
         mock_llm.assert_not_called()
 
@@ -148,7 +148,7 @@ class TestUnknownToolReturnsErrorAndContinues(unittest.TestCase):
             tenant_id=_TENANT_ID,
             db_conn=_fake_db(),
             provider=_PROVIDER,
-            api_key=_API_KEY,
+            api_key=_PROVIDER_TOKEN,
         )
 
         # Loop should have continued and returned the second response
@@ -175,7 +175,7 @@ class TestToolExceptionCaughtAndLoopContinues(unittest.TestCase):
             tenant_id=_TENANT_ID,
             db_conn=_fake_db(),
             provider=_PROVIDER,
-            api_key=_API_KEY,
+            api_key=_PROVIDER_TOKEN,
         )
 
         # Loop must not raise; should reach the second LLM response
@@ -196,7 +196,7 @@ class TestUnparseableLLMResponse(unittest.TestCase):
             tenant_id=_TENANT_ID,
             db_conn=_fake_db(),
             provider=_PROVIDER,
-            api_key=_API_KEY,
+            api_key=_PROVIDER_TOKEN,
         )
 
         self.assertIn("plain text", result["answer"])
@@ -224,7 +224,7 @@ class TestToolsUsedOrder(unittest.TestCase):
             tenant_id=_TENANT_ID,
             db_conn=_fake_db(),
             provider=_PROVIDER,
-            api_key=_API_KEY,
+            api_key=_PROVIDER_TOKEN,
         )
 
         self.assertEqual(result["tools_used"], ["get_findings", "get_compliance_posture"])
