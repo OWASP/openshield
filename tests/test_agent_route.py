@@ -62,19 +62,12 @@ class TestAgentQueryRoute:
 
     # 4. Missing AI_API_KEY returns 503
     def test_missing_api_key_returns_503(self, client, auth_headers):
-        with patch.dict("os.environ", {}, clear=True):
-            # Ensure AI_API_KEY is absent
-            import os
-            env_backup = os.environ.pop("AI_API_KEY", None)
-            try:
-                resp = client.post(
-                    "/api/agent/query",
-                    json={"question": "What are my findings?"},
-                    headers=auth_headers,
-                )
-            finally:
-                if env_backup is not None:
-                    os.environ["AI_API_KEY"] = env_backup
+        with patch.dict("os.environ", {"AI_API_KEY": ""}):
+            resp = client.post(
+                "/api/agent/query",
+                json={"question": "What are my findings?", "subscription_id": "sub-001"},
+                headers=auth_headers,
+            )
         assert resp.status_code == 503
         assert resp.get_json()["error"] == "AI provider not configured"
 
@@ -127,7 +120,9 @@ class TestAgentQueryRoute:
 
     # 7. tenant_id comes from JWT (g.user), not from request body
     def test_tenant_from_jwt_not_body(self, client, auth_headers):
-        """Verify run_agent receives tenant_id from g.user, never from request body."""
+        """Verify run_agent receives tenant_id from g.user["tenant"], never from request body."""
+        from flask import g as flask_g
+
         captured = {}
 
         def fake_run_agent(**kwargs):
@@ -137,6 +132,11 @@ class TestAgentQueryRoute:
         with patch("api.routes.agent.run_agent", side_effect=fake_run_agent), \
              patch("api.routes.agent._get_db", return_value=_mock_db()), \
              patch.dict("os.environ", {"AI_API_KEY": "test-key"}):
+            with client.application.test_request_context():
+                with patch("api.routes.agent.g") as mock_g:
+                    mock_g.user = {"tenant": "jwt-tenant-abc", "role": "operator"}
+                    mock_g.__contains__ = lambda self, key: key == "user"
+
             resp = client.post(
                 "/api/agent/query",
                 json={
@@ -147,7 +147,6 @@ class TestAgentQueryRoute:
                 headers=auth_headers,
             )
         assert resp.status_code == 200
-        # tenant_id must NOT be the attacker-supplied value from the request body
+        # tenant_id must NOT be the attacker-supplied body value
         assert captured.get("tenant_id") != "attacker-tenant"
-        # tenant_id is a string (from g.user["tenant"], empty string in test JWT)
         assert isinstance(captured.get("tenant_id"), str)

@@ -45,7 +45,7 @@ def agent_query():
     if not api_key:
         return jsonify({"error": "AI provider not configured"}), 503
 
-    tenant_id = (g.user.get("tenant") or "") if hasattr(g, "user") and g.user else ""
+    tenant_id = g.user.get("tenant") or ""
     subscription_id = body.get("subscription_id") or os.environ.get("AZURE_SUBSCRIPTION_ID", "")
     if not subscription_id:
         return jsonify({"error": "subscription_id is required"}), 400
