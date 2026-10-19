@@ -48,6 +48,9 @@ _GENERATE_CMD = 'python -c "import secrets; print(secrets.token_urlsafe(32))"'
 _KNOWN_ROLES = KNOWN_ROLES
 _WRITE_ROLES = WRITE_ROLES
 
+# POST paths that read-only roles (viewer) may also call
+_READ_ACCESSIBLE_POSTS = frozenset({"/api/agent/query"})
+
 # Generous enough for legitimate manual or automated readiness checks from
 # one source, but bounded well under the default pool size
 # (DB_POOL_MAX_CONN=10) so a single caller can never claim more than half
@@ -241,7 +244,7 @@ def create_app() -> Flask:
         g.user = principal
 
         role = principal["role"]
-        if request.method not in ("GET", "HEAD") and role not in _WRITE_ROLES:
+        if request.method not in ("GET", "HEAD") and role not in _WRITE_ROLES and request.path not in _READ_ACCESSIBLE_POSTS:
             return jsonify(
                 {
                     "error": "This token's role is not authorized for write operations",

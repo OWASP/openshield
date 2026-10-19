@@ -37,6 +37,10 @@ def scan_subscription(db_conn, subscription_id: str, tenant_id: str) -> dict:
     except RuntimeError:
         raise
     except Exception:
+        try:
+            db_conn.rollback()
+        except Exception:
+            pass
         logger.exception(
             "scan_subscription failed for subscription_id=%s tenant_id=%s",
             subscription_id,
@@ -92,6 +96,10 @@ def get_findings(
                 for row in rows
             ]
     except Exception:
+        try:
+            db_conn.rollback()
+        except Exception:
+            pass
         logger.exception(
             "get_findings failed for subscription_id=%s tenant_id=%s",
             subscription_id,
@@ -145,6 +153,10 @@ def get_compliance_posture(
                 "gaps": row[3] if row[3] is not None else [],
             }
     except Exception:
+        try:
+            db_conn.rollback()
+        except Exception:
+            pass
         logger.exception(
             "get_compliance_posture failed for framework=%s subscription_id=%s tenant_id=%s",
             framework,
@@ -198,6 +210,10 @@ def explain_finding(db_conn, finding_id: int, tenant_id: str) -> dict | None:
                 "state": row[6],
             }
     except Exception:
+        try:
+            db_conn.rollback()
+        except Exception:
+            pass
         logger.exception(
             "explain_finding failed for finding_id=%s tenant_id=%s",
             finding_id,

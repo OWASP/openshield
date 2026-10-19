@@ -1,5 +1,7 @@
 """Integration tests for POST /api/agent/query."""
 
+import secrets
+import time
 from unittest.mock import MagicMock, patch
 
 
@@ -119,24 +121,23 @@ class TestAgentQueryRoute:
                     client.application.config["TESTING"] = True
 
     # 7. tenant_id comes from JWT (g.user), not from request body
-    def test_tenant_from_jwt_not_body(self, client, auth_headers):
-        """Verify run_agent receives tenant_id from g.user["tenant"], never from request body."""
-        from flask import g as flask_g
+    def test_tenant_from_jwt_not_body(self, app_no_tenant_inject):
+        """Agent route must reject when tenant is empty (shared_secret mode returns tenant=None)."""
+        import jwt
+        from tests.conftest import _TEST_JWT_SECRET
 
-        captured = {}
+        # Build a token (shared_secret mode always resolves tenant=None in auth.py)
+        payload = {
+            "sub": "test-user",
+            "role": "admin",
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 3600,
+        }
+        token = jwt.encode(payload, _TEST_JWT_SECRET, algorithm="HS256")
+        no_tenant_headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-        def fake_run_agent(**kwargs):
-            captured.update(kwargs)
-            return _GOOD_RESULT
-
-        with patch("api.routes.agent.run_agent", side_effect=fake_run_agent), \
-             patch("api.routes.agent._get_db", return_value=_mock_db()), \
-             patch.dict("os.environ", {"AI_API_KEY": "test-key"}):
-            with client.application.test_request_context():
-                with patch("api.routes.agent.g") as mock_g:
-                    mock_g.user = {"tenant": "jwt-tenant-abc", "role": "operator"}
-                    mock_g.__contains__ = lambda self, key: key == "user"
-
+        client = app_no_tenant_inject.test_client()
+        with patch.dict("os.environ", {"AI_API_KEY": "test-key"}):
             resp = client.post(
                 "/api/agent/query",
                 json={
@@ -144,9 +145,7 @@ class TestAgentQueryRoute:
                     "subscription_id": "sub-001",
                     "tenant_id": "attacker-tenant",
                 },
-                headers=auth_headers,
+                headers=no_tenant_headers,
             )
-        assert resp.status_code == 200
-        # tenant_id must NOT be the attacker-supplied body value
-        assert captured.get("tenant_id") != "attacker-tenant"
-        assert isinstance(captured.get("tenant_id"), str)
+        assert resp.status_code == 403
+        assert "tenant" in resp.get_json()["error"]

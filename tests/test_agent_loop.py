@@ -1,4 +1,4 @@
-﻿"""Unit tests for api.agent.agent â€” the ReAct loop.
+"""Unit tests for api.agent.agent - the ReAct loop.
 
 All LLM calls are mocked; no live network calls are made.
 """

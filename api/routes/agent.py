@@ -8,6 +8,7 @@ from flask import Blueprint, g, jsonify, request
 from api.agent.agent import run_agent
 from api.models.finding import DatabaseManager
 from api.rate_limit import rate_limit
+from api.routes.scans import _subscription_is_authorized
 
 agent_bp = Blueprint("agent", __name__)
 logger = logging.getLogger(__name__)
@@ -46,9 +47,15 @@ def agent_query():
         return jsonify({"error": "AI provider not configured"}), 503
 
     tenant_id = g.user.get("tenant") or ""
+    if not tenant_id:
+        return jsonify({"error": "tenant context not available; configure OIDC authentication"}), 403
+
     subscription_id = body.get("subscription_id") or os.environ.get("AZURE_SUBSCRIPTION_ID", "")
     if not subscription_id:
         return jsonify({"error": "subscription_id is required"}), 400
+
+    if not _subscription_is_authorized(subscription_id):
+        return jsonify({"error": "subscription_id is not authorized for this deployment"}), 403
 
     try:
         db = _get_db()
