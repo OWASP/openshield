@@ -254,6 +254,7 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------ #
     # Blueprints                                                            #
     # ------------------------------------------------------------------ #
+    from api.routes.agent import agent_bp
     from api.routes.ai import ai_bp
     from api.routes.assurance import assurance_bp
     from api.routes.cbom import cbom_bp
@@ -265,6 +266,7 @@ def create_app() -> Flask:
     from api.routes.scans import scans_bp
     from api.routes.score import score_bp
 
+    app.register_blueprint(agent_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(assurance_bp)
     app.register_blueprint(cbom_bp)
