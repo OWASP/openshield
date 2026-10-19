@@ -34,7 +34,7 @@ def cmd_ask(
 
     try:
         resp = requests.post(f"{url}/api/agent/query", json=body, headers=headers, timeout=120)
-    except requests.ConnectionError as exc:
+    except requests.exceptions.RequestException as exc:
         print(f"error: cannot connect to {url} ({exc})", file=sys.stderr)
         return 1
 

@@ -196,7 +196,7 @@ def _build_app():
     async def call_tool(name: str, arguments: dict):
         db_url = os.environ["DATABASE_URL"]
         # tenant_id always comes from env — never from LLM tool-call arguments
-        tenant_id = os.environ.get("OPENSHIELD_TENANT_ID", "")
+        tenant_id = os.environ["OPENSHIELD_TENANT_ID"]
         conn = psycopg2.connect(db_url)
         try:
             if name == "scan_subscription":
