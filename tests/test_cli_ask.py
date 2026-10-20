@@ -50,11 +50,15 @@ class TestAskCommand:
         """A 200 response prints the answer then a metadata line."""
         mock_resp = _mock_response(200, _GOOD_RESPONSE)
 
-        with patch("requests.post", return_value=mock_resp) as mock_post, \
-             patch.dict("os.environ", {"OPENSHIELD_TOKEN": "test-token"}, clear=False):
+        with (
+            patch("requests.post", return_value=mock_resp) as mock_post,
+            patch.dict("os.environ", {"OPENSHIELD_TOKEN": "test-token"}, clear=False),
+        ):
             exit_code, stdout, stderr = _run_cli(
-                "ask", "What are my critical findings?",
-                "--subscription", "sub-001",
+                "ask",
+                "What are my critical findings?",
+                "--subscription",
+                "sub-001",
             )
 
         assert exit_code == 0
@@ -75,11 +79,15 @@ class TestAskCommand:
         """A 4xx response prints the error field and exits with code 1."""
         mock_resp = _mock_response(403, {"error": "Subscription not authorized"})
 
-        with patch("requests.post", return_value=mock_resp), \
-             patch.dict("os.environ", {"OPENSHIELD_TOKEN": "test-token"}, clear=False):
+        with (
+            patch("requests.post", return_value=mock_resp),
+            patch.dict("os.environ", {"OPENSHIELD_TOKEN": "test-token"}, clear=False),
+        ):
             exit_code, stdout, stderr = _run_cli(
-                "ask", "What are my critical findings?",
-                "--subscription", "sub-001",
+                "ask",
+                "What are my critical findings?",
+                "--subscription",
+                "sub-001",
             )
 
         assert exit_code == 1
@@ -88,12 +96,13 @@ class TestAskCommand:
     def test_missing_subscription_exits_before_http_call(self):
         """When subscription is absent (no arg, no env var), exit 1 without HTTP."""
         # Ensure AZURE_SUBSCRIPTION_ID is not set
-        with patch("requests.post") as mock_post, \
-             patch.dict("os.environ", {}, clear=True):
+        with patch("requests.post") as mock_post, patch.dict("os.environ", {}, clear=True):
             # Also clear OPENSHIELD_TOKEN to isolate; provide token via arg
             exit_code, stdout, stderr = _run_cli(
-                "ask", "What are my critical findings?",
-                "--token", "test-token",
+                "ask",
+                "What are my critical findings?",
+                "--token",
+                "test-token",
             )
 
         assert exit_code == 1
@@ -102,11 +111,12 @@ class TestAskCommand:
 
     def test_missing_token_exits_before_http_call(self):
         """When token is absent (no arg, no env var), exit 1 without HTTP."""
-        with patch("requests.post") as mock_post, \
-             patch.dict("os.environ", {}, clear=True):
+        with patch("requests.post") as mock_post, patch.dict("os.environ", {}, clear=True):
             exit_code, stdout, stderr = _run_cli(
-                "ask", "What are my critical findings?",
-                "--subscription", "sub-001",
+                "ask",
+                "What are my critical findings?",
+                "--subscription",
+                "sub-001",
             )
 
         assert exit_code == 1
@@ -117,11 +127,15 @@ class TestAskCommand:
         """A connection error prints a friendly message and exits with code 1."""
         import requests as req_lib
 
-        with patch("requests.post", side_effect=req_lib.ConnectionError("refused")), \
-             patch.dict("os.environ", {"OPENSHIELD_TOKEN": "test-token"}, clear=False):
+        with (
+            patch("requests.post", side_effect=req_lib.ConnectionError("refused")),
+            patch.dict("os.environ", {"OPENSHIELD_TOKEN": "test-token"}, clear=False),
+        ):
             exit_code, stdout, stderr = _run_cli(
-                "ask", "What are my critical findings?",
-                "--subscription", "sub-001",
+                "ask",
+                "What are my critical findings?",
+                "--subscription",
+                "sub-001",
             )
 
         assert exit_code == 1
@@ -131,12 +145,17 @@ class TestAskCommand:
         """When --framework is supplied, it is sent in the request body."""
         mock_resp = _mock_response(200, {**_GOOD_RESPONSE})
 
-        with patch("requests.post", return_value=mock_resp) as mock_post, \
-             patch.dict("os.environ", {"OPENSHIELD_TOKEN": "test-token"}, clear=False):
+        with (
+            patch("requests.post", return_value=mock_resp) as mock_post,
+            patch.dict("os.environ", {"OPENSHIELD_TOKEN": "test-token"}, clear=False),
+        ):
             exit_code, stdout, stderr = _run_cli(
-                "ask", "What is my MCSB compliance score?",
-                "--subscription", "sub-001",
-                "--framework", "mcsb",
+                "ask",
+                "What is my MCSB compliance score?",
+                "--subscription",
+                "sub-001",
+                "--framework",
+                "mcsb",
             )
 
         assert exit_code == 0

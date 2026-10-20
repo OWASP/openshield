@@ -107,9 +107,7 @@ def get_findings(
         return []
 
 
-def get_compliance_posture(
-    db_conn, framework: str, subscription_id: str, tenant_id: str
-) -> dict:
+def get_compliance_posture(db_conn, framework: str, subscription_id: str, tenant_id: str) -> dict:
     """Return compliance posture for a framework.
 
     Valid frameworks: "mcsb", "cis", "iso27001"
@@ -118,10 +116,7 @@ def get_compliance_posture(
     If no data exists yet returns zeroed-out structure.
     """
     if framework.lower() not in _VALID_FRAMEWORKS:
-        raise ValueError(
-            f"Unknown compliance framework: {framework!r}. "
-            f"Valid options: {sorted(_VALID_FRAMEWORKS)}"
-        )
+        raise ValueError(f"Unknown compliance framework: {framework!r}. Valid options: {sorted(_VALID_FRAMEWORKS)}")
 
     sql = (
         "SELECT score, pass_count, fail_count, gaps"
@@ -171,8 +166,7 @@ def get_attack_paths(db_conn, scan_id: str, tenant_id: str) -> list:
     STUB: returns empty list until PRs #352-354 merge.
     """
     logger.warning(
-        "get_attack_paths called for scan_id=%s but attack paths are not yet available "
-        "(pending PRs #352-354)",
+        "get_attack_paths called for scan_id=%s but attack paths are not yet available (pending PRs #352-354)",
         scan_id,
     )
     return []

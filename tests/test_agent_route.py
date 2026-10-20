@@ -100,7 +100,6 @@ class TestAgentQueryRoute:
             patch("api.routes.agent._get_db", return_value=_mock_db()),
             patch.dict("os.environ", {"AI_API_KEY": "test-key", "DATABASE_URL": "postgresql://test"}),
         ):
-
             # Patch _check_and_record directly: first 20 return True, then False
             call_count = {"n": 0}
 

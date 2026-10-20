@@ -65,13 +65,15 @@ def main(argv: list[str] | None = None) -> int:
     ask_parser = subparsers.add_parser("ask", help="Ask the CSPM AI agent a question")
     ask_parser.add_argument("question", help="Question to ask the agent")
     ask_parser.add_argument(
-        "--subscription", "-s",
+        "--subscription",
+        "-s",
         dest="subscription",
         default=None,
         help="Azure subscription ID (or set AZURE_SUBSCRIPTION_ID)",
     )
     ask_parser.add_argument(
-        "--framework", "-f",
+        "--framework",
+        "-f",
         dest="framework",
         default=None,
         help="Compliance framework (optional)",

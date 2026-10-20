@@ -15,6 +15,7 @@ _PROVIDER_TOKEN = "test-key"
 _SUB_ID = "sub-123"
 _TENANT_ID = "tenant-abc"
 
+
 # Minimal fake db_conn so tool dispatch does not raise AttributeError
 def _fake_db():
     return MagicMock()

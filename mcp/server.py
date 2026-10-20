@@ -44,10 +44,7 @@ _TOOL_SPECS: list[dict] = [
     },
     {
         "name": "get_findings",
-        "description": (
-            "Return security findings for a subscription, optionally filtered "
-            "by severity or state."
-        ),
+        "description": ("Return security findings for a subscription, optionally filtered by severity or state."),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -68,9 +65,7 @@ _TOOL_SPECS: list[dict] = [
     },
     {
         "name": "get_compliance_posture",
-        "description": (
-            "Return compliance score and gaps for a framework (mcsb, cis, iso27001)."
-        ),
+        "description": ("Return compliance score and gaps for a framework (mcsb, cis, iso27001)."),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -131,10 +126,7 @@ def _import_mcp():
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     saved = sys.path[:]
     # Remove project root so installed mcp is found instead of this package
-    sys.path = [
-        p for p in sys.path
-        if os.path.normcase(os.path.abspath(p)) != os.path.normcase(project_root)
-    ]
+    sys.path = [p for p in sys.path if os.path.normcase(os.path.abspath(p)) != os.path.normcase(project_root)]
     # Remove any stale local mcp entries
     stale = [k for k in sys.modules if k == "mcp" or k.startswith("mcp.")]
     for k in stale:
@@ -143,11 +135,11 @@ def _import_mcp():
         from mcp.server import Server as _Server
         from mcp.server.stdio import stdio_server as _stdio_server
         from mcp.types import Tool as _Tool, TextContent as _TextContent
+
         return _Server, _stdio_server, _Tool, _TextContent
     except ImportError as exc:
         raise ImportError(
-            "The 'mcp' package is required to run the MCP server. "
-            "Install it with: pip install mcp"
+            "The 'mcp' package is required to run the MCP server. Install it with: pip install mcp"
         ) from exc
     finally:
         sys.path = saved
@@ -200,9 +192,7 @@ def _build_app():
         conn = psycopg2.connect(db_url)
         try:
             if name == "scan_subscription":
-                result = scan_subscription(
-                    conn, arguments["subscription_id"], tenant_id
-                )
+                result = scan_subscription(conn, arguments["subscription_id"], tenant_id)
             elif name == "get_findings":
                 result = get_findings(
                     conn,
@@ -223,9 +213,7 @@ def _build_app():
             elif name == "explain_finding":
                 result = explain_finding(conn, arguments["finding_id"], tenant_id)
             elif name == "suggest_remediation":
-                result = suggest_remediation(
-                    conn, arguments["finding_id"], tenant_id
-                )
+                result = suggest_remediation(conn, arguments["finding_id"], tenant_id)
             else:
                 result = {"error": f"unknown tool: {name}"}
         except Exception as exc:
