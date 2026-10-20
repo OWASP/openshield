@@ -1,6 +1,5 @@
 """Integration tests for POST /api/agent/query."""
 
-import time
 from unittest.mock import MagicMock, patch
 
 
@@ -37,10 +36,13 @@ class TestAgentQueryRoute:
 
     # 1. Valid request returns 200 with all expected fields
     def test_valid_request_returns_200(self, client, auth_headers):
-        with patch("api.routes.agent.run_agent", return_value=_GOOD_RESULT), \
-             patch("api.routes.agent._get_db", return_value=_mock_db()):
+        with (
+            patch("api.routes.agent.run_agent", return_value=_GOOD_RESULT),
+            patch("api.routes.agent._get_db", return_value=_mock_db()),
+        ):
             resp = self._post(
-                client, auth_headers,
+                client,
+                auth_headers,
                 {"question": "What are my critical findings?", "subscription_id": "sub-001"},
             )
         assert resp.status_code == 200
@@ -77,9 +79,11 @@ class TestAgentQueryRoute:
 
     # 5. run_agent raises unexpected exception -> 500
     def test_run_agent_exception_returns_500(self, client, auth_headers):
-        with patch("api.routes.agent.run_agent", side_effect=RuntimeError("boom")), \
-             patch("api.routes.agent._get_db", return_value=_mock_db()), \
-             patch.dict("os.environ", {"AI_API_KEY": "test-key"}):
+        with (
+            patch("api.routes.agent.run_agent", side_effect=RuntimeError("boom")),
+            patch("api.routes.agent._get_db", return_value=_mock_db()),
+            patch.dict("os.environ", {"AI_API_KEY": "test-key"}),
+        ):
             resp = client.post(
                 "/api/agent/query",
                 json={"question": "What are my findings?", "subscription_id": "sub-001"},
@@ -91,9 +95,11 @@ class TestAgentQueryRoute:
     # 6. Rate limit: 21st request returns 429
     def test_rate_limit_blocks_excess_requests(self, client, auth_headers):
         """21st request within the window must return 429."""
-        with patch("api.routes.agent.run_agent", return_value=_GOOD_RESULT), \
-             patch("api.routes.agent._get_db", return_value=_mock_db()), \
-             patch.dict("os.environ", {"AI_API_KEY": "test-key", "DATABASE_URL": "postgresql://test"}):
+        with (
+            patch("api.routes.agent.run_agent", return_value=_GOOD_RESULT),
+            patch("api.routes.agent._get_db", return_value=_mock_db()),
+            patch.dict("os.environ", {"AI_API_KEY": "test-key", "DATABASE_URL": "postgresql://test"}),
+        ):
 
             # Patch _check_and_record directly: first 20 return True, then False
             call_count = {"n": 0}
@@ -125,6 +131,7 @@ class TestAgentQueryRoute:
     # 7. tenant_id comes from JWT (g.user), not from request body
     def test_tenant_from_jwt_not_body(self, app_no_tenant_inject):
         """Agent route must reject when tenant is empty (shared_secret mode returns tenant=None)."""
+        import time
         import jwt
         from tests.conftest import _TEST_JWT_SECRET
 
