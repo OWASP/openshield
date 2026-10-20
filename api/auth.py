@@ -197,12 +197,14 @@ class TokenVerifier:
         if role not in KNOWN_ROLES:
             logger.warning("JWT rejected: missing or unrecognized role %r", role)
             raise TokenRejected("Invalid token")
+        raw_tid = claims.get("tid")
         return {
             "sub": claims["sub"],
             "role": role,
-            "tenant": None,
+            "tenant": str(raw_tid).lower() if raw_tid else None,
             "issuer": claims.get("iss"),
             "auth_mode": SHARED_SECRET_MODE,
+            "subscription_id": claims.get("subscription_id"),
         }
 
     def _get_jwks_client(self) -> Any:

@@ -359,7 +359,13 @@ class TestLifecycleStateTransitions:
         sqls = self._all_sql(conn)
         assert any("RESOLVED" in s and "UPDATE" in s.upper() for s in sqls)
         # Transition from REOPENED to RESOLVED must be recorded.
-        assert any("finding_lifecycle_transitions" in s and "REOPENED" in s and "RESOLVED" in s for s in sqls)
+        # from_state is passed as a parameter (%s), so check both SQL and params.
+        assert any(
+            "finding_lifecycle_transitions" in sql
+            and "RESOLVED" in sql
+            and "REOPENED" in str(params)
+            for sql, params in conn.all_executed()
+        )
 
     def test_reopened_finding_seen_again_increments_occurrence_stays_reopened(self):
         # REOPENED + seen in scan: occurrence_count increments, no new state transition.

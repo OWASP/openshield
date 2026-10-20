@@ -1,7 +1,7 @@
 """Add graph_nodes, graph_edges, and finding_graph_nodes for attack graph.
 
 Revision ID: e1f2a3b4c5d6
-Revises: a8d9c2e4f601
+Revises: f3a5b7c9d1e2
 Create Date: 2026-09-24 00:00:00.000000
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision: str = "e1f2a3b4c5d6"
-down_revision: str = "a8d9c2e4f601"
+down_revision: str = "f3a5b7c9d1e2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

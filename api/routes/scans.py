@@ -6,6 +6,7 @@ import uuid
 from flask import Blueprint, g, jsonify, request
 
 from api.models.finding import DatabaseManager, ScanQuotaExceeded
+from scanner.cve_correlator import enrich_findings
 from api.validation import (
     VALIDATION_ERROR_MESSAGE,
     ValidationError,
