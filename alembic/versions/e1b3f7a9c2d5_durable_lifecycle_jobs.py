@@ -53,7 +53,9 @@ def upgrade() -> None:
                 server_default=sa.text("CURRENT_TIMESTAMP"),
             ),
             sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-            sa.ForeignKeyConstraint(["scan_id"], ["scans.scan_id"], name="lifecycle_jobs_scan_id_fkey"),
+            sa.ForeignKeyConstraint(
+                ["scan_id"], ["scans.scan_id"], name="lifecycle_jobs_scan_id_fkey", ondelete="CASCADE"
+            ),
             sa.PrimaryKeyConstraint("job_id", name="lifecycle_jobs_pkey"),
             sa.UniqueConstraint("scan_id", name="uq_lifecycle_jobs_scan_id"),
             sa.CheckConstraint(

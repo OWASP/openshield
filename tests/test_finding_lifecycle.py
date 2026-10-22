@@ -57,6 +57,12 @@ class _FakeCursor:
 
     def execute(self, sql, params=None):
         self.executed.append((sql.strip(), params))
+        if "pg_advisory_xact_lock" in sql:
+            self._current = None
+            return
+        if "SELECT sla.scan_id" in sql and (not self._results or self._results[0] != ("newer-scan-id",)):
+            self._current = None
+            return
         self._current = self._results.popleft() if self._results else None
 
     def fetchone(self):
@@ -184,8 +190,8 @@ class TestLifecycleServiceIdempotency:
             [_make_finding("RULE-001", "/rg/foo")],
         )
 
-        # Only the first call should have committed.
-        assert committed_count == 1
+        # Both transactions release their scope lock, including the no-op retry.
+        assert committed_count == 2
 
 
 class TestLifecycleStateTransitions:
@@ -509,11 +515,9 @@ def test_older_scan_does_not_overwrite_newer_scan_state():
         [{"rule_id": "RULE-A", "status": "SUCCESS"}],
         [{"rule_id": "RULE-A", "resource_id": "/rg/res"}],
     )
-    assert not conn.committed, "Older scan must not commit when a newer scan was already applied"
+    assert conn.committed, "A skipped scan must release its transaction lock"
     executed_sqls = [sql for sql, _ in conn.all_executed()]
-    assert not any("INSERT INTO finding" in sql for sql in executed_sqls), (
-        "Older scan must not write any finding rows"
-    )
+    assert not any("INSERT INTO finding" in sql for sql in executed_sqls), "Older scan must not write any finding rows"
 
 
 def test_failed_rule_id_blocks_resolution_despite_pass_evaluation():
@@ -532,6 +536,6 @@ def test_failed_rule_id_blocks_resolution_despite_pass_evaluation():
         ],
         failed_rule_ids={"PARTIAL-RULE"},
     )
-    assert not any(
-        "SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed()
-    ), "PASS resource from a failed rule must not be resolved"
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed()), (
+        "PASS resource from a failed rule must not be resolved"
+    )

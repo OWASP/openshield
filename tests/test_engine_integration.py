@@ -218,7 +218,7 @@ def test_engine_a_rule_that_completes_cleanly_is_never_recorded_as_failed(monkey
     assert healthy_rule_id not in result["failed_rule_ids"]
 
 
-def test_engine_retains_legacy_outcomes_and_resource_evaluations(monkeypatch):
+def test_engine_retains_resource_evaluations_without_inventing_legacy_outcomes(monkeypatch):
     from types import SimpleNamespace
     from scanner.evaluation import RuleEvaluation, EvaluationStatus
 
@@ -236,6 +236,6 @@ def test_engine_retains_legacy_outcomes_and_resource_evaluations(monkeypatch):
         )
     ]
     result = engine.run_scan()
-    assert result["rule_outcomes"][0]["status"] == "EMPTY_SUCCESS"
+    assert result.get("rule_outcomes", []) == []
     assert result["evaluations"][0]["status"] == "PASS"
     assert result["failed_rule_ids"] == []

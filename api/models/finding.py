@@ -659,6 +659,12 @@ class DatabaseManager:
             cur.execute(sql, params)
             return [dict(row) for row in cur.fetchall()]
 
+    def get_lifecycle_findings(self, scan_id: str) -> List[Dict[str, Any]]:
+        """Read the complete immutable scan batch for internal lifecycle work."""
+        with self._get_conn().cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM findings WHERE scan_id = %s ORDER BY id", (scan_id,))
+            return [dict(row) for row in cur.fetchall()]
+
     def get_finding_by_id(self, finding_id: int) -> Optional[Dict[str, Any]]:
         """Return a single finding by its integer primary key."""
         conn = self._get_conn()
@@ -1092,9 +1098,7 @@ class DatabaseManager:
     # Lifecycle jobs                                                        #
     # ------------------------------------------------------------------ #
 
-    def claim_next_lifecycle_job(
-        self, lease_owner: str, lease_seconds: int
-    ) -> Optional[Dict[str, Any]]:
+    def claim_next_lifecycle_job(self, lease_owner: str, lease_seconds: int) -> Optional[Dict[str, Any]]:
         """Atomically claim the next retry-ready lifecycle job."""
         if lease_seconds <= 0:
             raise ValueError("lease_seconds must be positive")
@@ -2005,13 +2009,13 @@ class DatabaseManager:
                 current["severity"] = severity
                 current["category"] = category
 
-        # Rules the scan engine could not complete for this scan (raised, or
-        # returned malformed data) - recorded by save_scan() alongside the
-        # mapping snapshot. This is a supplementary signal on top of
-        # rule_evaluations: it can only ever make a control's status stricter
-        # (force ERROR), never looser, and an ERROR still counts in the
-        # denominator, so a rule that failed to run can never improve a score
-        # (issue #302/#263).
+        # Rules with no usable evaluator output (raised, returned malformed
+        # data, or returned only ERROR evaluations) - recorded by save_scan()
+        # alongside the mapping snapshot. This is a supplementary signal on
+        # top of rule_evaluations: it can only ever make a control's status
+        # stricter (force ERROR), never looser, and an ERROR still counts in
+        # the denominator, so a rule that failed to run can never improve a
+        # score (issue #302/#263).
         unevaluated_rule_ids = set((snapshot.get("_scan_rule_outcomes") or {}).get("failed_rule_ids") or [])
 
         results = []

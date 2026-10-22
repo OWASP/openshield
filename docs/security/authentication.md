@@ -137,17 +137,22 @@ API restarts, so schedule it with any smoke-test or automation owners.
 ## Pattern API scope claims
 
 `GET /api/v1/patterns` and `GET /api/v1/patterns/<id>` require an explicit
-verified tenant (`tid`) and a single `subscription_id` in the signed token.
+verified tenant (`tid`). A signed `subscription_id` claim may narrow the scope.
 The trusted issuer must assign these claims from the principal's authorized
 subscription membership. A caller cannot supply missing scope with query
 parameters. `subscription_id` can only select the token's assigned subscription,
 and `OPENSHIELD_TENANT_ID` cannot override the token's tenant for these reads.
-Both claims must be nonempty strings of at most 256 characters. Missing scope
+Both claims, when present, must be nonempty strings of at most 256 characters. Missing scope
 returns HTTP 400; malformed signed claims are rejected during authentication.
 
 In OIDC mode the normal issuer, audience, signature, expiry, role and tenant
-allowlist checks still apply. Configure the issuer to include the authorized
-subscription claim before enabling pattern reads. Standard Entra tokens do not
-automatically include this custom claim. In shared-secret development mode the
+allowlist checks still apply. Standard Entra tokens do not automatically include
+a subscription claim. For those tokens, configure `AZURE_TENANT_ID` (or the
+`OPENSHIELD_TENANT_ID` override) and `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS`.
+Only a verified principal matching that deployment tenant can use its allowlist.
+A single `AZURE_SUBSCRIPTION_ID` is the fallback when the allowlist is unset.
+If several subscriptions are configured, list requests must select one using
+`subscription_id`; the selection never expands the configured authorization.
+In shared-secret development mode the
 signing authority must include `tid` and `subscription_id`; possession of the
 shared signing secret allows minting scope and is unsuitable for untrusted clients.

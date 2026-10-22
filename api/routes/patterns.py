@@ -45,15 +45,26 @@ def _effective_tenant() -> str:
     tenant = (getattr(g, "user", {}) or {}).get("tenant")
     if not tenant:
         raise _ValidationError("Verified tenant scope is required")
-    return tenant
+    return tenant.lower()
 
 
 def _effective_subscription(subscription_id_param: str | None) -> str:
-    """The trusted token issuer must assign an explicit subscription scope."""
+    """Use a signed claim or the matching single-tenant deployment's allowlist."""
     subscription = (getattr(g, "user", {}) or {}).get("subscription_id")
-    if not subscription or (subscription_id_param and subscription_id_param != subscription):
+    if subscription:
+        if subscription_id_param and subscription_id_param.lower() != subscription.lower():
+            raise _ValidationError("Verified subscription scope is required")
+        return subscription
+    tenant = _effective_tenant()
+    deployment_tenant = (os.environ.get("OPENSHIELD_TENANT_ID") or os.environ.get("AZURE_TENANT_ID") or "").lower()
+    if not deployment_tenant or tenant != deployment_tenant:
         raise _ValidationError("Verified subscription scope is required")
-    return subscription
+    raw = os.environ.get("OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS") or os.environ.get("AZURE_SUBSCRIPTION_ID", "")
+    allowed = {item.strip().lower() for item in raw.split(",") if item.strip()}
+    selected = subscription_id_param.lower() if subscription_id_param else next(iter(allowed), None)
+    if not selected or selected not in allowed or (not subscription_id_param and len(allowed) != 1):
+        raise _ValidationError("Verified subscription scope is required")
+    return selected
 
 
 def _row_to_dict(row: dict) -> dict:
@@ -168,7 +179,10 @@ def get_pattern(pattern_id: int):
             raise _ValidationError("pattern_id must be a positive integer")
 
         # Resolve scope first so an unscoped caller cannot enumerate IDs.
-        effective_sub = _effective_subscription(None)
+        allowed_params = {"subscription_id"}
+        if set(request.args) - allowed_params or any(len(request.args.getlist(key)) != 1 for key in request.args):
+            raise _ValidationError("Unsupported query parameter")
+        effective_sub = _effective_subscription(request.args.get("subscription_id"))
         tenant_id = _effective_tenant()
 
         db = _get_db()

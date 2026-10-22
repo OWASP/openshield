@@ -73,7 +73,9 @@ class LifecycleService:
         findings: Optional[List[Dict[str, Any]]] = None,
         evaluations: Optional[List[Dict[str, Any]]] = None,
         failed_rule_ids: Optional[set] = None,
-    ) -> None:
+        *,
+        commit: bool = True,
+    ) -> bool:
         """Apply a completed scan's findings to the lifecycle tables.
 
         Args:
@@ -97,6 +99,12 @@ class LifecycleService:
 
         try:
             with db_conn.cursor() as cur:
+                # Serialize retries and overlapping scans before checking either
+                # idempotency or ordering. The lock is released at transaction end.
+                cur.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                    (f"openshield-lifecycle:{tenant_id}:{subscription_id}",),
+                )
                 # --- Idempotency check ----------------------------------------
                 cur.execute(
                     "SELECT scan_id FROM scan_lifecycle_applications WHERE scan_id = %s",
@@ -104,7 +112,9 @@ class LifecycleService:
                 )
                 if cur.fetchone() is not None:
                     logger.info("Scan %s already applied; skipping lifecycle update", scan_id)
-                    return
+                    if commit:
+                        db_conn.commit()
+                    return False
 
                 # --- Scan ordering guard --------------------------------------
                 # A delayed retry must not rewind state set by a newer scan.
@@ -116,9 +126,9 @@ class LifecycleService:
                     FROM scan_lifecycle_applications sla
                     JOIN scans s USING (scan_id)
                     WHERE s.subscription_id = %s
-                      AND s.tenant_id = %s
-                      AND s.completed_at > (
-                          SELECT completed_at FROM scans WHERE scan_id = %s
+                      AND sla.tenant_id = %s
+                      AND (s.started_at, s.scan_id) > (
+                          SELECT started_at, scan_id FROM scans WHERE scan_id = %s
                       )
                     LIMIT 1
                     """,
@@ -127,9 +137,13 @@ class LifecycleService:
                 if cur.fetchone() is not None:
                     logger.info(
                         "Scan %s is older than a previously applied scan for %s/%s; skipping",
-                        scan_id, tenant_id, subscription_id,
+                        scan_id,
+                        tenant_id,
+                        subscription_id,
                     )
-                    return
+                    if commit:
+                        db_conn.commit()
+                    return False
 
                 # --- Write durable per-rule outcome records -------------------
                 # UNIQUE(scan_id, rule_id) prevents duplicates on double-writes.
@@ -388,14 +402,16 @@ class LifecycleService:
                 # --- Idempotency sentinel (inserted last) ---------------------
                 cur.execute(
                     """
-                    INSERT INTO scan_lifecycle_applications (scan_id, applied_by)
-                    VALUES (%s, 'system')
+                    INSERT INTO scan_lifecycle_applications (scan_id, tenant_id, applied_by)
+                    VALUES (%s, %s, 'system')
                     """,
-                    (scan_id,),
+                    (scan_id, tenant_id),
                 )
 
-            db_conn.commit()
+            if commit:
+                db_conn.commit()
             logger.info("Lifecycle application committed for scan %s", scan_id)
+            return True
 
         except Exception:
             db_conn.rollback()

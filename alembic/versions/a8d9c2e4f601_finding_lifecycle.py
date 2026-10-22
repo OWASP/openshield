@@ -48,6 +48,7 @@ def upgrade() -> None:
         """
         CREATE TABLE scan_lifecycle_applications (
             scan_id UUID PRIMARY KEY REFERENCES scans(scan_id),
+            tenant_id TEXT NOT NULL,
             applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             applied_by TEXT NOT NULL DEFAULT 'system'
         )

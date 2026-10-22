@@ -16,7 +16,7 @@ def test_resolution_requires_current_pass_for_each_resource():
     conn = psycopg2.connect(os.environ["DATABASE_URL"])
     tenant = f"lifecycle-test-{uuid.uuid4()}"
     subscription = str(uuid.uuid4())
-    scans = [str(uuid.uuid4()) for _ in range(5)]
+    scans = [str(uuid.uuid4()) for _ in range(6)]
     service = LifecycleService()
     outcome = [{"rule_id": "AZ-TEST-001", "status": "SUCCESS"}]
     resources = ["/resource/pass", "/resource/unknown", "/resource/unobserved"]
@@ -33,11 +33,11 @@ def test_resolution_requires_current_pass_for_each_resource():
 
     try:
         with conn.cursor() as cur:
-            for scan in scans:
+            for index, scan in enumerate(scans):
                 cur.execute(
                     "INSERT INTO scans (scan_id, subscription_id, started_at, status) "
-                    "VALUES (%s, %s, NOW(), 'completed')",
-                    (scan, subscription),
+                    "VALUES (%s, %s, NOW() + (%s * INTERVAL '1 second'), 'completed')",
+                    (scan, subscription, [0, 1, 2, 3, 5, 4][index]),
                 )
         conn.commit()
         service.apply_scan(conn, scans[0], subscription, tenant, outcome, findings)
@@ -61,6 +61,9 @@ def test_resolution_requires_current_pass_for_each_resource():
         )
         assert states()[resources[0]] == "REOPENED"
         service.apply_scan(conn, scans[4], subscription, tenant, outcome, [], evaluations=evidence)
+        assert states()[resources[0]] == "RESOLVED"
+        # A delayed violating scan must not reopen state established by scan 4.
+        service.apply_scan(conn, scans[5], subscription, tenant, outcome, findings[:1])
         assert states()[resources[0]] == "RESOLVED"
         service.apply_scan(conn, scans[4], subscription, tenant, outcome, [], evaluations=evidence)
         with conn.cursor() as cur:
