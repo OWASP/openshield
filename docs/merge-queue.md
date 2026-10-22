@@ -254,11 +254,31 @@ queue on `dev`:
   human approval before the PR could land.
 
 Mergify's own `dismiss_reviews` rule (`approved: true`, `changes_requested:
-false`, `sender!=mergify[bot]`) provides the equivalent guarantee on dev:
+false`, `sender!=mergify[bot]`) is intended to provide approval freshness on dev:
 contributor pushes dismiss stale approvals, Mergify's own queue rebases do not.
 `strict_required_status_checks_policy: true` is kept in the dev ruleset so a PR
 must be up to date with `dev` before merging, which complements Mergify's
 update step rather than conflicting with it.
+
+Do not apply this declared dev ruleset until both Merge Queue and Workflow
+Automation are enabled and the validation scenarios above have been verified.
+The approval-dismissal rule belongs to Workflow Automation; a working queue
+alone does not establish that contributor pushes dismiss stale approvals.
+Keep existing native review protections in place until that rollout gate passes.
+
+### Validation evidence, 23 October 2026
+
+The official Mergify CLI version `2026.10.6` validated `.mergify.yml` against
+the published schema. Its release archive matched the published SHA256SUMS.
+The configuration is unchanged from commit `2b496e4c3d668f9cc996d61af614c48c80c9ab95`.
+The static policy and branch-protection tests also passed (41 tests).
+
+A read-only simulation of PR #335 was attempted using that configuration.
+The Mergify API returned HTTP 404 for the repository/PR simulator endpoint.
+This does not establish whether the app, product activation or access is the
+missing prerequisite. No queue or ruleset was enabled, and no runtime scenario
+is claimed as passing. An authorized maintainer must obtain a successful
+simulation and record the three review scenarios in issue #334 before rollout.
 
 ## Pausing the queue
 
