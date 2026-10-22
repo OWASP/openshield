@@ -225,7 +225,10 @@ def run_worker():
                 db.save_scan(result, worker_id, fencing_token)
                 dsn = os.environ.get("DATABASE_URL")
                 if engine.snapshot and dsn:
-                    populate_graph(scan_id, engine.snapshot, dsn)
+                    try:
+                        populate_graph(scan_id, engine.snapshot, dsn)
+                    except Exception:
+                        logger.warning("Graph publication failed for persisted scan %s", scan_id, exc_info=True)
 
                 # Lifecycle application is now durable: save_scan() enqueues a
                 # lifecycle_job in the same transaction, so apply_scan() will
