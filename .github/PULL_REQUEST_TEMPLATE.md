@@ -19,11 +19,16 @@
 ## Testing
 - [ ] Tested against a real Azure free trial subscription
 - [ ] Returns correct JSON output
-- [ ] All seven CI checks pass
+- [ ] All CI checks pass (lint, tests, CodeQL, DCO, dependency-review)
 - [ ] No hardcoded credentials or secrets
 
 ## Related issue
 Closes #
+
+## Dependencies
+<!-- List any PRs or issues that must merge before this one. -->
+<!-- Replace "none" with one or more references, e.g. Depends-On: #123 -->
+Depends-On: none
 
 ## Checklist
 - [ ] Every commit includes a DCO `Signed-off-by` trailer (`git commit -s`; see `docs/dco.md`)
