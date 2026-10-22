@@ -1,6 +1,6 @@
-﻿# Rules Reference
+ï»¿# Rules Reference
 
-OpenShield currently ships 95 Azure scan rules. This table is generated from the module-level constants in `scanner/rules/`.
+OpenShield currently ships 154 Azure scan rules. This table is generated from the module-level constants in `scanner/rules/`.
 
 | Rule ID | Name | Severity | Category | CIS | NIST | ISO 27001 |
 |---|---|---|---|---|---|---|
@@ -130,6 +130,17 @@ OpenShield currently ships 95 Azure scan rules. This table is generated from the
 | AZ-SC-006 | Terraform State Storage Account Missing Versioning or Soft Delete | HIGH | Supply Chain | N/A-SC-006 | PR.IP-4 | A.8.13 |
 | AZ-SC-007 | Pipeline Service Connection Scoped to Subscription | HIGH | Supply Chain | N/A-SC-007 | PR.AC-4 | A.8.2 |
 | AZ-SC-008 | Pipeline Service Connection Uses Password Instead of Federated Credential | MEDIUM | Supply Chain | N/A-SC-008 | PR.AC-1 | A.5.17 |
+
+| AZ-GOV-001 | Subscription Outside Approved Management Group Hierarchy | HIGH | Governance | N/A-GOV-001 | PR.AC-4 | A.5.15 |
+| AZ-GOV-002 | Required Security Policy Initiative Missing | HIGH | Governance | N/A-GOV-002 | PR.IP-1 | A.5.1 |
+| AZ-GOV-003 | Preventive Policy Uses Non-Enforcing Effect | HIGH | Governance | N/A-GOV-003 | PR.IP-1 | A.5.1 |
+| AZ-GOV-004 | Policy Exemption Missing Governance Metadata | MEDIUM | Governance | N/A-GOV-004 | PR.IP-1 | A.5.1 |
+| AZ-GOV-005 | Critical Production Resource Missing Deletion Lock | HIGH | Governance | N/A-GOV-005 | PR.IP-3 | A.8.9 |
+| AZ-GOV-006 | Excessive Subscription Owner Assignments | HIGH | Governance | N/A-GOV-006 | PR.AC-4 | A.5.18 |
+| AZ-GOV-007 | Privileged Access Assigned at Broad Scope | HIGH | Governance | N/A-GOV-007 | PR.AC-4 | A.5.18 |
+| AZ-GOV-008 | Undocumented Resource Provider Registered | MEDIUM | Governance | N/A-GOV-008 | PR.IP-1 | A.5.9 |
+| AZ-GOV-009 | Production Resource Missing Ownership Metadata | MEDIUM | Governance | N/A-GOV-009 | ID.AM-1 | A.5.9 |
+| AZ-GOV-010 | Security Configuration Drift Exceeds SLA | HIGH | Governance | N/A-GOV-010 | DE.CM-8 | A.8.8 |
 
 SOC 2 mappings are maintained in `compliance/frameworks/soc2.json`.
 
