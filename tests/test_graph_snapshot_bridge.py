@@ -48,6 +48,16 @@ def test_collect_snapshot_returns_snapshot_on_success():
     assert result is expected
 
 
+def test_graph_tenant_scope_is_case_normalized():
+    client = MagicMock()
+    client.tenant_id = "TENANT-ABC"
+    with patch("scanner.graph.snapshot_bridge.ArgInventoryClient") as arg:
+        collector = arg.return_value.__enter__.return_value
+        collector.collect.return_value = _make_snapshot()
+        collect_snapshot(client, "sub-a")
+    assert collector.collect.call_args.kwargs["tenant_id"] == "tenant-abc"
+
+
 def test_collect_snapshot_returns_none_on_exception():
     mock_client = MagicMock()
     mock_client.tenant_id = "00000000-0000-0000-0000-000000000001"

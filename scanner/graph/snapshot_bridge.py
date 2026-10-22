@@ -27,6 +27,8 @@ def collect_snapshot(client: AzureClient, subscription_id: str) -> InventorySnap
         logger.warning("snapshot_bridge: AzureClient missing tenant_id or credential — skipping ARG collection")
         return None
 
+    tenant_id = tenant_id.strip().lower()
+
     try:
         with ArgInventoryClient(credential=credential) as arg:
             snapshot = arg.collect(
