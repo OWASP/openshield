@@ -1,6 +1,7 @@
 """Scan engine: loads rules dynamically and orchestrates a full subscription scan."""
 
 import importlib.util
+import inspect
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -9,8 +10,17 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from api.observability import RULE_ERRORS_TOTAL
 from openshield.severity import CONTRACT_VERSION, SeverityContractError, normalize_severity, score_findings
+
+try:
+    import azure.core.exceptions as _azure_exc
+
+    _AzureHttpResponseError = _azure_exc.HttpResponseError
+except Exception:
+    _AzureHttpResponseError = None  # type: ignore[assignment,misc]
+
 from scanner.azure_client import AzureClient
 from scanner.evaluation import EvaluationStatus, RuleEvaluation, subscription_scope_id
+from scanner.graph.snapshot_bridge import collect_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +127,11 @@ class ScanEngine:
         evaluations: List[RuleEvaluation] = []
         detected_at = datetime.now(timezone.utc).isoformat()
 
+        # Collect an ARG inventory snapshot for graph population and rule enrichment.
+        # Failure is non-fatal: rules fall back to direct SDK calls.
+        snapshot = collect_snapshot(self.client, self.subscription_id)
+        self.snapshot = snapshot
+
         logger.info(
             "Scan %s starting against subscription %s — %d rules loaded",
             scan_id,
@@ -152,7 +167,10 @@ class ScanEngine:
                 continue
 
             try:
-                rule_findings = rule.scan(self.client, self.subscription_id)
+                if "snapshot" in inspect.signature(rule.scan).parameters:
+                    rule_findings = rule.scan(self.client, self.subscription_id, snapshot=snapshot)
+                else:
+                    rule_findings = rule.scan(self.client, self.subscription_id)
                 if not isinstance(rule_findings, list):
                     logger.warning("Rule %s returned %s instead of list — skipped", rule_id, type(rule_findings))
                     failed_rule_ids.append(rule_id)
@@ -222,6 +240,8 @@ class ScanEngine:
             "total_findings": len(findings),
             "score": score,
             "severity_contract_version": CONTRACT_VERSION,
+            "snapshot_id": snapshot.snapshot_id if snapshot else None,
+            "snapshot_status": snapshot.status.value if snapshot else None,
             "findings": findings,
             "evaluations": [e.to_dict() for e in evaluations],
             "failed_rule_ids": failed_rule_ids,

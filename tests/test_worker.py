@@ -78,6 +78,7 @@ class TestWorker(unittest.TestCase):
 
         # We need to stop the infinite loop. We'll raise StopWorker on the second call to recover_stale_scans.
         mock_db.recover_stale_scans.side_effect = [None, StopWorker()]
+        mock_db.claim_next_lifecycle_job.return_value = None
         mock_db.claim_next_enrichment_job.return_value = None
         mock_db.claim_next_pending_scan.side_effect = [
             {"scan_id": self.scan_id, "subscription_id": self.subscription_id, "fencing_token": 1},
@@ -119,6 +120,7 @@ class TestWorker(unittest.TestCase):
         mock_db = mock_db_class.return_value
 
         mock_db.recover_stale_scans.side_effect = [None, StopWorker()]
+        mock_db.claim_next_lifecycle_job.return_value = None
         mock_db.claim_next_enrichment_job.return_value = None
         mock_db.claim_next_pending_scan.side_effect = [
             {"scan_id": self.scan_id, "subscription_id": self.subscription_id, "fencing_token": 1},
@@ -156,6 +158,7 @@ class TestWorker(unittest.TestCase):
         mock_env.return_value = self.mock_db_url
         mock_db = mock_db_class.return_value
         mock_db.recover_stale_scans.side_effect = [None, StopWorker()]
+        mock_db.claim_next_lifecycle_job.return_value = None
         mock_db.claim_next_enrichment_job.return_value = None
         mock_db.claim_next_pending_scan.return_value = {
             "scan_id": self.scan_id,
@@ -209,6 +212,7 @@ def test_heartbeat_surfaces_lost_lease_and_closes_its_connection(mock_db_class):
         mock_db = mock_db_class.return_value
 
         mock_db.recover_stale_scans.side_effect = [None, StopWorker()]
+        mock_db.claim_next_lifecycle_job.return_value = None
         mock_db.claim_next_enrichment_job.return_value = None
         mock_db.claim_next_pending_scan.return_value = None
 
