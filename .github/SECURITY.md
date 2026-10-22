@@ -10,6 +10,11 @@ monitored for security reports and that the recipient can accept the report.
 Mailbox ownership, monitoring and the response targets below still require
 maintainer confirmation; this policy does not establish those operational facts.
 
+Before claiming the OpenSSF private-reporting criterion is met, the project
+lead must confirm ownership, consent and monitoring for this mailbox, or enable
+GitHub private vulnerability reporting and verify that an external reporter can
+use it. Publishing this document alone does not complete that operational gate.
+
 If maintainers enable GitHub private vulnerability reporting (PVR), you can report via
 [GitHub's private security advisory feature](https://github.com/OWASP/openshield/security/advisories/new).
 

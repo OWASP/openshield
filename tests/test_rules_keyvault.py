@@ -241,13 +241,36 @@ def test_kv_006_evaluate_missing_properties_is_unknown_not_pass(mock_azure, subs
 
 
 def test_kv_006_evaluate_no_vaults_is_not_applicable(mock_azure, subscription_id):
-    """An empty vault list can't be told apart from a failed list call, so it
-    must not be reported as a PASS."""
+    """A successful but empty vault list is NOT_APPLICABLE, never a PASS."""
     mock_azure.set_key_vaults([])
     evaluations = az_kv_006.evaluate(mock_azure, subscription_id)
     assert len(evaluations) == 1
     assert evaluations[0].status == EvaluationStatus.NOT_APPLICABLE
+    assert evaluations[0].reason_code == "NO_RESOURCES_FOUND"
     assert evaluations[0].resource_id == f"/subscriptions/{subscription_id}"
+
+
+def test_kv_006_evaluate_failed_vault_list_is_error_not_not_applicable(mock_azure, subscription_id):
+    """A failed list call (permissions, throttling) means nothing was checked."""
+    mock_azure.set_key_vaults(None)
+    evaluations = az_kv_006.evaluate(mock_azure, subscription_id)
+    assert len(evaluations) == 1
+    assert evaluations[0].status == EvaluationStatus.ERROR
+    assert evaluations[0].reason_code == "INVENTORY_UNAVAILABLE"
+    assert evaluations[0].resource_id == f"/subscriptions/{subscription_id}"
+    assert az_kv_006.scan(mock_azure, subscription_id) == []
+
+
+def test_kv_006_evaluate_records_rbac_setting_as_evidence(mock_azure, subscription_id):
+    mock_azure.set_key_vaults(
+        [
+            _vault_with_props("kv-a", enable_rbac_authorization=True),
+            _vault_with_props("kv-b", enable_rbac_authorization=False),
+        ]
+    )
+    evidence = {e.resource_id: e.evidence for e in az_kv_006.evaluate(mock_azure, subscription_id)}
+    assert evidence[_kv_id("kv-a")] == {"enable_rbac_authorization": True}
+    assert evidence[_kv_id("kv-b")] == {"enable_rbac_authorization": False}
 
 
 def test_kv_006_evaluate_reports_one_status_per_vault(mock_azure, subscription_id):

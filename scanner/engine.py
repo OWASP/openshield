@@ -5,7 +5,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from api.observability import RULE_ERRORS_TOTAL
 from openshield.severity import CONTRACT_VERSION, SeverityContractError, normalize_severity, score_findings
@@ -52,7 +52,9 @@ class ScanEngine:
     Each rule module must expose a ``scan(azure_client, subscription_id)``
     function and the module-level constants ``RULE_ID``, ``RULE_NAME``,
     ``SEVERITY``, ``CATEGORY``, ``FRAMEWORKS``, ``DESCRIPTION``,
-    ``REMEDIATION``, and ``PLAYBOOK``.
+    ``REMEDIATION``, and ``PLAYBOOK``. A rule that also exposes
+    ``evaluate(azure_client, subscription_id)`` is run through evaluate()
+    only; its findings come from its FAIL evaluations.
     """
 
     def __init__(self, subscription_id: str) -> None:
@@ -104,7 +106,10 @@ class ScanEngine:
 
         Returns:
             dict with keys: scan_id, subscription_id, started_at,
-            completed_at, total_findings, findings.
+            completed_at, total_findings, findings, evaluations, and
+            failed_rule_ids (rules whose evaluator raised, returned malformed
+            data, or produced only ERROR evaluations; partial ERROR results
+            do not mark a rule failed when it also produced usable outcomes).
         """
         scan_id = scan_id or str(uuid.uuid4())
         started_at = datetime.now(timezone.utc).isoformat()
@@ -123,13 +128,29 @@ class ScanEngine:
         # equivalent to "the rule ran and found nothing" - a caller scoring
         # PASS/FAIL from absence of findings (get_compliance_score()) must be
         # able to tell the two apart, or a crashed rule reads as a clean
-        # pass. Full per-resource evaluation persistence is issue #263;
-        # tracking which rules failed to complete at all is the minimum this
-        # scan result can honestly report without it.
+        # pass. A rule is listed here when it raised, returned malformed
+        # data, or produced only ERROR evaluations. Partial ERROR rows do not
+        # fail a rule when it also produced usable outcomes; if every outcome
+        # is ERROR, the rule supplied no usable coverage and is failed. This
+        # also covers inventory-wide failures, while preserving valid results
+        # from other inventories/resources.
         failed_rule_ids: List[str] = []
 
         for rule in self.rules:
             rule_id = getattr(rule, "RULE_ID", "UNKNOWN")
+            if callable(getattr(rule, "evaluate", None)):
+                # evaluate() supersedes scan(): its FAIL evaluations carry the
+                # findings (collected below), so also calling scan() would only
+                # repeat the same Azure list calls and let the two paths drift.
+                rule_evaluations, completed = self._run_evaluate(rule, rule_id)
+                if not completed or (
+                    rule_evaluations and all(e.status == EvaluationStatus.ERROR for e in rule_evaluations)
+                ):
+                    failed_rule_ids.append(rule_id)
+                evaluations.extend(rule_evaluations)
+                logger.info("Rule %s produced %d evaluation(s)", rule_id, len(rule_evaluations))
+                continue
+
             try:
                 rule_findings = rule.scan(self.client, self.subscription_id)
                 if not isinstance(rule_findings, list):
@@ -159,14 +180,23 @@ class ScanEngine:
                 logger.error("Rule %s raised an exception: %s", rule_id, exc, exc_info=True)
                 failed_rule_ids.append(rule_id)
 
-            evaluations.extend(self._evaluate_rule(rule, rule_id))
+            evaluations.append(self._legacy_placeholder(rule_id))
 
-        # A FAIL evaluation contributes its own finding only if scan() hasn't
-        # already reported the same (rule_id, resource_id) violation, so a
-        # rule implementing both scan() and evaluate() never double-counts.
+        # Every FAIL evaluation contributes its attached finding once per
+        # (rule_id, resource_id), so repeated FAILs for one resource never
+        # double-count.
         existing_keys = {(f.get("rule_id"), f.get("resource_id")) for f in findings}
         for rule_evaluation in evaluations:
-            if rule_evaluation.status != EvaluationStatus.FAIL or not rule_evaluation.finding:
+            if rule_evaluation.status != EvaluationStatus.FAIL:
+                continue
+            if not rule_evaluation.finding:
+                # A FAIL without a finding would drop a real violation from
+                # the findings list while the coverage row still says FAIL.
+                logger.warning(
+                    "Rule %s reported FAIL for %s without a finding",
+                    rule_evaluation.rule_id,
+                    rule_evaluation.resource_id,
+                )
                 continue
             key = (rule_evaluation.rule_id, rule_evaluation.resource_id)
             if key in existing_keys:
@@ -201,42 +231,61 @@ class ScanEngine:
 
         return make_serializable(result)
 
-    def _evaluate_rule(self, rule: Any, rule_id: str) -> List[RuleEvaluation]:
-        """Return this rule's coverage statements for the current scan.
+    def _legacy_placeholder(self, rule_id: str) -> RuleEvaluation:
+        """Coverage for a rule that only has scan().
 
-        A rule that exposes ``evaluate()`` reports its own PASS/FAIL/UNKNOWN
-        results. A rule that only has ``scan()`` has never stated what it
-        looked at, so its coverage is recorded as UNKNOWN rather than
-        inferred as PASS from the absence of a finding.
+        Such a rule has never stated what it looked at, so its coverage is
+        recorded as UNKNOWN rather than inferred as PASS from the absence of
+        a finding.
         """
-        evaluate_fn = getattr(rule, "evaluate", None)
-        if not callable(evaluate_fn):
-            return [
-                RuleEvaluation(
-                    rule_id=rule_id,
-                    resource_id=subscription_scope_id(self.subscription_id),
-                    resource_type="",
-                    status=EvaluationStatus.UNKNOWN,
-                    reason_code="LEGACY_RULE_NOT_MIGRATED",
-                    reason="This rule has not been migrated to the evaluate() coverage contract yet.",
-                )
-            ]
+        return RuleEvaluation(
+            rule_id=rule_id,
+            resource_id=subscription_scope_id(self.subscription_id),
+            resource_type="",
+            status=EvaluationStatus.UNKNOWN,
+            reason_code="LEGACY_RULE_NOT_MIGRATED",
+            reason="This rule has not been migrated to the evaluate() coverage contract yet.",
+        )
 
+    def _run_evaluate(self, rule: Any, rule_id: str) -> Tuple[List[RuleEvaluation], bool]:
+        """Run a rule's evaluate() and report whether it completed.
+
+        A raised exception or a non-list return is recorded as a single ERROR
+        at the subscription scope. Items that are not RuleEvaluation objects
+        are dropped (they must not reach result serialisation, where they
+        would fail the whole scan), the valid evaluations are kept so their
+        FAIL findings still surface, and one ERROR naming the malformed
+        positions is added so the rule cannot read as clean.
+        """
         try:
-            rule_evaluations = evaluate_fn(self.client, self.subscription_id)
+            rule_evaluations = rule.evaluate(self.client, self.subscription_id)
             if not isinstance(rule_evaluations, list):
                 raise TypeError(f"evaluate() must return a list, got {type(rule_evaluations)}")
-            return rule_evaluations
         except Exception as exc:
             RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
             logger.error("Rule %s evaluate() raised an exception: %s", rule_id, exc, exc_info=True)
-            return [
-                RuleEvaluation(
-                    rule_id=rule_id,
-                    resource_id=subscription_scope_id(self.subscription_id),
-                    resource_type="",
-                    status=EvaluationStatus.ERROR,
-                    reason_code="EVALUATOR_EXCEPTION",
-                    reason=str(exc),
-                )
-            ]
+            return [self._evaluator_error(rule_id, "EVALUATOR_EXCEPTION", str(exc))], False
+
+        valid = [item for item in rule_evaluations if isinstance(item, RuleEvaluation)]
+        malformed = [
+            f"#{index} ({type(item).__name__})"
+            for index, item in enumerate(rule_evaluations)
+            if not isinstance(item, RuleEvaluation)
+        ]
+        if not malformed:
+            return rule_evaluations, True
+
+        RULE_ERRORS_TOTAL.labels(rule_id=rule_id).inc()
+        reason = f"evaluate() returned {len(malformed)} item(s) that are not RuleEvaluation: {', '.join(malformed)}"
+        logger.error("Rule %s %s", rule_id, reason)
+        return valid + [self._evaluator_error(rule_id, "MALFORMED_EVALUATION", reason)], False
+
+    def _evaluator_error(self, rule_id: str, reason_code: str, reason: str) -> RuleEvaluation:
+        return RuleEvaluation(
+            rule_id=rule_id,
+            resource_id=subscription_scope_id(self.subscription_id),
+            resource_type="",
+            status=EvaluationStatus.ERROR,
+            reason_code=reason_code,
+            reason=reason,
+        )
