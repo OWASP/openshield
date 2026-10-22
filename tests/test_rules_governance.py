@@ -33,15 +33,19 @@ from scanner.rules import _governance_common as common
         az_gov_010,
     ],
 )
-def test_engine_does_not_call_internal_findings_helper_as_coverage_evaluator(module):
+def test_engine_does_not_call_internal_findings_helper_as_coverage_evaluator(module, monkeypatch):
     from scanner.engine import ScanEngine
 
     engine = ScanEngine.__new__(ScanEngine)
     engine.subscription_id = "sub"
     engine.client = object()
-    evaluations = engine._evaluate_rule(module, module.RULE_ID)
-    assert evaluations[0].status == "UNKNOWN"
-    assert evaluations[0].reason_code == "LEGACY_RULE_NOT_MIGRATED"
+    engine.rules = [module]
+    monkeypatch.delenv(common.POLICY_ENV, raising=False)
+    result = engine.run_scan()
+    assert result["findings"] == []
+    assert result["failed_rule_ids"] == []
+    assert result["evaluations"][0]["status"] == "UNKNOWN"
+    assert result["evaluations"][0]["reason_code"] == "LEGACY_RULE_NOT_MIGRATED"
 
 
 SUB = "sub"
