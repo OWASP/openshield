@@ -1,14 +1,14 @@
 """Track the explicit current snapshot for each tenant/subscription graph.
 
 Revision ID: e2c4a6b8d013
-Revises: e1f2a3b4c5d6
+Revises: b7c3d9e2f841
 """
 
 from typing import Sequence, Union
 from alembic import op
 
 revision: str = "e2c4a6b8d013"
-down_revision: str = "e1f2a3b4c5d6"
+down_revision: str = "b7c3d9e2f841"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

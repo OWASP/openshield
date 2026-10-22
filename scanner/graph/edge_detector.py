@@ -159,7 +159,13 @@ class StoragePrivateEndpointDetector(EdgeDetector):
                 continue
             connections = resource.properties.get("privateEndpointConnections") or []
             for conn in connections:
-                pe_id = ((conn.get("properties") or {}).get("privateEndpoint") or {}).get("id")
+                properties = conn.get("properties") or {}
+                state = properties.get("privateLinkServiceConnectionState") or {}
+                if str(state.get("status", "")).lower() != "approved":
+                    continue
+                if str(properties.get("provisioningState", "Succeeded")).lower() != "succeeded":
+                    continue
+                pe_id = (properties.get("privateEndpoint") or {}).get("id")
                 if not pe_id:
                     continue
                 edges.append(

@@ -1,7 +1,7 @@
 """Add attack_paths table for pre-computed BFS traversal results.
 
 Revision ID: f2a3b4c5d6e7
-Revises: e1f2a3b4c5d6
+Revises: e2c4a6b8d013
 Create Date: 2026-09-24 00:00:00.000000
 """
 

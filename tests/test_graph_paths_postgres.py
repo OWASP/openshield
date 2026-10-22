@@ -163,7 +163,7 @@ def test_authenticated_graph_api_selects_only_current_verified_tenant_evidence(p
     partial = snapshot(tenant, sub, status=InventoryStatus.PARTIAL, linked=False)
     populate_graph(scan(), replace(partial, resources=partial.resources[:1]), dsn)
     token = jwt.encode(
-        {"sub": "graph-viewer", "role": "viewer", "tid": tenant, "exp": int(time.time()) + 60},
+        {"sub": "graph-viewer", "role": "viewer", "tid": tenant, "subscription_id": sub, "exp": int(time.time()) + 60},
         app.config["JWT_SECRET"],
         algorithm="HS256",
     )

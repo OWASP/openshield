@@ -17,6 +17,8 @@ def tenant_auth_headers(app):
     payload = {
         "sub": "test-user",
         "role": "admin",
+        "tid": _TENANT,
+        "subscription_id": "sub-a",
         "iat": int(time.time()),
         "exp": int(time.time()) + 3600,
     }
@@ -61,14 +63,15 @@ def test_get_attack_graph_returns_empty_nodes_and_edges(client, tenant_auth_head
     assert "edges" in data
 
 
-def test_get_attack_graph_viewer_cannot_supply_tenant_header(client, app):
+@pytest.mark.parametrize("role", ["viewer", "operator", "admin"])
+def test_get_attack_graph_viewer_cannot_supply_tenant_header(client, app, role):
     """Viewer-role tokens must not use X-Tenant-Id header (admin-only)."""
     import jwt
 
     secret = app.config["JWT_SECRET"]
     payload = {
         "sub": "viewer-user",
-        "role": "viewer",
+        "role": role,
         "iat": int(time.time()),
         "exp": int(time.time()) + 3600,
     }
@@ -120,7 +123,7 @@ def test_verified_viewer_tenant_cannot_be_overridden_by_header_or_query(client, 
     import jwt
 
     token = jwt.encode(
-        {"sub": "viewer", "role": "viewer", "tid": _TENANT, "exp": int(time.time()) + 60},
+        {"sub": "viewer", "role": "viewer", "tid": _TENANT, "subscription_id": "sub-a", "exp": int(time.time()) + 60},
         app.config["JWT_SECRET"],
         algorithm="HS256",
     )

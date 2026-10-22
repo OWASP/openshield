@@ -192,8 +192,4 @@ def populate_graph(scan_id: str, snapshot: InventorySnapshot, dsn: str) -> None:
         logger.warning("graph: population failed for scan %s", scan_id, exc_info=True)
         return
 
-    try:
-        path_count = compute_attack_paths(scan_id, snapshot.tenant_id, dsn)
-        logger.info("graph: computed %d attack paths for scan %s", path_count, scan_id)
-    except Exception as exc:
-        logger.warning("graph: path traversal failed for scan %s: %s", scan_id, exc)
+    compute_attack_paths(scan_id, snapshot.tenant_id, dsn)

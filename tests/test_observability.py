@@ -176,7 +176,8 @@ def test_sentry_initialized_when_dsn_set(monkeypatch):
 # --------------------------------------------------------------------------- #
 # Worker metrics do not break the worker                                       #
 # --------------------------------------------------------------------------- #
-def test_worker_records_scan_metrics_on_success(monkeypatch):
+@pytest.mark.parametrize("graph_fails", [False, True])
+def test_worker_records_scan_metrics_on_success(monkeypatch, graph_fails):
     """The worker's success path increments the completed scan counter."""
     from scanner import worker
 
@@ -188,12 +189,14 @@ def test_worker_records_scan_metrics_on_success(monkeypatch):
 
     mock_db = MagicMock()
     mock_db.recover_stale_scans.side_effect = [None, _Stop()]
+    mock_db.claim_next_lifecycle_job.return_value = None
     mock_db.claim_next_enrichment_job.return_value = None
     mock_db.claim_next_pending_scan.side_effect = [
         {"scan_id": scan_id, "subscription_id": sub_id, "fencing_token": 1},
         None,
     ]
     mock_engine = MagicMock()
+    mock_engine.snapshot = object() if graph_fails else None
     mock_engine.run_scan.return_value = {
         "scan_id": scan_id,
         "subscription_id": sub_id,
@@ -204,6 +207,7 @@ def test_worker_records_scan_metrics_on_success(monkeypatch):
 
     monkeypatch.setattr(worker, "DatabaseManager", MagicMock(return_value=mock_db))
     monkeypatch.setattr(worker, "ScanEngine", MagicMock(return_value=mock_engine))
+    monkeypatch.setattr(worker, "populate_graph", MagicMock(side_effect=RuntimeError("graph unavailable")))
     heartbeat = MagicMock()
     heartbeat.lost.is_set.return_value = False
     monkeypatch.setattr(worker, "LeaseHeartbeat", MagicMock(return_value=heartbeat))

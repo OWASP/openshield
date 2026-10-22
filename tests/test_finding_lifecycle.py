@@ -4,6 +4,8 @@ All tests use in-memory state to simulate the database without requiring a
 live PostgreSQL instance.
 """
 
+import pytest
+
 from collections import deque
 
 from api.services.lifecycle_service import (
@@ -55,6 +57,12 @@ class _FakeCursor:
 
     def execute(self, sql, params=None):
         self.executed.append((sql.strip(), params))
+        if "pg_advisory_xact_lock" in sql:
+            self._current = None
+            return
+        if "SELECT sla.scan_id" in sql and (not self._results or self._results[0] != ("newer-scan-id",)):
+            self._current = None
+            return
         self._current = self._results.popleft() if self._results else None
 
     def fetchone(self):
@@ -182,8 +190,8 @@ class TestLifecycleServiceIdempotency:
             [_make_finding("RULE-001", "/rg/foo")],
         )
 
-        # Only the first call should have committed.
-        assert committed_count == 1
+        # Both transactions release their scope lock, including the no-op retry.
+        assert committed_count == 2
 
 
 class TestLifecycleStateTransitions:
@@ -192,7 +200,15 @@ class TestLifecycleStateTransitions:
     def _run(self, results, findings, outcomes):
         conn = _FakeConn(results)
         svc = LifecycleService()
-        svc.apply_scan(conn, SCAN_ID_1, SUB_ID, TENANT_ID, outcomes, findings)
+        svc.apply_scan(
+            conn,
+            SCAN_ID_1,
+            SUB_ID,
+            TENANT_ID,
+            outcomes,
+            findings,
+            evaluations=[{"rule_id": o["rule_id"], "resource_id": "/rg/foo", "status": "PASS"} for o in outcomes],
+        )
         return conn
 
     def _all_sql(self, conn: _FakeConn) -> list[str]:
@@ -242,7 +258,7 @@ class TestLifecycleStateTransitions:
         results = [
             None,
             None,
-            [(10, "OPEN", 0, "RULE-001")],
+            [(10, "OPEN", 0, "RULE-001", "/rg/foo")],
             None,
             None,
             None,
@@ -316,7 +332,7 @@ class TestLifecycleStateTransitions:
             None,  # idempotency check
             None,  # scan_rule_outcomes RULE-001
             None,  # scan_rule_outcomes RULE-002
-            [(10, "OPEN", 0, "RULE-001")],  # absent-findings query
+            [(10, "OPEN", 0, "RULE-001", "/rg/foo")],  # absent-findings query
             None,  # UPDATE RESOLVED
             None,  # transition insert
             None,  # idempotency insert
@@ -349,7 +365,7 @@ class TestLifecycleStateTransitions:
         results = [
             None,
             None,
-            [(10, "REOPENED", 0, "RULE-001")],
+            [(10, "REOPENED", 0, "RULE-001", "/rg/foo")],
             None,
             None,
             None,
@@ -359,11 +375,8 @@ class TestLifecycleStateTransitions:
         sqls = self._all_sql(conn)
         assert any("RESOLVED" in s and "UPDATE" in s.upper() for s in sqls)
         # Transition from REOPENED to RESOLVED must be recorded.
-        # from_state is passed as a parameter (%s), so check both SQL and params.
         assert any(
-            "finding_lifecycle_transitions" in sql
-            and "RESOLVED" in sql
-            and "REOPENED" in str(params)
+            "finding_lifecycle_transitions" in sql and params == (10, "REOPENED", SCAN_ID_1)
             for sql, params in conn.all_executed()
         )
 
@@ -391,3 +404,138 @@ class TestLifecycleStateTransitions:
 
         # occurrence_count should increment.
         assert any("occurrence_count = occurrence_count + 1" in s for s in sqls)
+
+
+def test_empty_success_without_resource_evidence_does_not_resolve():
+    conn = _FakeConn([None, None, [(10, "OPEN", 0, "RULE-001", "/rg/foo")], None, None, None])
+    LifecycleService().apply_scan(conn, SCAN_ID_1, SUB_ID, TENANT_ID, [_make_outcome("RULE-001", "EMPTY_SUCCESS")], [])
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
+
+
+@pytest.mark.parametrize("status", ["UNKNOWN", "ERROR", "FAIL", "NOT_APPLICABLE"])
+def test_incomplete_resource_evidence_does_not_resolve(status):
+    conn = _FakeConn([None, None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [_make_outcome("RULE-001", "SUCCESS")],
+        [],
+        evaluations=[{"rule_id": "RULE-001", "resource_id": "/rg/foo", "status": status}],
+    )
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
+
+
+def test_pass_for_one_resource_does_not_resolve_unobserved_resource():
+    conn = _FakeConn([None, None, [(10, "OPEN", 0, "RULE-001", "/rg/unobserved")], None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [_make_outcome("RULE-001", "SUCCESS")],
+        [],
+        evaluations=[{"rule_id": "RULE-001", "resource_id": "/rg/foo", "status": "PASS"}],
+    )
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
+
+
+def test_conflicting_pass_and_unknown_cannot_resolve():
+    conn = _FakeConn([None, None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [_make_outcome("RULE-001", "SUCCESS")],
+        [],
+        evaluations=[
+            {"rule_id": "RULE-001", "resource_id": "/rg/foo", "status": status} for status in ["PASS", "UNKNOWN"]
+        ],
+    )
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
+
+
+def test_current_finding_overrides_contradictory_resource_pass():
+    conn = _FakeConn([None, None, (1,), None, (10,), None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [_make_outcome("RULE-001", "SUCCESS")],
+        [_make_finding("RULE-001", "/rg/foo")],
+        evaluations=[{"rule_id": "RULE-001", "resource_id": "/rg/foo", "status": "PASS"}],
+    )
+    assert not any("FROM finding_lifecycles fl" in sql for sql, _ in conn.all_executed())
+
+
+def test_evaluate_only_rule_can_resolve_without_rule_outcomes_entry():
+    """evaluate()-only rules (PR #381+) never emit rule_outcomes; they must still resolve."""
+    conn = _FakeConn([None, [(10, "OPEN", 0, "EVAL-RULE", "/rg/res")], None, None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [],  # no rule_outcomes -- engine skipped scan() for this evaluate()-only rule
+        [],
+        evaluations=[{"rule_id": "EVAL-RULE", "resource_id": "/rg/res", "status": "PASS"}],
+    )
+    resolved_sqls = [sql for sql, _ in conn.all_executed() if "SET state = 'RESOLVED'" in sql]
+    assert resolved_sqls, "evaluate()-only PASS should resolve the finding"
+
+
+def test_evaluate_only_rule_with_error_status_cannot_resolve():
+    """An evaluate()-only rule where all evaluations are ERROR must not resolve."""
+    conn = _FakeConn([None, None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [],
+        [],
+        evaluations=[{"rule_id": "EVAL-RULE", "resource_id": "/rg/res", "status": "ERROR"}],
+    )
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed())
+
+
+def test_older_scan_does_not_overwrite_newer_scan_state():
+    """An older scan applied after a newer one must be silently skipped."""
+    # Idempotency check: None (not already applied).
+    # Ordering guard: returns a row (a newer scan was applied for this sub/tenant).
+    conn = _FakeConn([None, ("newer-scan-id",)])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [{"rule_id": "RULE-A", "status": "SUCCESS"}],
+        [{"rule_id": "RULE-A", "resource_id": "/rg/res"}],
+    )
+    assert conn.committed, "A skipped scan must release its transaction lock"
+    executed_sqls = [sql for sql, _ in conn.all_executed()]
+    assert not any("INSERT INTO finding" in sql for sql in executed_sqls), "Older scan must not write any finding rows"
+
+
+def test_failed_rule_id_blocks_resolution_despite_pass_evaluation():
+    """A rule in failed_rule_ids must not resolve findings even when evaluations include PASS."""
+    conn = _FakeConn([None, [(10, "OPEN", 0, "PARTIAL-RULE", "/rg/res")], None, None, None])
+    LifecycleService().apply_scan(
+        conn,
+        SCAN_ID_1,
+        SUB_ID,
+        TENANT_ID,
+        [],
+        [],
+        evaluations=[
+            {"rule_id": "PARTIAL-RULE", "resource_id": "/rg/res", "status": "PASS"},
+            {"rule_id": "PARTIAL-RULE", "resource_id": "/rg/res2", "status": "ERROR"},
+        ],
+        failed_rule_ids={"PARTIAL-RULE"},
+    )
+    assert not any("SET state = 'RESOLVED'" in sql for sql, _ in conn.all_executed()), (
+        "PASS resource from a failed rule must not be resolved"
+    )

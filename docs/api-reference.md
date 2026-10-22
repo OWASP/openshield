@@ -702,11 +702,13 @@ The following endpoints are called by the frontend but have no backend implement
 
 ## Attack graph endpoints
 
-`GET /api/attack-graph` returns explicitly observed nodes and relationships from the latest published inventory snapshot for each subscription in the caller's tenant. Complete snapshots expire absent resources and relationships within their tenant/subscription scope. Partial snapshots retain historical evidence in storage, while current graph queries and traversal exclude unobserved resources and relationships. Failed collection keeps the previous published snapshot. `GET /api/attack-paths` and `GET /api/attack-paths/<path_id>` expose paths computed for a requested scan. Successful subsequent scans replace prior paths for the same tenant/subscription, including scans with no findings.
+`GET /api/v1/attack-graph` returns explicitly observed nodes and relationships from the latest published inventory snapshot for an authorized subscription in the caller's tenant. Complete snapshots expire absent resources and relationships within their tenant/subscription scope. Partial snapshots retain historical evidence in storage, while current graph queries and traversal exclude unobserved resources and relationships. Failed collection keeps the previous published snapshot. `GET /api/v1/attack-paths` and `GET /api/v1/attack-paths/<path_id>` expose paths computed for a requested scan. Successful subsequent scans replace prior paths for the same tenant/subscription, including scans with no findings.
 
 ### Authentication requirement
 
-Callers use the tenant claim preserved by the token verifier in either authentication mode. A supplied `X-Tenant-Id` header cannot override that claim. An authenticated admin without a tenant claim may supply `X-Tenant-Id` explicitly; viewer and operator tokens cannot select a tenant. Requests without a usable tenant return `403 {"error": "tenant_id not available; OIDC authentication required"}`. Tenant query parameters never determine graph scope.
+Callers must have a verified tenant claim in either authentication mode. Headers and query parameters cannot supply a missing tenant, including for admins. Requests without a usable tenant return `403 {"error": "tenant_id not available; OIDC authentication required"}`.
+
+Subscription scope follows the patterns API: use a signed subscription claim, or the configured deployment allowlist only when the verified tenant matches the deployment tenant. When that allowlist contains several subscriptions, select one with `subscription_id`. A selection outside the authorized scope returns 400. Graph nodes, paths, path details and every returned hop are restricted to that subscription; paths crossing an unauthorized subscription are omitted.
 
 ### Attack-path retention
 

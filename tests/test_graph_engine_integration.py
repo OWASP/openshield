@@ -1,6 +1,7 @@
 """Verify ScanEngine collects a snapshot and passes it to rules."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+from types import SimpleNamespace
 import pytest
 
 from scanner.arg_inventory import InventorySnapshot, InventoryStatus
@@ -35,6 +36,7 @@ def test_run_scan_result_contains_snapshot_id(engine):
         result = engine.run_scan()
     assert result["snapshot_id"] == "snap-abc"
     assert result["snapshot_status"] == "COMPLETE"
+    assert engine.snapshot is snapshot
 
 
 def test_run_scan_snapshot_none_when_collection_fails(engine):
@@ -52,7 +54,7 @@ def test_run_scan_passes_snapshot_to_rule_scan(engine):
         received["snapshot"] = snapshot
         return []
 
-    mock_rule = MagicMock()
+    mock_rule = SimpleNamespace()
     mock_rule.RULE_ID = "AZ-TEST-001"
     mock_rule.SEVERITY = "HIGH"
     mock_rule.scan = fake_scan
@@ -79,7 +81,7 @@ def test_run_scan_existing_rule_without_snapshot_param_still_works(engine):
             }
         ]
 
-    mock_rule = MagicMock()
+    mock_rule = SimpleNamespace()
     mock_rule.RULE_ID = "AZ-LEGACY-001"
     mock_rule.SEVERITY = "LOW"
     mock_rule.scan = legacy_scan

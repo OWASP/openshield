@@ -7,6 +7,7 @@ import psycopg2.extras
 from flask import Blueprint, g, jsonify, request
 
 from api.models.finding import DatabaseManager
+from api.routes.patterns import _effective_subscription, _ValidationError
 from api.validation import ValidationError, positive_integer, uuid_string
 
 attack_graph_bp = Blueprint("attack_graph", __name__)
@@ -27,18 +28,13 @@ def _tenant_id() -> str | None:
     """Resolve tenant_id from the verified principal.
 
     The 'tenant' field comes from the verified token's tenant claim.
-    For tokens without a tenant claim, admins may supply
-    X-Tenant-Id as a request header (never a query param, which leaks into
-    logs and caches). Non-admin tokens cannot override the header.
+    Headers and query parameters cannot supply a missing verified tenant.
     """
     user = getattr(g, "user", {}) or {}
     # OIDC path: tid claim decoded by the verifier into user["tenant"]
     tid = user.get("tenant")
     if tid:
         return tid
-    # Shared-secret path: admin-only header override for multi-tenant deployments
-    if user.get("role") == "admin":
-        return request.headers.get("X-Tenant-Id") or None
     return None
 
 
@@ -60,7 +56,7 @@ def get_attack_graph():
         if limit > _MAX_LIMIT:
             limit = _MAX_LIMIT
         subscription_id = request.args.get("subscription_id")
-    except (ValidationError, ValueError):
+    except (ValidationError, _ValidationError, ValueError):
         return jsonify({"error": "Invalid request parameters"}), 400
 
     tenant_id = _tenant_id()
@@ -68,6 +64,11 @@ def get_attack_graph():
         # A caller without a verified tenant or admin fallback cannot access
         # tenant-scoped graph evidence.
         return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
+
+    try:
+        subscription_id = _effective_subscription(subscription_id)
+    except _ValidationError:
+        return jsonify({"error": "Invalid request parameters"}), 400
 
     try:
         conn = _get_db().conn
@@ -147,6 +148,11 @@ def list_attack_paths():
         return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
     try:
+        subscription_id = _effective_subscription(request.args.get("subscription_id"))
+    except _ValidationError:
+        return jsonify({"error": "Invalid request parameters"}), 400
+
+    try:
         conn = _get_db().conn
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -157,14 +163,21 @@ def list_attack_paths():
                        src.resource_type AS source_type, src.name AS source_name,
                        tgt.resource_type AS target_type, tgt.name AS target_name
                 FROM attack_paths ap
+                JOIN scans s ON s.scan_id::text = ap.scan_id
                 JOIN graph_nodes src ON src.node_id = ap.source_node_id
                 JOIN graph_nodes tgt ON tgt.node_id = ap.target_node_id
                 WHERE ap.scan_id = %(scan_id)s
                   AND ap.tenant_id = %(tenant_id)s
+                  AND s.subscription_id = %(subscription_id)s
+                  AND NOT EXISTS (
+                      SELECT 1 FROM graph_nodes hop
+                      WHERE hop.node_id = ANY(ap.path_node_ids)
+                        AND (hop.tenant_id <> %(tenant_id)s OR hop.subscription_id <> %(subscription_id)s)
+                  )
                 ORDER BY ap.path_length ASC, ap.min_confidence DESC
                 LIMIT %(limit)s
                 """,
-                {"scan_id": scan_id, "tenant_id": tenant_id, "limit": limit},
+                {"scan_id": scan_id, "tenant_id": tenant_id, "subscription_id": subscription_id, "limit": limit},
             )
             rows = cur.fetchall()
     except Exception:
@@ -189,6 +202,11 @@ def get_attack_path(path_id: str):
         return jsonify({"error": "tenant_id not available; OIDC authentication required"}), 403
 
     try:
+        subscription_id = _effective_subscription(request.args.get("subscription_id"))
+    except _ValidationError:
+        return jsonify({"error": "Invalid request parameters"}), 400
+
+    try:
         conn = _get_db().conn
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -197,10 +215,17 @@ def get_attack_path(path_id: str):
                        ap.target_node_id::text, ap.path_node_ids, ap.path_length,
                        ap.min_confidence, ap.relationship_types, ap.computed_at
                 FROM attack_paths ap
+                JOIN scans s ON s.scan_id::text = ap.scan_id
                 WHERE ap.path_id = %(path_id)s::uuid
                   AND ap.tenant_id = %(tenant_id)s
+                  AND s.subscription_id = %(subscription_id)s
+                  AND NOT EXISTS (
+                      SELECT 1 FROM graph_nodes hop
+                      WHERE hop.node_id = ANY(ap.path_node_ids)
+                        AND (hop.tenant_id <> %(tenant_id)s OR hop.subscription_id <> %(subscription_id)s)
+                  )
                 """,
-                {"path_id": path_id, "tenant_id": tenant_id},
+                {"path_id": path_id, "tenant_id": tenant_id, "subscription_id": subscription_id},
             )
             row = cur.fetchone()
 
@@ -220,8 +245,9 @@ def get_attack_path(path_id: str):
                     FROM graph_nodes
                     WHERE node_id = ANY(%(ids)s::uuid[])
                       AND tenant_id = %(tenant_id)s
+                      AND subscription_id = %(subscription_id)s
                     """,
-                    {"ids": node_ids, "tenant_id": tenant_id},
+                    {"ids": node_ids, "tenant_id": tenant_id, "subscription_id": subscription_id},
                 )
                 nodes_by_id = {r["node_id"]: dict(r) for r in cur.fetchall()}
             path["hops"] = [nodes_by_id.get(str(nid), {"node_id": str(nid)}) for nid in path["path_node_ids"]]
