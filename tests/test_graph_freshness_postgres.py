@@ -67,6 +67,41 @@ def counts(dsn, tenant, subscription, current=False):
             return nodes, cur.fetchone()[0]
 
 
+def test_rejected_private_endpoint_never_enters_published_graph(graph_scope):
+    tenant, sub, dsn = graph_scope
+    original = snapshot(tenant, sub)
+    connection = {
+        "privateEndpoint": {"id": f"/subscriptions/{sub}/endpoints/a"},
+        "privateLinkServiceConnectionState": {"status": "Rejected"},
+    }
+    storage = InventoryResource(
+        original.snapshot_id,
+        tenant,
+        sub,
+        f"/subscriptions/{sub}/storage/a",
+        "microsoft.storage/storageaccounts",
+        "a",
+        "uksouth",
+        "rg",
+        {},
+        {"privateEndpointConnections": [{"properties": connection}]},
+    )
+    endpoint = InventoryResource(
+        original.snapshot_id,
+        tenant,
+        sub,
+        connection["privateEndpoint"]["id"],
+        "microsoft.network/privateendpoints",
+        "a",
+        "uksouth",
+        "rg",
+        {},
+        {},
+    )
+    populate_graph(str(uuid.uuid4()), replace(original, resources=(storage, endpoint)), dsn)
+    assert counts(dsn, tenant, sub, current=True) == (2, 0)
+
+
 def test_complete_snapshot_removes_detached_relationship(graph_scope):
     tenant, sub, dsn = graph_scope
     populate_graph(str(uuid.uuid4()), snapshot(tenant, sub), dsn)

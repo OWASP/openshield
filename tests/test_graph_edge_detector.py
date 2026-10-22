@@ -96,13 +96,41 @@ def test_storage_private_endpoint_detects_reachable_via_edge():
     storage = _resource(
         storage_id,
         "microsoft.storage/storageaccounts",
-        {"privateEndpointConnections": [{"properties": {"privateEndpoint": {"id": pe_id}}}]},
+        {
+            "privateEndpointConnections": [
+                {
+                    "properties": {
+                        "privateEndpoint": {"id": pe_id},
+                        "privateLinkServiceConnectionState": {"status": "Approved"},
+                    }
+                }
+            ]
+        },
     )
     snapshot = _snapshot(storage)
     edges = StoragePrivateEndpointDetector().detect(snapshot)
     assert len(edges) == 1
     assert edges[0].relationship_type == "REACHABLE_VIA"
     assert edges[0].confidence == 1.0
+
+
+def test_unapproved_private_endpoints_are_not_confirmed_reachable():
+    for status in ("Pending", "Rejected", "Disconnected", "", None):
+        storage = _resource(
+            "/storage/a",
+            "microsoft.storage/storageaccounts",
+            {
+                "privateEndpointConnections": [
+                    {
+                        "properties": {
+                            "privateEndpoint": {"id": "/endpoint/a"},
+                            "privateLinkServiceConnectionState": {"status": status},
+                        }
+                    }
+                ]
+            },
+        )
+        assert StoragePrivateEndpointDetector().detect(_snapshot(storage)) == []
 
 
 def test_detect_all_edges_runs_all_detectors():

@@ -71,7 +71,6 @@ class ScanEngine:
         self.subscription_id = subscription_id
         self.client = AzureClient(subscription_id)
         self.rules: List[Any] = []
-        self.snapshot: Optional[Any] = None
         self.load_rules()
 
     # ------------------------------------------------------------------ #
@@ -134,7 +133,7 @@ class ScanEngine:
         self.snapshot = snapshot
 
         logger.info(
-            "Scan %s starting against subscription %s - %d rules loaded",
+            "Scan %s starting against subscription %s — %d rules loaded",
             scan_id,
             self.subscription_id,
             len(self.rules),
@@ -169,7 +168,7 @@ class ScanEngine:
 
             try:
                 if "snapshot" in inspect.signature(rule.scan).parameters:
-                    rule_findings = rule.scan(self.client, self.subscription_id, snapshot)
+                    rule_findings = rule.scan(self.client, self.subscription_id, snapshot=snapshot)
                 else:
                     rule_findings = rule.scan(self.client, self.subscription_id)
                 if not isinstance(rule_findings, list):
@@ -248,7 +247,7 @@ class ScanEngine:
             "failed_rule_ids": failed_rule_ids,
         }
 
-        logger.info("Scan %s complete - %d total finding(s). Normalising results...", scan_id, len(findings))
+        logger.info("Scan %s complete — %d total finding(s). Normalising results...", scan_id, len(findings))
 
         return make_serializable(result)
 
