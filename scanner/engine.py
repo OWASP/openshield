@@ -130,6 +130,7 @@ class ScanEngine:
         # Collect an ARG inventory snapshot for graph population and rule enrichment.
         # Failure is non-fatal: rules fall back to direct SDK calls.
         snapshot = collect_snapshot(self.client, self.subscription_id)
+        self.snapshot = snapshot
 
         logger.info(
             "Scan %s starting against subscription %s — %d rules loaded",
@@ -167,7 +168,7 @@ class ScanEngine:
 
             try:
                 if "snapshot" in inspect.signature(rule.scan).parameters:
-                    rule_findings = rule.scan(self.client, self.subscription_id, snapshot)
+                    rule_findings = rule.scan(self.client, self.subscription_id, snapshot=snapshot)
                 else:
                     rule_findings = rule.scan(self.client, self.subscription_id)
                 if not isinstance(rule_findings, list):

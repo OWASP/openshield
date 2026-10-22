@@ -24,6 +24,8 @@ class PatternService:
         scan_id: str,
         subscription_id: str,
         tenant_id: str,
+        *,
+        commit: bool = True,
     ) -> int:
         """Detect patterns for the given scan and upsert them into the patterns table.
 
@@ -53,14 +55,15 @@ class PatternService:
                     """
                     SELECT ff.rule_id,
                            array_agg(fl.id ORDER BY fl.id) AS lifecycle_ids,
-                           COUNT(*) AS lc_count
+                           array_agg(ff.resource_id_normalized ORDER BY fl.id) AS resource_ids,
+                           COUNT(DISTINCT ff.resource_id_normalized) AS lc_count
                     FROM finding_lifecycles fl
                     JOIN finding_fingerprints ff ON ff.id = fl.fingerprint_id
                     WHERE ff.tenant_id = %s
                       AND ff.subscription_id = %s
                       AND fl.state IN ('OPEN', 'REOPENED')
                     GROUP BY ff.rule_id
-                    HAVING COUNT(*) >= %s
+                    HAVING COUNT(DISTINCT ff.resource_id_normalized) >= %s
                     """,
                     (tenant_id, subscription_id, _CROSS_RESOURCE_THRESHOLD),
                 )
@@ -98,9 +101,10 @@ class PatternService:
 
             for row in cross_rows:
                 lifecycle_ids = row["lifecycle_ids"]
+                resource_ids = row["resource_ids"]
                 # Publish one pattern per lifecycle so each is individually traceable.
-                for lc_id in lifecycle_ids:
-                    sibling_ids = [lid for lid in lifecycle_ids if lid != lc_id]
+                for lc_id, resource_id in zip(lifecycle_ids, resource_ids):
+                    sibling_ids = [lid for lid, rid in zip(lifecycle_ids, resource_ids) if rid != resource_id]
                     _upsert_pattern(
                         db_conn,
                         pattern_type="cross_resource_recurrence",
@@ -126,7 +130,8 @@ class PatternService:
                 )
                 count += 1
 
-            db_conn.commit()
+            if commit:
+                db_conn.commit()
             logger.info("Pattern detection for scan %s: %d pattern(s) upserted", scan_id, count)
             return count
 
