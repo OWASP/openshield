@@ -260,6 +260,7 @@ def create_app() -> Flask:
     from api.routes.compliance import compliance_bp
     from api.routes.drift import drift_bp
     from api.routes.findings import findings_bp
+    from api.routes.patterns import patterns_bp
     from api.routes.prioritization import prioritization_bp
     from api.routes.resources import resources_bp
     from api.routes.scans import scans_bp
@@ -271,6 +272,7 @@ def create_app() -> Flask:
     app.register_blueprint(compliance_bp)
     app.register_blueprint(drift_bp)
     app.register_blueprint(findings_bp)
+    app.register_blueprint(patterns_bp)
     app.register_blueprint(prioritization_bp)
     app.register_blueprint(resources_bp)
     app.register_blueprint(scans_bp)
