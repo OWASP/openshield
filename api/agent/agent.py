@@ -17,6 +17,9 @@ from api.services.ai_provider import get_completion
 
 logger = logging.getLogger(__name__)
 
+_ANSWER_MAX = 4000
+_TOOL_RESULT_MAX = 4096
+
 _SYSTEM_PROMPT = """You are a CSPM (Cloud Security Posture Management) security assistant for Azure.
 
 RULES:
@@ -69,6 +72,7 @@ def _dispatch_tool(
     db_conn: Any,
     subscription_id: str,
     tenant_id: str,
+    user_role: str = "viewer",
 ) -> Any:
     """Call the named tool. Returns the tool result or an error dict.
 
@@ -77,6 +81,8 @@ def _dispatch_tool(
     """
     try:
         if tool_name == "scan_subscription":
+            if user_role not in {"operator", "admin"}:
+                return {"error": "insufficient_permissions"}
             return _tools.scan_subscription(db_conn, subscription_id, tenant_id)
 
         if tool_name == "get_findings":
@@ -116,6 +122,7 @@ def run_agent(
     api_key: str,
     model: str = None,
     max_iterations: int = 8,
+    user_role: str = "viewer",
 ) -> dict:
     """Run the ReAct agent loop and return a grounded answer.
 
@@ -139,6 +146,7 @@ def run_agent(
 
     messages: list[str] = [system_message, user_message]
     tools_used: list[str] = []
+    seen_calls: set[tuple] = set()
 
     for i in range(max_iterations):
         logger.debug("Agent iteration %d/%d", i + 1, max_iterations)
@@ -159,8 +167,11 @@ def run_agent(
 
         if "answer" in parsed:
             logger.debug("Iteration %d: received final answer", i + 1)
+            raw_answer = parsed["answer"]
+            if not isinstance(raw_answer, str):
+                raw_answer = (raw or "")[:_ANSWER_MAX]
             return {
-                "answer": parsed["answer"],
+                "answer": clean_text(raw_answer, _ANSWER_MAX),
                 "tools_used": tools_used,
                 "iterations": i + 1,
                 "confidence": parsed.get("confidence", "LOW"),
@@ -171,9 +182,19 @@ def run_agent(
             tool_args = parsed.get("args", {})
             logger.debug("Iteration %d: calling tool %r with args %r", i + 1, tool_name, tool_args)
 
-            result = _dispatch_tool(tool_name, tool_args, db_conn, subscription_id, tenant_id)
+            call_key = (tool_name, tuple(sorted((tool_args or {}).items())))
+            if call_key in seen_calls:
+                logger.debug("Iteration %d: duplicate tool call %r, skipping", i + 1, tool_name)
+                messages.append(f"Tool result: {json.dumps({'note': 'duplicate call skipped'})}")
+                continue
+            seen_calls.add(call_key)
+
+            result = _dispatch_tool(tool_name, tool_args, db_conn, subscription_id, tenant_id, user_role)
             tools_used.append(tool_name)
-            messages.append(f"Tool result: {json.dumps(result)}")
+            serialized = json.dumps(result)
+            if len(serialized) > _TOOL_RESULT_MAX:
+                serialized = serialized[:_TOOL_RESULT_MAX] + '..."}'
+            messages.append(f"Tool result: {serialized}")
             continue
 
         # Parsed JSON but neither "answer" nor "tool" key present

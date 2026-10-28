@@ -50,6 +50,8 @@ def agent_query():
     if not tenant_id:
         return jsonify({"error": "tenant context not available; configure OIDC authentication"}), 403
 
+    user_role = g.user.get("role", "viewer")
+
     subscription_id = body.get("subscription_id") or os.environ.get("AZURE_SUBSCRIPTION_ID", "")
     if not subscription_id:
         return jsonify({"error": "subscription_id is required"}), 400
@@ -67,6 +69,7 @@ def agent_query():
             provider=provider,
             api_key=api_key,
             model=model,
+            user_role=user_role,
         )
     except Exception:
         logger.exception("Unexpected error in agent_query")

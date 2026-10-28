@@ -78,7 +78,7 @@ def get_findings(
         " FROM finding_lifecycles fl"
         " JOIN finding_fingerprints ff ON ff.fingerprint_id = fl.fingerprint_id"
         " JOIN scan_rule_outcomes sro ON sro.outcome_id = fl.outcome_id"
-        " WHERE " + " AND ".join(where_clauses) + " LIMIT 200"  # nosec B608
+        " WHERE " + " AND ".join(where_clauses) + " LIMIT 200"  # nosec B608 — clauses are static strings; only values use %s placeholders
     )
     try:
         with db_conn.cursor() as cur:
@@ -104,7 +104,7 @@ def get_findings(
             subscription_id,
             tenant_id,
         )
-        return []
+        return [{"error": "db_error"}]
 
 
 def get_compliance_posture(db_conn, framework: str, subscription_id: str, tenant_id: str) -> dict:
@@ -212,7 +212,7 @@ def explain_finding(db_conn, finding_id: int, tenant_id: str) -> dict | None:
             finding_id,
             tenant_id,
         )
-        return None
+        return {"error": "db_error"}
 
 
 def suggest_remediation(db_conn, finding_id: int, tenant_id: str) -> dict | None:

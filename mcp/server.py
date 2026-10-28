@@ -160,10 +160,23 @@ TOOLS = _TOOL_SPECS
 # ---------------------------------------------------------------------------
 
 
+def _subscription_is_authorized(subscription_id: str) -> bool:
+    """Allowlist check mirroring api/routes/scans.py.
+
+    Reads OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS (comma-separated). When unset,
+    every subscription is accepted. This prevents prompt-injected calls from
+    scanning arbitrary subscriptions via the MCP server.
+    """
+    raw = os.environ.get("OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS", "")
+    allowlist = {v.strip().lower() for v in raw.split(",") if v.strip()}
+    return not allowlist or subscription_id.lower() in allowlist
+
+
 def _build_app():
     """Construct and return a fully wired MCP Server instance."""
     try:
         import psycopg2
+        from psycopg2 import pool as _pg_pool
     except ImportError as exc:
         raise ImportError("psycopg2 is required: pip install psycopg2-binary") from exc
 
@@ -180,19 +193,25 @@ def _build_app():
     tools = _make_tools(Tool)
     app = Server("openshield-cspm")
 
+    db_url = os.environ["DATABASE_URL"]
+    # tenant_id always comes from env — never from LLM tool-call arguments
+    tenant_id = os.environ["OPENSHIELD_TENANT_ID"]
+    _pool = _pg_pool.SimpleConnectionPool(1, 5, db_url)
+
     @app.list_tools()
     async def list_tools() -> list:
         return tools
 
     @app.call_tool()
     async def call_tool(name: str, arguments: dict):
-        db_url = os.environ["DATABASE_URL"]
-        # tenant_id always comes from env — never from LLM tool-call arguments
-        tenant_id = os.environ["OPENSHIELD_TENANT_ID"]
-        conn = psycopg2.connect(db_url)
+        conn = _pool.getconn()
         try:
             if name == "scan_subscription":
-                result = scan_subscription(conn, arguments["subscription_id"], tenant_id)
+                sub_id = arguments["subscription_id"]
+                if not _subscription_is_authorized(sub_id):
+                    result = {"error": "subscription_id is not authorized for this deployment"}
+                else:
+                    result = scan_subscription(conn, sub_id, tenant_id)
             elif name == "get_findings":
                 result = get_findings(
                     conn,
@@ -220,7 +239,7 @@ def _build_app():
             logger.exception("Tool %s failed", name)
             result = {"error": str(exc)}
         finally:
-            conn.close()
+            _pool.putconn(conn)
         return [TextContent(type="text", text=json.dumps(result))]
 
     return app, stdio_server
