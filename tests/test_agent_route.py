@@ -132,7 +132,11 @@ class TestAgentQueryRoute:
         """Agent route must reject when tenant is empty (shared_secret mode returns tenant=None)."""
         import time
         import jwt
-        from tests.conftest import _TEST_JWT_SECRET
+
+        # Read the secret from the app's config so this test uses the same value
+        # that the fixture injected. Importing from tests.conftest would trigger a
+        # second module load and produce a different _TEST_JWT_SECRET.
+        test_secret = app_no_tenant_inject.config["JWT_SECRET"]
 
         # Build a token (shared_secret mode always resolves tenant=None in auth.py)
         payload = {
@@ -141,7 +145,7 @@ class TestAgentQueryRoute:
             "iat": int(time.time()),
             "exp": int(time.time()) + 3600,
         }
-        token = jwt.encode(payload, _TEST_JWT_SECRET, algorithm="HS256")
+        token = jwt.encode(payload, test_secret, algorithm="HS256")
         no_tenant_headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
         client = app_no_tenant_inject.test_client()
