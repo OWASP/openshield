@@ -12,7 +12,7 @@
     "check": "npm run build && DECAP_GITHUB_APP_ID= npm run configure:cms && npm run verify && npm run build && DECAP_GITHUB_APP_ID=0123456789LOCALTEST npm run configure:cms && npm run verify"
   },
   "overrides": {
-    "vite": "8.2.4",
+    "vite": "8.3.5",
     "zod": "4.6.7"
   },
   "dependencies": {
