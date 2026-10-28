@@ -127,6 +127,18 @@
       "review_status": "pending_review",
       "review_date": null
     },
+    "AZ-DB-008": {
+    "control_id": "N/A-DB-008",
+    "control_name": "SQL Server Minimum TLS Version Below 1.2",
+    "description": "OpenShield checks this service-specific control without claiming an unrelated CIS recommendation.",
+    "mapping_type": "not_applicable",
+    "evidence_type": "not_applicable",
+    "primary_source": "CIS Microsoft Azure Foundations Benchmark v2.0.0, control N/A-DB-008",
+    "rationale": "CIS Microsoft Azure Foundations Benchmark v2.0.0 has no numbered control this rule maps to (N/A-DB-008: SQL Server Minimum TLS Version Below 1.2 is a service-specific Azure hardening check; the only numbered minimum-TLS recommendation, 3.15, applies to storage accounts and not to Microsoft.Sql/servers) - reporting it as direct CIS evidence would overstate this framework's coverage, so it is marked not applicable pending review.",
+    "owner": null,
+    "review_status": "pending_review",
+    "review_date": null
+    },
     "AZ-COSMOS-001": {
       "control_id": "N/A-COSMOS-001",
       "control_name": "Cosmos DB Local Authentication Enabled",
