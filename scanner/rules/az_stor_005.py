@@ -94,6 +94,7 @@ def _evaluate_account(azure_client: Any, account: Any, subscription_id: str) -> 
 
     sku = getattr(account, "sku", None)
     sku_name = getattr(sku, "name", "") if sku else ""
+    evidence = {"sku": sku_name or None}
 
     if not sku_name:
         logger.warning(
@@ -106,10 +107,10 @@ def _evaluate_account(azure_client: Any, account: Any, subscription_id: str) -> 
                 EvaluationStatus.UNKNOWN,
                 reason_code=MISSING_PROPERTIES,
                 reason="Storage account SKU was not returned.",
+                evidence=evidence,
             )
         ]
 
-    evidence = {"sku": sku_name}
     if sku_name in _GEO_REDUNDANT_SKUS:
         return [_evaluation(resource_id, EvaluationStatus.PASS, evidence=evidence)]
     finding = _finding(azure_client, resource_id, account_name, location, sku_name)

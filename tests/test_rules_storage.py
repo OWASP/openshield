@@ -578,3 +578,19 @@ def test_storage_evaluations_record_the_checked_value_as_evidence(mock_azure, su
         "minimum_tls_version": "TLS1_2",
         "normalized": "TLS1_2",
     }
+
+
+def test_storage_unknown_evaluations_record_the_checked_value_as_evidence(mock_azure, subscription_id):
+    mock_azure.set_storage_accounts([make_resource(id=_storage_id("sa-gap"), name="sa-gap", location="eastus")])
+    mock_azure.set_storage_lifecycle_policy(_RG, "sa-gap", None)
+    for svc in ("blob", "queue", "table"):
+        mock_azure.set_storage_service_logging(_RG, "sa-gap", svc, None)
+
+    lifecycle = az_stor_003.evaluate(mock_azure, subscription_id)[0]
+    assert (lifecycle.status, lifecycle.evidence) == (EvaluationStatus.UNKNOWN, {"lifecycle_policy": None})
+    logging_rows = az_stor_004.evaluate(mock_azure, subscription_id)
+    assert {(e.status, e.evidence["service"], e.evidence["logging_complete"]) for e in logging_rows} == {
+        (EvaluationStatus.UNKNOWN, svc, None) for svc in ("blob", "queue", "table")
+    }
+    sku = az_stor_005.evaluate(mock_azure, subscription_id)[0]
+    assert (sku.status, sku.evidence) == (EvaluationStatus.UNKNOWN, {"sku": None})

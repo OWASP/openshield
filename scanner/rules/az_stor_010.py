@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 from scanner.azure_client import enum_str
 from scanner.evaluation import (
     EVIDENCE_UNAVAILABLE,
+    PUBLIC_ACCESS_DISABLED,
     EvaluationStatus,
     RuleEvaluation,
     fail_findings,
@@ -87,7 +88,7 @@ def _evaluate_account(azure_client: Any, account: Any, subscription_id: str) -> 
             _evaluation(
                 account.id,
                 EvaluationStatus.NOT_APPLICABLE,
-                reason_code="PUBLIC_ACCESS_DISABLED",
+                reason_code=PUBLIC_ACCESS_DISABLED,
                 reason="Public network access is disabled on the storage account.",
             )
         ]

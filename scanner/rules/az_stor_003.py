@@ -134,6 +134,7 @@ def _evaluate_account(azure_client: Any, account: Any, subscription_id: str) -> 
             EvaluationStatus.UNKNOWN,
             reason_code=EVIDENCE_UNAVAILABLE,
             reason="Lifecycle management policy could not be read.",
+            evidence=evidence,
         )
     ]
 
