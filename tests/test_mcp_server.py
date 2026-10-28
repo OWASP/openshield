@@ -74,6 +74,7 @@ def test_call_tool_scan_subscription_blocked_when_not_authorized(monkeypatch):
         def decorator(fn):
             captured_call_tool["fn"] = fn
             return fn
+
         return decorator
 
     mock_server_instance = MagicMock()
@@ -82,13 +83,16 @@ def test_call_tool_scan_subscription_blocked_when_not_authorized(monkeypatch):
     mock_server_cls = MagicMock(return_value=mock_server_instance)
 
     _mcp_mocks = (mock_server_cls, MagicMock(), MagicMock(), fake_text_content_cls)
-    with patch("psycopg2.pool.SimpleConnectionPool", return_value=mock_pool), \
-         patch("mcp.server._import_mcp", return_value=_mcp_mocks):
-
+    with (
+        patch("psycopg2.pool.SimpleConnectionPool", return_value=mock_pool),
+        patch("mcp.server._import_mcp", return_value=_mcp_mocks),
+    ):
         from mcp.server import _build_app
+
         _build_app()
 
         import asyncio
+
         asyncio.get_event_loop().run_until_complete(
             captured_call_tool["fn"]("scan_subscription", {"subscription_id": "sub-blocked"})
         )
@@ -119,6 +123,7 @@ def test_call_tool_tenant_id_comes_from_env(monkeypatch):
         def decorator(fn):
             captured_call_tool["fn"] = fn
             return fn
+
         return decorator
 
     mock_server_instance = MagicMock()
@@ -129,14 +134,17 @@ def test_call_tool_tenant_id_comes_from_env(monkeypatch):
     fake_text_content_cls = MagicMock(side_effect=lambda type, text: MagicMock(text=text))
 
     _mcp_mocks = (mock_server_cls, MagicMock(), MagicMock(), fake_text_content_cls)
-    with patch("psycopg2.pool.SimpleConnectionPool", return_value=mock_pool), \
-         patch("mcp.server._import_mcp", return_value=_mcp_mocks), \
-         patch("api.agent.tools.get_findings", fake_get_findings):
-
+    with (
+        patch("psycopg2.pool.SimpleConnectionPool", return_value=mock_pool),
+        patch("mcp.server._import_mcp", return_value=_mcp_mocks),
+        patch("api.agent.tools.get_findings", fake_get_findings),
+    ):
         from mcp.server import _build_app
+
         _build_app()
 
         import asyncio
+
         asyncio.get_event_loop().run_until_complete(
             captured_call_tool["fn"]("get_findings", {"subscription_id": "sub-x"})
         )
