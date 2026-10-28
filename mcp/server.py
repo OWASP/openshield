@@ -175,7 +175,6 @@ def _subscription_is_authorized(subscription_id: str) -> bool:
 def _build_app():
     """Construct and return a fully wired MCP Server instance."""
     try:
-        import psycopg2
         from psycopg2 import pool as _pg_pool
     except ImportError as exc:
         raise ImportError("psycopg2 is required: pip install psycopg2-binary") from exc

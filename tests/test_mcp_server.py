@@ -1,7 +1,6 @@
 """Smoke tests for the OpenShield MCP server module."""
 
 import json
-import os
 from unittest.mock import MagicMock, patch
 
 from mcp.server import TOOLS, _subscription_is_authorized
@@ -82,8 +81,9 @@ def test_call_tool_scan_subscription_blocked_when_not_authorized(monkeypatch):
     mock_server_instance.list_tools = MagicMock(return_value=lambda fn: fn)
     mock_server_cls = MagicMock(return_value=mock_server_instance)
 
+    _mcp_mocks = (mock_server_cls, MagicMock(), MagicMock(), fake_text_content_cls)
     with patch("psycopg2.pool.SimpleConnectionPool", return_value=mock_pool), \
-         patch("mcp.server._import_mcp", return_value=(mock_server_cls, MagicMock(), MagicMock(), fake_text_content_cls)):
+         patch("mcp.server._import_mcp", return_value=_mcp_mocks):
 
         from mcp.server import _build_app
         _build_app()
@@ -128,8 +128,9 @@ def test_call_tool_tenant_id_comes_from_env(monkeypatch):
 
     fake_text_content_cls = MagicMock(side_effect=lambda type, text: MagicMock(text=text))
 
+    _mcp_mocks = (mock_server_cls, MagicMock(), MagicMock(), fake_text_content_cls)
     with patch("psycopg2.pool.SimpleConnectionPool", return_value=mock_pool), \
-         patch("mcp.server._import_mcp", return_value=(mock_server_cls, MagicMock(), MagicMock(), fake_text_content_cls)), \
+         patch("mcp.server._import_mcp", return_value=_mcp_mocks), \
          patch("api.agent.tools.get_findings", fake_get_findings):
 
         from mcp.server import _build_app
