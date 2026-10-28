@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 from scanner.evaluation import (
     MISSING_PROPERTIES,
+    UNRECOGNIZED_KEY_SOURCE,
     EvaluationStatus,
     RuleEvaluation,
     fail_findings,
@@ -84,7 +85,7 @@ def _evaluate_account(azure_client: Any, account: Any, subscription_id: str) -> 
             _evaluation(
                 account.id,
                 EvaluationStatus.UNKNOWN,
-                reason_code="UNRECOGNIZED_KEY_SOURCE",
+                reason_code=UNRECOGNIZED_KEY_SOURCE,
                 reason=f"Unrecognized encryption key source {str(key_source)!r}.",
                 evidence=evidence,
             )

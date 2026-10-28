@@ -153,6 +153,7 @@ def _evaluate_account(azure_client: Any, account: Any, subscription_id: str) -> 
                     EvaluationStatus.UNKNOWN,
                     reason_code=EVIDENCE_UNAVAILABLE,
                     reason=f"Diagnostic settings for the {service} service could not be read.",
+                    evidence=evidence,
                 )
             )
     return evaluations

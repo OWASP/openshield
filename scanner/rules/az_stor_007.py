@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 from scanner.azure_client import enum_str
 from scanner.evaluation import (
+    UNRECOGNIZED_TLS_VERSION,
     EvaluationStatus,
     RuleEvaluation,
     fail_findings,
@@ -85,7 +86,7 @@ def _evaluate_account(azure_client: Any, account: Any, subscription_id: str) -> 
         _evaluation(
             account.id,
             EvaluationStatus.UNKNOWN,
-            reason_code="UNRECOGNIZED_TLS_VERSION",
+            reason_code=UNRECOGNIZED_TLS_VERSION,
             reason=f"Unrecognized minimum_tls_version {normalized!r}.",
             evidence=evidence,
         )

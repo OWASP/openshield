@@ -76,6 +76,10 @@ APPROVED_EXCEPTION = "APPROVED_EXCEPTION"
 #                            the rule cannot judge compliance and must fail
 #                            closed rather than read as a pass.
 POLICY_UNAVAILABLE = "POLICY_UNAVAILABLE"
+# Rule-specific codes, defined here so every reason code stays in one place.
+UNRECOGNIZED_TLS_VERSION = "UNRECOGNIZED_TLS_VERSION"  # AZ-STOR-007
+UNRECOGNIZED_KEY_SOURCE = "UNRECOGNIZED_KEY_SOURCE"  # AZ-STOR-008
+PUBLIC_ACCESS_DISABLED = "PUBLIC_ACCESS_DISABLED"  # AZ-STOR-010
 
 
 @dataclass
