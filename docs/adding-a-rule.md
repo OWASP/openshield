@@ -183,7 +183,7 @@ When a rule exposes `evaluate()`, the engine runs it **instead of** `scan()` and
 
 The scan result's `failed_rule_ids` identifies evaluator crashes, malformed evaluator output, and rules that returned only `ERROR` evaluations (including inventory-wide failures with no usable outcomes). Partial `ERROR` rows do not mark a rule failed when it also returned a usable `PASS`, `FAIL`, `UNKNOWN`, or `NOT_APPLICABLE` outcome; the error rows remain in `evaluations` and still affect compliance roll-up. Thus even all-error per-resource results count as a rule failure because none of the rule's coverage could be used.
 
-Rules of the contract (see `scanner/evaluation.py` and `scanner/rules/az_kv_006.py` for the reference implementation):
+Rules of the contract (see `scanner/evaluation.py`, `scanner/rules/az_kv_006.py` for a single-branch rule, and `scanner/rules/az_stor_*.py` for rules with per-resource lookups, sub-resources and opt-in policy tags):
 
 - Use an inventory call that returns `None` on failure (`list_storage_accounts()`, `list_key_vaults()`, and the `Optional[List]` getters such as `get_managed_clusters()`). A failed inventory must be `ERROR`, never `PASS` or `NOT_APPLICABLE`. If the method you need returns `[]` on failure, add a `list_*()` variant next to it.
 - Every path that would otherwise be a silent `continue` gets an explicit status, using the standard reason codes:
@@ -196,6 +196,8 @@ Rules of the contract (see `scanner/evaluation.py` and `scanner/rules/az_kv_006.
   | Resource lacks a required field | `UNKNOWN` | `MISSING_PROPERTIES` |
   | Opt-in policy tag not set | `NOT_APPLICABLE` | `POLICY_NOT_REQUIRED` |
   | Approved exception tag set | `NOT_APPLICABLE` | `APPROVED_EXCEPTION` |
+
+  For opt-in policy tags, `policy_exemption()` in `scanner/rules/_storage_common.py` returns the right `NOT_APPLICABLE` reason code, or `None` when the policy applies. A resource returned without an ID gets `missing_resource_id()` from `scanner/evaluation.py`.
 
 - `resource_id` must be a real, non-empty identifier. For a subscription-level result with no single resource to blame, use `subscription_scope_id(subscription_id)`, never `""`.
 - `UNKNOWN`, `ERROR`, and `NOT_APPLICABLE` require a `reason_code`.
