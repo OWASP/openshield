@@ -1,0 +1,42 @@
+{
+  "approved_management_group_ids": [
+    "/providers/Microsoft.Management/managementGroups/production"
+  ],
+  "required_policy_initiatives": [
+    {
+      "definition_id": "/providers/Microsoft.Authorization/policySetDefinitions/security-baseline",
+      "scope": "/subscriptions/00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "preventive_policy_definition_ids": [
+    "/providers/Microsoft.Authorization/policyDefinitions/deny-public-resources"
+  ],
+  "allowed_preventive_effects": ["deny", "deployIfNotExists", "modify"],
+  "production_resource_types": [
+    "Microsoft.KeyVault/vaults",
+    "Microsoft.Sql/servers",
+    "Microsoft.Storage/storageAccounts"
+  ],
+  "production_tag": "environment",
+  "production_tag_values": ["production", "prod"],
+  "maximum_subscription_owners": 3,
+  "privileged_role_definition_ids": [
+    "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+    "b24988ac-6180-42a0-ab88-20f7382dd24c"
+  ],
+  "approved_privileged_scopes": [
+    "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/platform-security"
+  ],
+  "approved_provider_namespaces": [
+    "Microsoft.Authorization",
+    "Microsoft.Compute",
+    "Microsoft.KeyVault",
+    "Microsoft.Network",
+    "Microsoft.PolicyInsights",
+    "Microsoft.Resources",
+    "Microsoft.Storage"
+  ],
+  "ownership_tags": ["owner", "service-owner"],
+  "drift_sla_days": 30,
+  "excluded_resource_ids": []
+}
