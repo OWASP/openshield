@@ -71,6 +71,11 @@ EVIDENCE_UNAVAILABLE = "EVIDENCE_UNAVAILABLE"
 MISSING_PROPERTIES = "MISSING_PROPERTIES"
 POLICY_NOT_REQUIRED = "POLICY_NOT_REQUIRED"
 APPROVED_EXCEPTION = "APPROVED_EXCEPTION"
+# POLICY_UNAVAILABLE  ERROR  the organisation governance policy is unset or
+#                            invalid while evidence to evaluate is present, so
+#                            the rule cannot judge compliance and must fail
+#                            closed rather than read as a pass.
+POLICY_UNAVAILABLE = "POLICY_UNAVAILABLE"
 
 
 @dataclass

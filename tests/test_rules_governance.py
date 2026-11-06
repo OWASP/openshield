@@ -33,19 +33,27 @@ from scanner.rules import _governance_common as common
         az_gov_010,
     ],
 )
-def test_engine_does_not_call_internal_findings_helper_as_coverage_evaluator(module, monkeypatch):
+def test_migrated_rule_without_policy_is_error_not_silently_clean(module, monkeypatch):
+    """With evidence present but no governance policy configured, a migrated
+    rule must fail closed as ERROR (POLICY_UNAVAILABLE) and be listed as failed,
+    not read as a silent pass."""
     from scanner.engine import ScanEngine
+    from tests.helpers.mock_azure import MockAzureClient
+
+    monkeypatch.delenv(common.POLICY_ENV, raising=False)
+    client = MockAzureClient()
+    client.get_governance_snapshot = lambda _sub: {"evidence": "present"}
 
     engine = ScanEngine.__new__(ScanEngine)
     engine.subscription_id = "sub"
-    engine.client = object()
+    engine.client = client
     engine.rules = [module]
-    monkeypatch.delenv(common.POLICY_ENV, raising=False)
     result = engine.run_scan()
+
     assert result["findings"] == []
-    assert result["failed_rule_ids"] == []
-    assert result["evaluations"][0]["status"] == "UNKNOWN"
-    assert result["evaluations"][0]["reason_code"] == "LEGACY_RULE_NOT_MIGRATED"
+    assert result["failed_rule_ids"] == [module.RULE_ID]
+    assert result["evaluations"][0]["status"] == "ERROR"
+    assert result["evaluations"][0]["reason_code"] == "POLICY_UNAVAILABLE"
 
 
 SUB = "sub"
