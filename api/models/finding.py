@@ -1559,26 +1559,54 @@ class DatabaseManager:
         score = score_counts({severity: count for severity, count in rows})
         return {"status": "OK", "score": score, "max_score": 100}
 
-    def get_cve_summary(self) -> Dict[str, Any]:
-        """Return high-level summary of CVE findings for the dashboard."""
+    def get_cve_summary(self, subscription_id: Optional[str] = None) -> Dict[str, Any]:
+        """Return high-level summary of CVE findings for the dashboard.
+
+        The "latest completed scan" lookup is a separate query from the
+        summary aggregate, matching get_score() and get_compliance_score(),
+        so the same subscription predicate can be applied to it.
+
+        Args:
+            subscription_id: When given, scopes the "latest completed scan"
+                lookup to this subscription. In a shared-database deployment
+                that stores scans for more than one Azure subscription,
+                omitting this summarises whichever subscription scanned most
+                recently - not this caller's own data. Passed in by the route
+                (matching get_score) rather than read off the instance, which
+                never carries it.
+        """
         conn = self._get_conn()
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT
-                    s.cve_enrichment_status,
-                    COUNT(f.*) as total_findings,
-                    COUNT(CASE WHEN f.exploit_available = TRUE THEN 1 END) as exploit_count,
-                    MAX(f.cvss_score) as max_cvss_score,
-                    AVG(f.cvss_score) as avg_cvss_score,
-                    COUNT(CASE WHEN f.cvss_score >= 9.0 THEN 1 END) as critical_cve_count
-                FROM scans s
-                LEFT JOIN findings f ON s.scan_id = f.scan_id
-                WHERE s.scan_id = (
-                    SELECT scan_id FROM scans WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1
+            if subscription_id:
+                cur.execute(
+                    "SELECT scan_id FROM scans "
+                    "WHERE status = 'completed' AND subscription_id = %s "
+                    "ORDER BY started_at DESC LIMIT 1",
+                    (subscription_id,),
                 )
-                GROUP BY s.cve_enrichment_status
-            """)
-            row = cur.fetchone()
+            else:
+                cur.execute("SELECT scan_id FROM scans WHERE status = 'completed' ORDER BY started_at DESC LIMIT 1")
+            latest_scan = cur.fetchone()
+
+            row = None
+            if latest_scan is not None:
+                cur.execute(
+                    """
+                    SELECT
+                        s.cve_enrichment_status,
+                        COUNT(f.*) as total_findings,
+                        COUNT(CASE WHEN f.exploit_available = TRUE THEN 1 END) as exploit_count,
+                        MAX(f.cvss_score) as max_cvss_score,
+                        AVG(f.cvss_score) as avg_cvss_score,
+                        COUNT(CASE WHEN f.cvss_score >= 9.0 THEN 1 END) as critical_cve_count
+                    FROM scans s
+                    LEFT JOIN findings f ON s.scan_id = f.scan_id
+                    WHERE s.scan_id = %s
+                    GROUP BY s.cve_enrichment_status
+                    """,
+                    (latest_scan[0],),
+                )
+                row = cur.fetchone()
 
         if not row:
             return {

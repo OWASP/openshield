@@ -400,3 +400,58 @@ def test_get_score_ignores_a_stray_subscription_id_attribute():
         db.get_score()
 
     assert "subscription_id = %s" not in conn.cursor.return_value.execute.call_args[0][0]
+
+
+# ── get_cve_summary subscription scoping ──────────────────────────────────────
+
+
+def test_get_cve_summary_filters_latest_scan_by_subscription_id():
+    """The CVE summary must honour the same scoping contract as get_score().
+
+    Both read the "latest completed scan" selector, and in a shared-database
+    deployment an unscoped selector returns whichever subscription scanned
+    most recently. get_score() was fixed for this; the CVE summary sitting
+    beside it on the dashboard was not.
+    """
+    db = _db()
+    conn = MagicMock()
+    cur = _mock_score_cursor(None, [])
+    conn.cursor.return_value = cur
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        db.get_cve_summary(subscription_id="subscription-1")
+
+    call = conn.cursor.return_value.execute.call_args
+    assert "subscription_id = %s" in call[0][0]
+    assert call[0][1] == ("subscription-1",)
+
+
+def test_get_cve_summary_without_subscription_id_is_unscoped():
+    """With no argument the SQL carries no subscription predicate and no
+    parameters, matching get_score()'s unscoped branch."""
+    db = _db()
+    conn = MagicMock()
+    cur = _mock_score_cursor(None, [])
+    conn.cursor.return_value = cur
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        db.get_cve_summary()
+
+    call = conn.cursor.return_value.execute.call_args
+    assert "subscription_id = %s" not in call[0][0]
+    assert len(call[0]) == 1
+
+
+def test_get_cve_summary_ignores_a_stray_subscription_id_attribute():
+    """_db() sets db.subscription_id. Only the explicit argument may scope
+    the lookup, so an instance attribute cannot silently disagree with it."""
+    db = _db()
+    assert db.subscription_id == "subscription-1"
+    conn = MagicMock()
+    cur = _mock_score_cursor(None, [])
+    conn.cursor.return_value = cur
+
+    with patch.object(db, "_get_conn", return_value=conn):
+        db.get_cve_summary()
+
+    assert "subscription_id = %s" not in conn.cursor.return_value.execute.call_args[0][0]
