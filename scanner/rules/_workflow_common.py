@@ -27,6 +27,8 @@ _LONGTERM_CRED_PATTERNS = [
     re.compile(r"ARM_CLIENT_SECRET", re.IGNORECASE),
     re.compile(r"ARM_ACCESS_KEY", re.IGNORECASE),
     re.compile(r"AZURE_STORAGE_KEY", re.IGNORECASE),
+    # JSON service-principal blob consumed by azure/login@v1 `creds:`.
+    re.compile(r"AZURE_CREDENTIALS", re.IGNORECASE),
 ]
 
 
@@ -74,19 +76,60 @@ def collect_uses(workflow: Dict[str, Any]) -> List[Tuple[str, str]]:
     return results
 
 
-def has_long_lived_credentials(yaml_content: str) -> List[str]:
+def _iter_scalar_strings(node: Any) -> List[str]:
+    """Recursively collect every string key and scalar string value in a tree."""
+    out: List[str] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if isinstance(key, str):
+                out.append(key)
+            out.extend(_iter_scalar_strings(value))
+    elif isinstance(node, list):
+        for item in node:
+            out.extend(_iter_scalar_strings(item))
+    elif isinstance(node, str):
+        out.append(node)
+    return out
+
+
+def _strip_inline_comment(line: str) -> str:
+    """Strip a trailing YAML comment from a single line.
+
+    A ``#`` starts a comment only at the start of the line or when preceded by
+    whitespace, and never inside a single- or double-quoted scalar.
+    """
+    in_single = in_double = False
+    for i, ch in enumerate(line):
+        if ch == "'" and not in_double:
+            in_single = not in_single
+        elif ch == '"' and not in_single:
+            in_double = not in_double
+        elif ch == "#" and not in_single and not in_double and (i == 0 or line[i - 1].isspace()):
+            return line[:i]
+    return line
+
+
+def has_long_lived_credentials(yaml_content: str, parsed: Optional[Dict[str, Any]] = None) -> List[str]:
     """Return list of matched long-lived credential env var names found in YAML.
 
-    Excludes YAML comment lines (lines whose first non-whitespace char is #)
-    to avoid false positives from changelog-style migration comments.
+    Scans the parsed workflow's keys and scalar values rather than the raw text,
+    so a credential name appearing only in a comment — whether on its own line
+    or trailing a value (e.g. ``client-id: ... # migrated off ARM_CLIENT_SECRET``)
+    — does not produce a false positive. When the content cannot be parsed, falls
+    back to a text scan with full-line and inline comments stripped.
     """
-    # Strip comment lines before scanning
-    non_comment_lines = [line for line in yaml_content.splitlines() if not line.lstrip().startswith("#")]
-    non_comment_content = "\n".join(non_comment_lines)
-    found = []
+    if parsed is None:
+        parsed = parse_workflow(yaml_content)
+
+    if isinstance(parsed, dict):
+        haystack = "\n".join(_iter_scalar_strings(parsed))
+    else:
+        # Unparseable YAML: best-effort strip of full-line and inline comments.
+        haystack = "\n".join(_strip_inline_comment(line) for line in yaml_content.splitlines())
+
+    found: List[str] = []
     for pattern in _LONGTERM_CRED_PATTERNS:
-        matches = pattern.findall(non_comment_content)
-        found.extend(matches)
+        found.extend(pattern.findall(haystack))
     return found
 
 
@@ -118,8 +161,8 @@ def uses_workload_identity(yaml_content: str, parsed: Optional[Dict[str, Any]] =
         has_oidc_permission = "id-token: write" in yaml_content
 
     has_azure_login = "azure/login" in yaml_content
-    # Check ALL long-lived credential patterns, excluding comment lines
-    has_any_long_lived_cred = bool(has_long_lived_credentials(yaml_content))
+    # Check ALL long-lived credential patterns against parsed values (comments excluded)
+    has_any_long_lived_cred = bool(has_long_lived_credentials(yaml_content, parsed))
     return has_oidc_permission and has_azure_login and not has_any_long_lived_cred
 
 

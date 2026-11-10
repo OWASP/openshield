@@ -23,6 +23,43 @@ logger = logging.getLogger(__name__)
 _GITHUB_API = "https://api.github.com"
 _UNSET = object()
 
+# Rate-limit handling: how many times to wait-and-retry a rate-limited request,
+# and the longest single wait we will honour before giving up (UNKNOWN).
+_MAX_RATE_LIMIT_RETRIES = 3
+_MAX_RATE_LIMIT_WAIT_SECONDS = 60
+
+
+def _rate_limit_wait_seconds(resp: "requests.Response") -> Optional[int]:
+    """Return seconds to wait if the response is a rate-limit rejection, else None.
+
+    GitHub signals rate limiting with HTTP 429, or HTTP 403 together with
+    ``X-RateLimit-Remaining: 0`` (primary limit) or a ``Retry-After`` header
+    (secondary limit). Honour ``Retry-After`` when present, otherwise derive the
+    wait from ``X-RateLimit-Reset`` (an epoch timestamp). Returns 0 when the
+    response is rate-limited but carries no usable timing hint.
+    """
+    headers = resp.headers
+    remaining = headers.get("X-RateLimit-Remaining")
+    is_rate_limited = resp.status_code == 429 or (
+        resp.status_code == 403 and (remaining == "0" or "Retry-After" in headers)
+    )
+    if not is_rate_limited:
+        return None
+
+    retry_after = headers.get("Retry-After")
+    if retry_after is not None:
+        try:
+            return max(0, int(float(retry_after)))
+        except (TypeError, ValueError):
+            pass
+    reset = headers.get("X-RateLimit-Reset")
+    if reset is not None:
+        try:
+            return max(0, int(float(reset)) - int(time.time()))
+        except (TypeError, ValueError):
+            pass
+    return 0
+
 
 def _get_app_token() -> Optional[str]:
     """Generate a GitHub App installation access token."""
@@ -100,18 +137,49 @@ class GitHubClient:
         return headers
 
     def _get(self, path: str, **kwargs: Any) -> Optional[requests.Response]:
-        """GET a GitHub API path; returns None on any error."""
+        """GET a GitHub API path; returns None on any error.
+
+        Honours GitHub rate limiting (HTTP 429, or 403 with
+        ``X-RateLimit-Remaining: 0``): waits for the ``Retry-After`` /
+        ``X-RateLimit-Reset`` interval and retries a bounded number of times,
+        then logs a clear warning and returns None (UNKNOWN) if still limited.
+        """
         url = f"{_GITHUB_API}{path}"
         try:
-            resp = requests.get(url, headers=self._headers(), timeout=15, **kwargs)
-            if resp.status_code == 403:
-                logger.warning("GitHub API permission denied for %s", url)
-                return None
-            if resp.status_code == 404:
-                logger.warning("GitHub resource not found: %s", url)
-                return None
-            resp.raise_for_status()
-            return resp
+            for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
+                resp = requests.get(url, headers=self._headers(), timeout=15, **kwargs)
+
+                wait = _rate_limit_wait_seconds(resp)
+                if wait is not None:
+                    if attempt >= _MAX_RATE_LIMIT_RETRIES:
+                        logger.warning(
+                            "GitHub API rate limit (HTTP %d) not cleared after %d retries for %s; returning UNKNOWN",
+                            resp.status_code,
+                            _MAX_RATE_LIMIT_RETRIES,
+                            url,
+                        )
+                        return None
+                    sleep_for = min(wait, _MAX_RATE_LIMIT_WAIT_SECONDS)
+                    logger.warning(
+                        "GitHub API rate limited (HTTP %d) for %s; waiting %ds before retry %d/%d",
+                        resp.status_code,
+                        url,
+                        sleep_for,
+                        attempt + 1,
+                        _MAX_RATE_LIMIT_RETRIES,
+                    )
+                    time.sleep(sleep_for)
+                    continue
+
+                if resp.status_code == 403:
+                    logger.warning("GitHub API permission denied for %s", url)
+                    return None
+                if resp.status_code == 404:
+                    logger.warning("GitHub resource not found: %s", url)
+                    return None
+                resp.raise_for_status()
+                return resp
+            return None
         except Exception as exc:
             logger.error("GitHub API request failed for %s: %s", url, exc, exc_info=True)
             return None
