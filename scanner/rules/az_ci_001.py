@@ -56,7 +56,7 @@ def scan(github_client: Any, owner: str, repo: str) -> List[Dict[str, Any]]:
         parsed = parse_workflow(content)
         if parsed is None:
             continue
-        creds = has_long_lived_credentials(content)
+        creds = has_long_lived_credentials(content, parsed)
         # Only suppress if OIDC is present AND the specific credential is absent.
         # A workflow using OIDC but also referencing ARM_ACCESS_KEY still fails.
         if creds and not uses_workload_identity(content, parsed):

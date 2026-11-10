@@ -184,6 +184,39 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 """
 
+# OIDC workflow with a *trailing* (inline) comment naming an old credential.
+# The '#' is not at line start, so whole-line stripping misses it: regression
+# for the false positive on an otherwise clean OIDC workflow.
+OIDC_WITH_INLINE_MIGRATION_COMMENT = """
+name: OIDC inline comment
+on: [push]
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}  # migrated off ARM_CLIENT_SECRET
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+"""
+
+# Legacy azure/login@v1 using the AZURE_CREDENTIALS JSON service-principal blob.
+AZURE_LOGIN_V1_CREDS_BLOB = """
+name: Legacy azure login
+on: [push]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+"""
+
 BROAD_PERMISSIONS_WORKFLOW = """
 name: Broad
 on: [push]
@@ -442,6 +475,20 @@ class TestAzCi001:
         findings = az_ci_001.scan(client, OWNER, REPO)
         assert findings == [], "Comment-only credential reference must not trigger finding"
 
+    def test_inline_migration_comment_no_finding(self):
+        """A trailing '# ... ARM_CLIENT_SECRET' comment on a value line must not flag."""
+        client = _make_client(contents=OIDC_WITH_INLINE_MIGRATION_COMMENT)
+        findings = az_ci_001.scan(client, OWNER, REPO)
+        assert findings == [], "Trailing-comment credential reference must not trigger finding"
+
+    def test_azure_login_v1_credentials_blob_returns_finding(self):
+        """azure/login@v1 with the AZURE_CREDENTIALS blob is a long-lived credential."""
+        client = _make_client(contents=AZURE_LOGIN_V1_CREDS_BLOB)
+        findings = az_ci_001.scan(client, OWNER, REPO)
+        assert len(findings) == 1, "AZURE_CREDENTIALS service-principal blob must flag"
+        assert findings[0]["rule_id"] == "AZ-CI-001"
+        assert "AZURE_CREDENTIALS" in findings[0]["metadata"]["long_lived_credentials_found"]
+
 
 class TestAzCi002:
     def test_write_all_returns_finding(self):
@@ -680,6 +727,89 @@ class TestGitHubClient:
         client = GitHubClient("org", "repo", token="tok")
         with patch.object(client, "_get", return_value=None):
             assert client.get_workflow_permissions() is None
+
+    def test_get_retries_on_429_then_succeeds(self):
+        from unittest.mock import MagicMock, patch
+
+        import scanner.github_client as gh_mod
+        from scanner.github_client import GitHubClient
+
+        client = GitHubClient("org", "repo", token="tok")
+        limited = MagicMock(status_code=429, headers={"Retry-After": "1"})
+        ok = MagicMock(status_code=200, headers={})
+        ok.raise_for_status.return_value = None
+
+        with (
+            patch.object(gh_mod.requests, "get", side_effect=[limited, ok]) as mock_get,
+            patch.object(gh_mod.time, "sleep") as mock_sleep,
+        ):
+            resp = client._get("/repos/org/repo")
+
+        assert resp is ok
+        assert mock_get.call_count == 2
+        mock_sleep.assert_called_once_with(1)
+
+    def test_get_returns_none_after_persistent_429(self):
+        from unittest.mock import MagicMock, patch
+
+        import scanner.github_client as gh_mod
+        from scanner.github_client import GitHubClient
+
+        client = GitHubClient("org", "repo", token="tok")
+        limited = MagicMock(status_code=429, headers={"Retry-After": "0"})
+
+        with (
+            patch.object(gh_mod.requests, "get", return_value=limited) as mock_get,
+            patch.object(gh_mod.time, "sleep") as mock_sleep,
+        ):
+            resp = client._get("/repos/org/repo")
+
+        assert resp is None  # persistent rate limit -> UNKNOWN, not a crash
+        assert mock_get.call_count == gh_mod._MAX_RATE_LIMIT_RETRIES + 1
+        assert mock_sleep.call_count == gh_mod._MAX_RATE_LIMIT_RETRIES
+
+    def test_get_403_rate_limit_remaining_zero_waits_then_succeeds(self):
+        import time
+        from unittest.mock import MagicMock, patch
+
+        import scanner.github_client as gh_mod
+        from scanner.github_client import GitHubClient
+
+        client = GitHubClient("org", "repo", token="tok")
+        limited = MagicMock(
+            status_code=403,
+            headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": str(int(time.time()) + 2)},
+        )
+        ok = MagicMock(status_code=200, headers={})
+        ok.raise_for_status.return_value = None
+
+        with (
+            patch.object(gh_mod.requests, "get", side_effect=[limited, ok]),
+            patch.object(gh_mod.time, "sleep") as mock_sleep,
+        ):
+            resp = client._get("/repos/org/repo")
+
+        assert resp is ok
+        assert mock_sleep.call_count == 1
+
+    def test_get_403_permission_denied_not_treated_as_rate_limit(self):
+        from unittest.mock import MagicMock, patch
+
+        import scanner.github_client as gh_mod
+        from scanner.github_client import GitHubClient
+
+        client = GitHubClient("org", "repo", token="tok")
+        denied = MagicMock(status_code=403, headers={})
+
+        with (
+            patch.object(gh_mod.requests, "get", return_value=denied) as mock_get,
+            patch.object(gh_mod.time, "sleep") as mock_sleep,
+        ):
+            resp = client._get("/repos/org/repo")
+
+        assert resp is None
+        assert mock_get.call_count == 1  # no retry loop for a genuine permission error
+        mock_sleep.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
