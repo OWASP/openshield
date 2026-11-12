@@ -1257,6 +1257,28 @@ class AzureClient:
             return None
 
     # ------------------------------------------------------------------ #
+    # Governance                                                            #
+    # ------------------------------------------------------------------ #
+
+    def get_governance_snapshot(self, subscription_id: str) -> Optional[Dict[str, Any]]:
+        """Collect read-only governance control-plane evidence for a subscription.
+
+        Returns the collector's independently-nullable evidence dict (each
+        evidence set is a list, or ``None`` when that specific control-plane
+        call failed), so governance rules can report ERROR per missing evidence
+        set instead of mistaking a permissions failure for compliance. Returns
+        ``None`` only when the collection could not run at all, which the
+        shared governance evaluator surfaces as a subscription-level ERROR.
+        """
+        from scanner.governance import GovernanceCollector
+
+        try:
+            return GovernanceCollector(self.credential, subscription_id).collect()
+        except Exception as exc:
+            logger.error("get_governance_snapshot failed: %s", exc)
+            return None
+
+    # ------------------------------------------------------------------ #
     # Identity / Authorization                                              #
     # ------------------------------------------------------------------ #
 

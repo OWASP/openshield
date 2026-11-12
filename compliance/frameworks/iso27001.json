@@ -1734,6 +1734,126 @@
       "owner": null,
       "review_status": "pending_review",
       "review_date": null
+    },
+    "AZ-GOV-001": {
+      "control_id": "A.5.15",
+      "control_name": "Access control",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2022, Annex A control A.5.15",
+      "rationale": "AZ-GOV-001 supplies Azure configuration evidence supporting A.5.15. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-002": {
+      "control_id": "A.5.1",
+      "control_name": "Policies for information security",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2022, Annex A control A.5.1",
+      "rationale": "AZ-GOV-002 supplies Azure configuration evidence supporting A.5.1. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-003": {
+      "control_id": "A.5.1",
+      "control_name": "Policies for information security",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2022, Annex A control A.5.1",
+      "rationale": "AZ-GOV-003 supplies Azure configuration evidence supporting A.5.1. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-004": {
+      "control_id": "A.5.1",
+      "control_name": "Policies for information security",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2022, Annex A control A.5.1",
+      "rationale": "AZ-GOV-004 supplies Azure configuration evidence supporting A.5.1. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-005": {
+      "control_id": "A.8.9",
+      "control_name": "Configuration management",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2022, Annex A control A.8.9",
+      "rationale": "AZ-GOV-005 supplies Azure configuration evidence supporting A.8.9. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-006": {
+      "control_id": "A.5.18",
+      "control_name": "Access rights",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2022, Annex A control A.5.18",
+      "rationale": "AZ-GOV-006 supplies Azure configuration evidence supporting A.5.18. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-007": {
+      "control_id": "A.5.18",
+      "control_name": "Access rights",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2022, Annex A control A.5.18",
+      "rationale": "AZ-GOV-007 supplies Azure configuration evidence supporting A.5.18. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-008": {
+      "control_id": "A.5.9",
+      "control_name": "Inventory of information and other associated assets",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2022, Annex A control A.5.9",
+      "rationale": "AZ-GOV-008 supplies Azure configuration evidence supporting A.5.9. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-009": {
+      "control_id": "A.5.9",
+      "control_name": "Inventory of information and other associated assets",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2022, Annex A control A.5.9",
+      "rationale": "AZ-GOV-009 supplies Azure configuration evidence supporting A.5.9. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-010": {
+      "control_id": "A.8.8",
+      "control_name": "Management of technical vulnerabilities",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "ISO/IEC 27001:2022, Annex A control A.8.8",
+      "rationale": "AZ-GOV-010 supplies Azure configuration evidence supporting A.8.8. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   }
 }
