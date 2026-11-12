@@ -1,9 +1,5 @@
 # Direct runtime dependencies. Regenerate locks with scripts/lock_dependencies.py.
 flask==3.1.3
-# Security floors for transitive runtime dependencies.
-# GHSA-g6x2-hccm-hh4m and GHSA-54p9-h82j-f925.
-werkzeug>=3.1.9
-multidict>=6.9.1
 flask-cors==6.0.5
 alembic==1.18.5
 azure-identity==1.25.3
@@ -48,5 +44,9 @@ azure-devops==7.1.0b4
 prometheus-client>=0.19.0
 python-json-logger>=2.0.7
 sentry-sdk>=1.40.0
-certifi==2026.10.19
-aiohttp>=3.14.4
+certifi==2026.10.23
+# Explicit pins for transitive deps with known CVEs - keep ahead of pip-audit
+aiohttp==3.14.5
+multidict==7.2.1
+mako==1.4.3
+werkzeug==3.1.9
