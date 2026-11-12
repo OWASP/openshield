@@ -68,7 +68,20 @@ def _kv_006_fixture() -> MockAzureClient:
     )
 
 
+def _db_008_fixture() -> MockAzureClient:
+    def server(name: str, tls: str) -> Any:
+        return make_resource(
+            id=f"/subscriptions/{_SUB}/resourceGroups/rg/providers/Microsoft.Sql/servers/{name}",
+            name=name,
+            location="eastus",
+            minimal_tls_version=tls,
+        )
+
+    return MockAzureClient().set_sql_servers([server("sql-tls12", "1.2"), server("sql-tls10", "1.0")])
+
+
 FIXTURES: Dict[str, Callable[[], MockAzureClient]] = {
+    "AZ-DB-008": _db_008_fixture,
     "AZ-KV-006": _kv_006_fixture,
 }
 

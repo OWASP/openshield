@@ -1074,14 +1074,21 @@ class AzureClient:
             logger.error("get_postgresql_servers failed: %s", exc)
             return []
 
-    def get_sql_servers(self) -> List[Any]:
-        """List all Azure SQL servers in the subscription."""
+    def list_sql_servers(self) -> Optional[List[Any]]:
+        """List all Azure SQL servers in the subscription.
+
+        Returns ``None`` when the list call fails; see list_storage_accounts().
+        """
         try:
             client = SqlManagementClient(self.credential, self.subscription_id)
             return list(client.servers.list())
         except Exception as exc:
-            logger.error("get_sql_servers failed: %s", exc)
-            return []
+            logger.error("list_sql_servers failed: %s", exc)
+            return None
+
+    def get_sql_servers(self) -> List[Any]:
+        """List all Azure SQL servers, or ``[]`` on failure (legacy scan() callers)."""
+        return self.list_sql_servers() or []
 
     def get_sql_server_auditing_policy(self, resource_group: str, server_name: str) -> Optional[Any]:
         """Fetch the blob auditing policy for an Azure SQL server."""

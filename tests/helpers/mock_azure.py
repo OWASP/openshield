@@ -52,7 +52,7 @@ class MockAzureClient:
         self._virtual_machines: List[Any] = []
         self._virtual_machine_scale_sets: List[Any] = []
         self._key_vaults: Optional[List[Any]] = []
-        self._sql_servers: List[Any] = []
+        self._sql_servers: Optional[List[Any]] = []
         self._service_principals: List[Any] = []
         self._sql_firewall_rules: Dict[Tuple[str, str], List[Any]] = {}
         # --- Additional state added for full rule-coverage tests ---------- #
@@ -222,7 +222,8 @@ class MockAzureClient:
         self._key_vaults = vaults
         return self
 
-    def set_sql_servers(self, servers: List[Any]) -> "MockAzureClient":
+    def set_sql_servers(self, servers: Optional[List[Any]]) -> "MockAzureClient":
+        """``None`` simulates a failed list call, as AzureClient.list_sql_servers() reports it."""
         self._sql_servers = servers
         return self
 
@@ -257,8 +258,11 @@ class MockAzureClient:
     def get_key_vaults(self) -> List[Any]:
         return self._key_vaults or []
 
-    def get_sql_servers(self) -> List[Any]:
+    def list_sql_servers(self) -> Optional[List[Any]]:
         return self._sql_servers
+
+    def get_sql_servers(self) -> List[Any]:
+        return self._sql_servers or []
 
     def get_service_principals(self) -> List[Any]:
         return self._service_principals
