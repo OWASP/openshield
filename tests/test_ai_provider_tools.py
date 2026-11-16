@@ -9,6 +9,7 @@ Provider calls are plain HTTP, faked here via monkeypatch (no network).
 """
 
 import json
+from urllib.parse import urlparse
 
 from api.services import ai_provider
 
@@ -56,7 +57,7 @@ def test_azure_openai_returns_normalized_text(monkeypatch):
         azure_deployment="gpt4o",
     )
     assert out == {"type": "text", "text": "hello"}
-    assert "x.openai.azure.com" in captured["url"]
+    assert urlparse(captured["url"]).netloc == "x.openai.azure.com"
     assert captured["headers"]["api-key"] == "k"
 
 
@@ -133,7 +134,7 @@ def test_openai_returns_normalized_text(monkeypatch):
         tools=[],
     )
     assert out == {"type": "text", "text": "hi there"}
-    assert "api.openai.com" in captured["url"]
+    assert urlparse(captured["url"]).netloc == "api.openai.com"
     assert captured["headers"]["Authorization"] == "Bearer sk-test"
 
 
@@ -177,7 +178,7 @@ def test_anthropic_returns_normalized_text(monkeypatch):
         tools=[],
     )
     assert out == {"type": "text", "text": "claude says hi"}
-    assert "api.anthropic.com" in captured["url"]
+    assert urlparse(captured["url"]).netloc == "api.anthropic.com"
     # tools are translated into Anthropic's input_schema shape
     assert "system" in captured["json"]
 
