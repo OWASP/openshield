@@ -9,11 +9,27 @@ context.
 """
 
 import logging
+import os
 import uuid
 
 logger = logging.getLogger(__name__)
 
 _VALID_FRAMEWORKS = {"mcsb", "cis", "iso27001"}
+
+# Same env knob the REST scan route honours (api/routes/scans.py). Read here
+# directly so this module stays importable without Flask.
+_MAX_SCANS_PER_HOUR_ENV = "OPENSHIELD_MAX_SCANS_PER_SUBSCRIPTION_PER_HOUR"
+
+
+def _configured_hourly_quota() -> int:
+    """Return the policy quota; zero preserves the no-limit default."""
+    raw_value = os.environ.get(_MAX_SCANS_PER_HOUR_ENV, "0")
+    try:
+        quota = int(raw_value)
+    except ValueError:
+        logger.warning("Invalid %s=%r; disabling hourly quota", _MAX_SCANS_PER_HOUR_ENV, raw_value)
+        return 0
+    return max(0, quota)
 
 
 def scan_subscription(db_manager, subscription_id: str, tenant_id: str) -> dict:
@@ -27,9 +43,14 @@ def scan_subscription(db_manager, subscription_id: str, tenant_id: str) -> dict:
     Returns ``{"scan_id": str, "status": str, "created": bool}`` where
     ``created`` is False when an existing pending/running scan was reused.
     """
+    from api.models.finding import ScanQuotaExceeded
+
     scan_id = str(uuid.uuid4())
     try:
-        row, created = db_manager.admit_scan(scan_id, subscription_id)
+        row, created = db_manager.admit_scan(scan_id, subscription_id, max_scans_per_hour=_configured_hourly_quota())
+    except ScanQuotaExceeded:
+        # Keep the specific quota message so the agent/MCP caller can surface it.
+        raise
     except Exception:
         logger.exception(
             "scan_subscription failed for subscription_id=%s tenant_id=%s",

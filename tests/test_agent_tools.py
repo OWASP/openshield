@@ -68,9 +68,11 @@ class _FakeDM:
         self._result = result
         self._raises = raises
         self.calls = []
+        self.quotas = []
 
     def admit_scan(self, scan_id, subscription_id, *, idempotency_key=None, max_scans_per_hour=0):
         self.calls.append((scan_id, subscription_id))
+        self.quotas.append(max_scans_per_hour)
         if self._raises is not None:
             raise self._raises
         return self._result
@@ -96,6 +98,29 @@ class TestScanSubscription:
         """A failure in admit_scan surfaces as a RuntimeError, never a silent success."""
         dm = _FakeDM(raises=RuntimeError("db down"))
         with pytest.raises(RuntimeError):
+            scan_subscription(dm, subscription_id="sub-1", tenant_id="tenant-1")
+
+    def test_honours_configured_hourly_quota(self, monkeypatch):
+        """The env-configured hourly quota is forwarded to admit_scan (parity with the REST route)."""
+        monkeypatch.setenv("OPENSHIELD_MAX_SCANS_PER_SUBSCRIPTION_PER_HOUR", "3")
+        dm = _FakeDM(result=({"scan_id": "abc", "status": "pending"}, True))
+        scan_subscription(dm, subscription_id="sub-1", tenant_id="tenant-1")
+        assert dm.quotas == [3]
+
+    def test_invalid_quota_env_disables_quota(self, monkeypatch):
+        """A malformed quota env value falls back to 0 (no limit), never crashes."""
+        monkeypatch.setenv("OPENSHIELD_MAX_SCANS_PER_SUBSCRIPTION_PER_HOUR", "not-a-number")
+        dm = _FakeDM(result=({"scan_id": "abc", "status": "pending"}, True))
+        scan_subscription(dm, subscription_id="sub-1", tenant_id="tenant-1")
+        assert dm.quotas == [0]
+
+    def test_quota_exceeded_is_not_masked(self, monkeypatch):
+        """ScanQuotaExceeded keeps its specific message instead of a generic failure."""
+        from api.models.finding import ScanQuotaExceeded
+
+        monkeypatch.setenv("OPENSHIELD_MAX_SCANS_PER_SUBSCRIPTION_PER_HOUR", "1")
+        dm = _FakeDM(raises=ScanQuotaExceeded("Configured hourly scan quota has been reached"))
+        with pytest.raises(ScanQuotaExceeded, match="quota"):
             scan_subscription(dm, subscription_id="sub-1", tenant_id="tenant-1")
 
 
