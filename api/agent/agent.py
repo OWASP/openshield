@@ -264,6 +264,11 @@ def run_agent(
             tools_used.append(name)
             if not _is_error_result(result):
                 grounded = True
+            # Tool results are fed back as plain transcript messages (not the
+            # provider-specific tool_result/tool blocks) on purpose: it keeps
+            # the loop provider-agnostic and lets every result pass through the
+            # untrusted-data envelope so the model can never treat scanned
+            # strings as instructions.
             messages.append({"role": "assistant", "content": f"(calling {name})"})
             messages.append({"role": "user", "content": guardrails.wrap_untrusted(name, result)})
             continue
