@@ -402,6 +402,7 @@ class DatabaseManager:
                 )
                 if cur.fetchone() is None:
                     raise LostLease(f"Scan {scan_result['scan_id']} is no longer owned by this worker")
+                rule_outcomes_json = json.dumps(scan_result.get("rule_outcomes") or [])
                 cur.execute(
                     """
                     UPDATE scans
@@ -412,6 +413,7 @@ class DatabaseManager:
                         status = 'completed',
                         error_message = NULL,
                         severity_contract_version = %s,
+                        rule_outcomes_json = COALESCE(rule_outcomes_json, %s::jsonb),
                         lease_owner = NULL,
                         lease_expires_at = NULL,
                         -- The mapping-pack provenance captured by a scan_id's
@@ -445,6 +447,7 @@ class DatabaseManager:
                         score_findings(findings),
                         scan_result.get("cve_enrichment_status", "PENDING"),
                         CONTRACT_VERSION,
+                        rule_outcomes_json,
                         mapping_snapshot,
                         mapping_snapshot,
                         scan_result["scan_id"],
@@ -600,6 +603,17 @@ class DatabaseManager:
                     """,
                     (str(uuid.uuid4()), scan_result["scan_id"]),
                 )
+                # Enqueue lifecycle application in the same transaction so
+                # lifecycle work is never lost if the worker crashes after
+                # save_scan() but before the inline apply_scan() call.
+                cur.execute(
+                    """
+                    INSERT INTO lifecycle_jobs (job_id, scan_id, status, attempt_count)
+                    VALUES (%s, %s, 'pending', 0)
+                    ON CONFLICT (scan_id) DO NOTHING
+                    """,
+                    (str(uuid.uuid4()), scan_result["scan_id"]),
+                )
             conn.commit()
         except Exception:
             # psycopg2 connections remain in an aborted transaction after any
@@ -643,6 +657,12 @@ class DatabaseManager:
         conn = self._get_conn()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(sql, params)
+            return [dict(row) for row in cur.fetchall()]
+
+    def get_lifecycle_findings(self, scan_id: str) -> List[Dict[str, Any]]:
+        """Read the complete immutable scan batch for internal lifecycle work."""
+        with self._get_conn().cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM findings WHERE scan_id = %s ORDER BY id", (scan_id,))
             return [dict(row) for row in cur.fetchall()]
 
     def get_finding_by_id(self, finding_id: int) -> Optional[Dict[str, Any]]:
@@ -1074,6 +1094,168 @@ class DatabaseManager:
             self.rollback(conn)
             raise
 
+    # ------------------------------------------------------------------ #
+    # Lifecycle jobs                                                        #
+    # ------------------------------------------------------------------ #
+
+    def claim_next_lifecycle_job(self, lease_owner: str, lease_seconds: int) -> Optional[Dict[str, Any]]:
+        """Atomically claim the next retry-ready lifecycle job."""
+        if lease_seconds <= 0:
+            raise ValueError("lease_seconds must be positive")
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    UPDATE lifecycle_jobs
+                    SET status = 'running', lease_owner = %s,
+                        lease_expires_at = CURRENT_TIMESTAMP + (%s * INTERVAL '1 second'),
+                        last_heartbeat_at = CURRENT_TIMESTAMP,
+                        fencing_token = fencing_token + 1,
+                        attempt_count = attempt_count + 1,
+                        error_message = NULL
+                    WHERE job_id = (
+                        SELECT job_id FROM lifecycle_jobs
+                        WHERE status = 'pending'
+                          AND next_retry_at <= CURRENT_TIMESTAMP
+                        ORDER BY created_at ASC
+                        FOR UPDATE SKIP LOCKED
+                        LIMIT 1
+                    )
+                    RETURNING *
+                    """,
+                    (lease_owner, lease_seconds),
+                )
+                job = cur.fetchone()
+            conn.commit()
+            return dict(job) if job else None
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def complete_lifecycle_job(self, job_id: str, lease_owner: str, fencing_token: int) -> None:
+        """Atomically complete a fenced lifecycle job."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE lifecycle_jobs
+                    SET status = 'completed', completed_at = CURRENT_TIMESTAMP,
+                        lease_owner = NULL, lease_expires_at = NULL
+                    WHERE job_id = %s AND status = 'running'
+                      AND lease_owner = %s AND fencing_token = %s
+                      AND lease_expires_at > CURRENT_TIMESTAMP
+                    """,
+                    (job_id, lease_owner, fencing_token),
+                )
+                if cur.rowcount != 1:
+                    raise LostLease(f"Lifecycle job {job_id} lost its lease before completion")
+            conn.commit()
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def fail_lifecycle_job(
+        self,
+        job_id: str,
+        lease_owner: str,
+        fencing_token: int,
+        error_message: str,
+        *,
+        max_attempts: int = 3,
+        retry_seconds: int = 30,
+    ) -> str:
+        """Record bounded retry state under the job's current fencing token."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT attempt_count FROM lifecycle_jobs
+                    WHERE job_id = %s AND status = 'running'
+                      AND lease_owner = %s AND fencing_token = %s
+                      AND lease_expires_at > CURRENT_TIMESTAMP
+                    FOR UPDATE
+                    """,
+                    (job_id, lease_owner, fencing_token),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise LostLease(f"Lifecycle job {job_id} is no longer owned by this worker")
+                (attempt_count,) = row
+                terminal = attempt_count >= max_attempts
+                if terminal:
+                    cur.execute(
+                        """
+                        UPDATE lifecycle_jobs SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
+                            error_message = %s, lease_owner = NULL, lease_expires_at = NULL
+                        WHERE job_id = %s
+                        """,
+                        (error_message, job_id),
+                    )
+                    outcome = "failed"
+                else:
+                    cur.execute(
+                        """
+                        UPDATE lifecycle_jobs SET status = 'pending', error_message = %s,
+                            lease_owner = NULL, lease_expires_at = NULL,
+                            next_retry_at = CURRENT_TIMESTAMP + (%s * INTERVAL '1 second')
+                        WHERE job_id = %s
+                        """,
+                        (error_message, retry_seconds, job_id),
+                    )
+                    outcome = "retry"
+            conn.commit()
+            return outcome
+        except Exception:
+            self.rollback(conn)
+            raise
+
+    def recover_stale_lifecycle_jobs(self, max_attempts: int = 3) -> int:
+        """Recover expired lifecycle claims without blocking the worker loop."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    WITH stale AS (
+                        SELECT job_id, attempt_count
+                        FROM lifecycle_jobs
+                        WHERE status = 'running'
+                          AND lease_expires_at < CURRENT_TIMESTAMP
+                        ORDER BY lease_expires_at ASC, job_id ASC
+                        FOR UPDATE SKIP LOCKED
+                    )
+                    UPDATE lifecycle_jobs AS j
+                    SET status = CASE
+                            WHEN stale.attempt_count >= %(max_attempts)s THEN 'failed'
+                            ELSE 'pending'
+                        END,
+                        completed_at = CASE
+                            WHEN stale.attempt_count >= %(max_attempts)s THEN CURRENT_TIMESTAMP
+                            ELSE j.completed_at
+                        END,
+                        lease_owner = NULL,
+                        lease_expires_at = NULL,
+                        error_message = CASE
+                            WHEN stale.attempt_count >= %(max_attempts)s
+                            THEN 'Lifecycle job exceeded maximum retry attempts after worker interruption.'
+                            ELSE 'Lifecycle worker interrupted; queued for retry.'
+                        END
+                    FROM stale
+                    WHERE j.job_id = stale.job_id
+                    RETURNING j.job_id
+                    """,
+                    {"max_attempts": max_attempts},
+                )
+                transitions = cur.fetchall()
+            conn.commit()
+            return len(transitions)
+        except Exception:
+            self.rollback(conn)
+            raise
+
     def admit_scan(
         self,
         scan_id: str,
@@ -1367,6 +1549,16 @@ class DatabaseManager:
             cur.execute("SELECT * FROM scans WHERE scan_id = %s", (scan_id,))
             row = cur.fetchone()
             return dict(row) if row else None
+
+    def get_rule_evaluations(self, scan_id: str) -> List[Dict[str, Any]]:
+        """Return per-resource evaluations for one scan as apply_scan() expects."""
+        conn = self._get_conn()
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT rule_id, resource_id, status FROM rule_evaluations WHERE scan_id = %s",
+                (scan_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
 
     def get_scans(self) -> List[Dict[str, Any]]:
         """Return all scan records ordered by most recent first."""
