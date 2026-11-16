@@ -1,236 +1,252 @@
-"""Unit tests for api.agent.agent - the ReAct loop.
+"""Unit tests for api.agent.agent - the native tool-use loop.
 
-All LLM calls are mocked; no live network calls are made.
+The provider is faked via monkeypatch; no live network calls are made. The
+fake returns scripted get_tool_completion outputs in order and records the
+messages it was handed so we can assert on untrusted-data wrapping.
 """
 
 import json
-import unittest
-from unittest.mock import MagicMock, patch
 
-from api.agent.agent import run_agent
+import pytest
+
+from api.agent import agent as agent_mod
 
 
-_PROVIDER = "anthropic"
-_PROVIDER_TOKEN = "test-key"
 _SUB_ID = "sub-123"
 _TENANT_ID = "tenant-abc"
 
 
-# Minimal fake db_conn so tool dispatch does not raise AttributeError
-def _fake_db():
-    return MagicMock()
+class _FakeProvider:
+    """Returns scripted get_tool_completion outputs in order, recording calls."""
+
+    def __init__(self, outputs):
+        self.outputs = list(outputs)
+        self.seen_messages = []
+
+    def __call__(self, provider, api_key, system, messages, tools, model=None, **kwargs):
+        # Deep-copy the messages snapshot so later mutation does not change it.
+        self.seen_messages.append(json.loads(json.dumps(messages)))
+        if not self.outputs:
+            return {"type": "text", "text": "done"}
+        return self.outputs.pop(0)
 
 
-def _answer(text: str, confidence: str = "HIGH") -> str:
-    return json.dumps({"answer": text, "confidence": confidence})
+class _FakeConn:
+    """Tools are monkeypatched, so the connection is never touched."""
 
 
-def _tool_call(name: str, args: dict = None) -> str:
-    return json.dumps({"tool": name, "args": args or {}})
+def _run(monkeypatch, outputs, **overrides):
+    fake = _FakeProvider(outputs)
+    monkeypatch.setattr(agent_mod.ai_provider, "get_tool_completion", fake)
+    kwargs = dict(
+        question="any question",
+        subscription_id=_SUB_ID,
+        tenant_id=_TENANT_ID,
+        db_conn=_FakeConn(),
+        provider="azure_openai",
+        api_key="k",
+        azure_endpoint="https://x.openai.azure.com",
+        azure_deployment="gpt4o",
+    )
+    kwargs.update(overrides)
+    result = agent_mod.run_agent(**kwargs)
+    return result, fake
 
 
-class TestSingleTurnAnswer(unittest.TestCase):
-    """LLM returns a final answer on the first call."""
+def test_text_answer_without_tools_is_low_confidence(monkeypatch):
+    result, _ = _run(monkeypatch, [{"type": "text", "text": "Everything looks fine."}])
+    assert result["answer"] == "Everything looks fine."
+    assert result["tools_used"] == []
+    assert result["iterations"] == 1
+    assert result["confidence"] == "LOW"  # no tool grounded the answer
 
-    @patch("api.agent.agent.get_completion")
-    def test_returns_answer_immediately(self, mock_llm):
-        mock_llm.return_value = _answer("Everything looks good.", "HIGH")
 
-        result = run_agent(
-            question="Are there any critical findings?",
+def test_tool_then_answer_is_grounded_high(monkeypatch):
+    monkeypatch.setattr(
+        agent_mod._tools, "get_findings", lambda *a, **k: [{"finding_id": 1, "severity": "HIGH"}]
+    )
+    result, _ = _run(
+        monkeypatch,
+        [
+            {"type": "tool_use", "id": "1", "name": "get_findings", "args": {"severity": "HIGH"}},
+            {"type": "text", "text": "You have 1 HIGH finding."},
+        ],
+    )
+    assert result["tools_used"] == ["get_findings"]
+    assert "HIGH finding" in result["answer"]
+    assert result["iterations"] == 2
+    assert result["confidence"] == "HIGH"
+
+
+def test_empty_findings_still_counts_as_grounded(monkeypatch):
+    monkeypatch.setattr(agent_mod._tools, "get_findings", lambda *a, **k: [])
+    result, _ = _run(
+        monkeypatch,
+        [
+            {"type": "tool_use", "id": "1", "name": "get_findings", "args": {}},
+            {"type": "text", "text": "You have no findings."},
+        ],
+    )
+    assert result["confidence"] == "HIGH"
+
+
+def test_tool_error_result_keeps_confidence_low(monkeypatch):
+    monkeypatch.setattr(agent_mod._tools, "get_findings", lambda *a, **k: [{"error": "db_error"}])
+    result, _ = _run(
+        monkeypatch,
+        [
+            {"type": "tool_use", "id": "1", "name": "get_findings", "args": {}},
+            {"type": "text", "text": "I could not read findings."},
+        ],
+    )
+    assert result["confidence"] == "LOW"
+
+
+def test_write_tool_denied_for_viewer(monkeypatch):
+    called = {"scan": False}
+
+    def _scan(*a, **k):
+        called["scan"] = True
+        return {"scan_id": "x", "status": "pending"}
+
+    monkeypatch.setattr(agent_mod._tools, "scan_subscription", _scan)
+    result, fake = _run(
+        monkeypatch,
+        [
+            {"type": "tool_use", "id": "1", "name": "scan_subscription", "args": {}},
+            {"type": "text", "text": "I cannot start a scan with your role."},
+        ],
+        user_role="viewer",
+    )
+    assert called["scan"] is False  # guardrail blocked the call entirely
+    # The denial is surfaced to the model as untrusted data, not silently dropped.
+    last_user_msg = fake.seen_messages[-1][-1]["content"]
+    assert "insufficient_permissions" in last_user_msg
+
+
+def test_write_tool_allowed_for_operator(monkeypatch):
+    called = {"scan": False}
+
+    def _scan(*a, **k):
+        called["scan"] = True
+        return {"scan_id": "x", "status": "pending", "created": True}
+
+    monkeypatch.setattr(agent_mod._tools, "scan_subscription", _scan)
+    _run(
+        monkeypatch,
+        [
+            {"type": "tool_use", "id": "1", "name": "scan_subscription", "args": {}},
+            {"type": "text", "text": "Scan queued."},
+        ],
+        user_role="operator",
+    )
+    assert called["scan"] is True
+
+
+def test_tool_results_are_wrapped_as_untrusted(monkeypatch):
+    monkeypatch.setattr(
+        agent_mod._tools, "get_findings", lambda *a, **k: [{"finding_id": 1}]
+    )
+    _, fake = _run(
+        monkeypatch,
+        [
+            {"type": "tool_use", "id": "1", "name": "get_findings", "args": {}},
+            {"type": "text", "text": "done"},
+        ],
+    )
+    # The second provider call must have seen the tool result wrapped.
+    second_call_messages = fake.seen_messages[1]
+    wrapped = second_call_messages[-1]["content"]
+    assert "untrusted-data" in wrapped
+    assert "get_findings" in wrapped
+
+
+def test_duplicate_tool_call_is_not_repeated(monkeypatch):
+    calls = {"n": 0}
+
+    def _findings(*a, **k):
+        calls["n"] += 1
+        return []
+
+    monkeypatch.setattr(agent_mod._tools, "get_findings", _findings)
+    result, _ = _run(
+        monkeypatch,
+        [
+            {"type": "tool_use", "id": "1", "name": "get_findings", "args": {}},
+            {"type": "tool_use", "id": "2", "name": "get_findings", "args": {}},  # dup
+            {"type": "text", "text": "answer"},
+        ],
+    )
+    assert calls["n"] == 1  # second identical call skipped
+    assert result["answer"] == "answer"
+
+
+def test_malformed_tool_name_does_not_raise(monkeypatch):
+    result, _ = _run(
+        monkeypatch, [{"type": "tool_use", "id": "1", "name": 123, "args": "not a dict"}]
+    )
+    assert result["confidence"] == "LOW"
+    assert isinstance(result["answer"], str)
+
+
+def test_provider_exception_degrades_gracefully(monkeypatch):
+    def _boom(*a, **k):
+        raise RuntimeError("provider down")
+
+    monkeypatch.setattr(agent_mod.ai_provider, "get_tool_completion", _boom)
+    result = agent_mod.run_agent(
+        question="q",
+        subscription_id=_SUB_ID,
+        tenant_id=_TENANT_ID,
+        db_conn=_FakeConn(),
+        provider="azure_openai",
+        api_key="k",
+        azure_endpoint="e",
+        azure_deployment="d",
+    )
+    assert result["confidence"] == "LOW"
+    assert "could not be reached" in result["answer"].lower()
+
+
+def test_max_iterations_fallback(monkeypatch):
+    monkeypatch.setattr(agent_mod._tools, "get_findings", lambda *a, **k: [])
+    # Always ask for a differently-argued tool so dedupe never short-circuits.
+    outputs = [
+        {"type": "tool_use", "id": str(i), "name": "get_findings", "args": {"severity": f"S{i}"}}
+        for i in range(8)
+    ]
+    result, _ = _run(monkeypatch, outputs, max_iterations=8)
+    assert result["iterations"] == 8
+    assert result["confidence"] == "LOW"
+    assert "unable to gather" in result["answer"].lower()
+
+
+def test_empty_question_raises():
+    with pytest.raises(ValueError):
+        agent_mod.run_agent(
+            question="   ",
             subscription_id=_SUB_ID,
             tenant_id=_TENANT_ID,
-            db_conn=_fake_db(),
-            provider=_PROVIDER,
-            api_key=_PROVIDER_TOKEN,
+            db_conn=_FakeConn(),
+            provider="azure_openai",
+            api_key="k",
+            azure_endpoint="e",
+            azure_deployment="d",
         )
 
-        self.assertEqual(result["answer"], "Everything looks good.")
-        self.assertEqual(result["confidence"], "HIGH")
-        self.assertEqual(result["iterations"], 1)
-        self.assertEqual(result["tools_used"], [])
-        mock_llm.assert_called_once()
 
-
-class TestToolCallThenAnswer(unittest.TestCase):
-    """LLM calls a tool first, then gives a final answer."""
-
-    @patch("api.agent.tools.get_findings", return_value=[{"finding_id": 1, "severity": "HIGH"}])
-    @patch("api.agent.agent.get_completion")
-    def test_tool_then_answer(self, mock_llm, mock_get_findings):
-        mock_llm.side_effect = [
-            _tool_call("get_findings", {"severity": "HIGH"}),
-            _answer("Found 1 HIGH finding.", "HIGH"),
-        ]
-
-        result = run_agent(
-            question="Show me HIGH findings",
-            subscription_id=_SUB_ID,
-            tenant_id=_TENANT_ID,
-            db_conn=_fake_db(),
-            provider=_PROVIDER,
-            api_key=_PROVIDER_TOKEN,
-        )
-
-        self.assertEqual(result["answer"], "Found 1 HIGH finding.")
-        self.assertEqual(result["iterations"], 2)
-        self.assertIn("get_findings", result["tools_used"])
-        self.assertEqual(mock_llm.call_count, 2)
-
-
-class TestMaxIterationsReached(unittest.TestCase):
-    """LLM keeps calling tools; loop hits max_iterations and returns fallback."""
-
-    @patch("api.agent.tools.get_findings", return_value=[])
-    @patch("api.agent.agent.get_completion")
-    def test_max_iterations_fallback(self, mock_llm, _mock_findings):
-        mock_llm.return_value = _tool_call("get_findings")
-
-        result = run_agent(
-            question="List findings",
-            subscription_id=_SUB_ID,
-            tenant_id=_TENANT_ID,
-            db_conn=_fake_db(),
-            provider=_PROVIDER,
-            api_key=_PROVIDER_TOKEN,
-            max_iterations=8,
-        )
-
-        self.assertIn("unable to gather", result["answer"].lower())
-        self.assertEqual(result["confidence"], "LOW")
-        self.assertEqual(result["iterations"], 8)
-        self.assertEqual(mock_llm.call_count, 8)
-
-
-class TestEmptyQuestionRaisesValueError(unittest.TestCase):
-    """Empty question (after cleaning) raises ValueError."""
-
-    @patch("api.agent.agent.get_completion")
-    def test_empty_string_raises(self, mock_llm):
-        with self.assertRaises(ValueError) as ctx:
-            run_agent(
-                question="   ",
-                subscription_id=_SUB_ID,
-                tenant_id=_TENANT_ID,
-                db_conn=_fake_db(),
-                provider=_PROVIDER,
-                api_key=_PROVIDER_TOKEN,
-            )
-        self.assertIn("required", str(ctx.exception).lower())
-        mock_llm.assert_not_called()
-
-    @patch("api.agent.agent.get_completion")
-    def test_empty_string_literal_raises(self, mock_llm):
-        with self.assertRaises(ValueError):
-            run_agent(
-                question="",
-                subscription_id=_SUB_ID,
-                tenant_id=_TENANT_ID,
-                db_conn=_fake_db(),
-                provider=_PROVIDER,
-                api_key=_PROVIDER_TOKEN,
-            )
-        mock_llm.assert_not_called()
-
-
-class TestUnknownToolReturnsErrorAndContinues(unittest.TestCase):
-    """Unknown tool name returns error dict; loop continues to next iteration."""
-
-    @patch("api.agent.agent.get_completion")
-    def test_unknown_tool_error_dict(self, mock_llm):
-        mock_llm.side_effect = [
-            _tool_call("nonexistent_tool"),
-            _answer("Fallback answer after unknown tool.", "LOW"),
-        ]
-
-        result = run_agent(
-            question="Do something",
-            subscription_id=_SUB_ID,
-            tenant_id=_TENANT_ID,
-            db_conn=_fake_db(),
-            provider=_PROVIDER,
-            api_key=_PROVIDER_TOKEN,
-        )
-
-        # Loop should have continued and returned the second response
-        self.assertEqual(result["answer"], "Fallback answer after unknown tool.")
-        self.assertEqual(result["iterations"], 2)
-        # The bad tool name is still recorded in tools_used
-        self.assertIn("nonexistent_tool", result["tools_used"])
-
-
-class TestToolExceptionCaughtAndLoopContinues(unittest.TestCase):
-    """Tool exception is caught and returned as error dict; loop does not crash."""
-
-    @patch("api.agent.tools.get_findings", side_effect=RuntimeError("DB unavailable"))
-    @patch("api.agent.agent.get_completion")
-    def test_tool_exception_caught(self, mock_llm, _mock_findings):
-        mock_llm.side_effect = [
-            _tool_call("get_findings"),
-            _answer("Could not retrieve findings.", "LOW"),
-        ]
-
-        result = run_agent(
-            question="Get findings",
-            subscription_id=_SUB_ID,
-            tenant_id=_TENANT_ID,
-            db_conn=_fake_db(),
-            provider=_PROVIDER,
-            api_key=_PROVIDER_TOKEN,
-        )
-
-        # Loop must not raise; should reach the second LLM response
-        self.assertEqual(result["answer"], "Could not retrieve findings.")
-        self.assertEqual(result["iterations"], 2)
-
-
-class TestUnparseableLLMResponse(unittest.TestCase):
-    """Non-JSON LLM response is treated as a low-confidence final answer."""
-
-    @patch("api.agent.agent.get_completion")
-    def test_unparseable_is_low_confidence_answer(self, mock_llm):
-        mock_llm.return_value = "This is just plain text, not JSON."
-
-        result = run_agent(
-            question="What is the posture?",
-            subscription_id=_SUB_ID,
-            tenant_id=_TENANT_ID,
-            db_conn=_fake_db(),
-            provider=_PROVIDER,
-            api_key=_PROVIDER_TOKEN,
-        )
-
-        self.assertIn("plain text", result["answer"])
-        self.assertEqual(result["confidence"], "LOW")
-        self.assertEqual(result["iterations"], 1)
-        mock_llm.assert_called_once()
-
-
-class TestToolsUsedOrder(unittest.TestCase):
-    """tools_used records tool names in the order they were called."""
-
-    @patch("api.agent.tools.get_findings", return_value=[])
-    @patch("api.agent.tools.get_compliance_posture", return_value={"score": 0.9, "framework": "mcsb"})
-    @patch("api.agent.agent.get_completion")
-    def test_tools_used_in_order(self, mock_llm, _mock_posture, _mock_findings):
-        mock_llm.side_effect = [
-            _tool_call("get_findings"),
-            _tool_call("get_compliance_posture", {"framework": "mcsb"}),
-            _answer("Both tools called.", "HIGH"),
-        ]
-
-        result = run_agent(
-            question="Show findings and posture",
-            subscription_id=_SUB_ID,
-            tenant_id=_TENANT_ID,
-            db_conn=_fake_db(),
-            provider=_PROVIDER,
-            api_key=_PROVIDER_TOKEN,
-        )
-
-        self.assertEqual(result["tools_used"], ["get_findings", "get_compliance_posture"])
-        self.assertEqual(result["iterations"], 3)
-
-
-if __name__ == "__main__":
-    unittest.main()
+def test_tools_used_records_order(monkeypatch):
+    monkeypatch.setattr(agent_mod._tools, "get_findings", lambda *a, **k: [])
+    monkeypatch.setattr(
+        agent_mod._tools, "get_compliance_posture", lambda *a, **k: {"framework": "mcsb", "score": 0.9}
+    )
+    result, _ = _run(
+        monkeypatch,
+        [
+            {"type": "tool_use", "id": "1", "name": "get_findings", "args": {}},
+            {"type": "tool_use", "id": "2", "name": "get_compliance_posture", "args": {"framework": "mcsb"}},
+            {"type": "text", "text": "both called"},
+        ],
+    )
+    assert result["tools_used"] == ["get_findings", "get_compliance_posture"]
+    assert result["iterations"] == 3

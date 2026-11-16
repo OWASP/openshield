@@ -39,9 +39,13 @@ def agent_query():
     if not isinstance(question, str) or not question.strip():
         return jsonify({"error": "question is required"}), 400
 
-    provider = os.environ.get("AI_PROVIDER", "anthropic")
+    # Azure OpenAI (in-tenant) is the default backend; an operator can bring
+    # their own key for openai or anthropic by setting AI_PROVIDER + AI_API_KEY.
+    provider = os.environ.get("AI_PROVIDER", "azure_openai")
     api_key = os.environ.get("AI_API_KEY", "")
     model = os.environ.get("AI_MODEL")  # None means provider uses its default
+    azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
+    azure_deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT")
 
     if not api_key:
         return jsonify({"error": "AI provider not configured"}), 503
@@ -69,6 +73,8 @@ def agent_query():
             provider=provider,
             api_key=api_key,
             model=model,
+            azure_endpoint=azure_endpoint,
+            azure_deployment=azure_deployment,
             user_role=user_role,
         )
     except Exception:
