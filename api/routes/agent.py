@@ -69,7 +69,7 @@ def agent_query():
             question=question,
             subscription_id=subscription_id,
             tenant_id=tenant_id,
-            db_conn=db.conn,
+            db_conn=db,  # DatabaseManager: read tools use db.conn, scans use admit_scan
             provider=provider,
             api_key=api_key,
             model=model,

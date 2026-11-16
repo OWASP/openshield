@@ -61,20 +61,42 @@ class _FakeConn:
 # ---------------------------------------------------------------------------
 
 
-class TestScanSubscription:
-    def test_returns_dict_with_scan_id(self):
-        """scan_subscription should return a dict with scan_id and status keys."""
-        conn = _FakeConn(rows=[("abc-123",)])
-        result = scan_subscription(conn, subscription_id="sub-1", tenant_id="tenant-1")
-        assert "scan_id" in result
-        assert result["scan_id"] == "abc-123"
-        assert result["status"] == "PENDING"
+class _FakeDM:
+    """Minimal DatabaseManager stand-in exposing only admit_scan."""
 
-    def test_raises_runtime_error_on_no_row(self):
-        """scan_subscription should raise RuntimeError when INSERT returns no row."""
-        conn = _FakeConn(rows=[])
+    def __init__(self, result=None, raises=None):
+        self._result = result
+        self._raises = raises
+        self.calls = []
+
+    def admit_scan(self, scan_id, subscription_id, *, idempotency_key=None, max_scans_per_hour=0):
+        self.calls.append((scan_id, subscription_id))
+        if self._raises is not None:
+            raise self._raises
+        return self._result
+
+
+class TestScanSubscription:
+    def test_uses_admission_path_for_new_scan(self):
+        """A newly admitted scan is reported with created=True."""
+        dm = _FakeDM(result=({"scan_id": "abc-123", "status": "pending"}, True))
+        result = scan_subscription(dm, subscription_id="sub-1", tenant_id="tenant-1")
+        assert result == {"scan_id": "abc-123", "status": "pending", "created": True}
+        # admit_scan called once with the subscription under test.
+        assert len(dm.calls) == 1
+        assert dm.calls[0][1] == "sub-1"
+
+    def test_reports_existing_scan_without_creating(self):
+        """An already-active scan is returned with created=False, not duplicated."""
+        dm = _FakeDM(result=({"scan_id": "old", "status": "running"}, False))
+        result = scan_subscription(dm, subscription_id="sub-1", tenant_id="tenant-1")
+        assert result == {"scan_id": "old", "status": "running", "created": False}
+
+    def test_raises_runtime_error_when_admission_fails(self):
+        """A failure in admit_scan surfaces as a RuntimeError, never a silent success."""
+        dm = _FakeDM(raises=RuntimeError("db down"))
         with pytest.raises(RuntimeError):
-            scan_subscription(conn, subscription_id="sub-1", tenant_id="tenant-1")
+            scan_subscription(dm, subscription_id="sub-1", tenant_id="tenant-1")
 
 
 # ---------------------------------------------------------------------------

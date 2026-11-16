@@ -149,24 +149,27 @@ def _dispatch_tool(
         return {"error": "insufficient_permissions"}
 
     args = args if isinstance(args, dict) else {}
+    # scan_subscription needs the DatabaseManager (admission path). Read tools
+    # take a raw connection: accept either a manager (use .conn) or a bare conn.
+    read_conn = getattr(db_conn, "conn", db_conn)
     try:
         if tool_name == "scan_subscription":
             return _tools.scan_subscription(db_conn, subscription_id, tenant_id)
         if tool_name == "get_findings":
             return _tools.get_findings(
-                db_conn, subscription_id, tenant_id,
+                read_conn, subscription_id, tenant_id,
                 severity=args.get("severity"), state=args.get("state"),
             )
         if tool_name == "get_compliance_posture":
             return _tools.get_compliance_posture(
-                db_conn, args.get("framework", "mcsb"), subscription_id, tenant_id
+                read_conn, args.get("framework", "mcsb"), subscription_id, tenant_id
             )
         if tool_name == "get_attack_paths":
-            return _tools.get_attack_paths(db_conn, str(args.get("scan_id", "")), tenant_id)
+            return _tools.get_attack_paths(read_conn, str(args.get("scan_id", "")), tenant_id)
         if tool_name == "explain_finding":
-            return _tools.explain_finding(db_conn, args.get("finding_id"), tenant_id)
+            return _tools.explain_finding(read_conn, args.get("finding_id"), tenant_id)
         if tool_name == "suggest_remediation":
-            return _tools.suggest_remediation(db_conn, args.get("finding_id"), tenant_id)
+            return _tools.suggest_remediation(read_conn, args.get("finding_id"), tenant_id)
         return {"error": "unknown_tool"}
     except Exception as exc:  # noqa: BLE001
         logger.warning("Tool %r raised an exception: %s", tool_name, exc)

@@ -9,44 +9,41 @@ context.
 """
 
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
 _VALID_FRAMEWORKS = {"mcsb", "cis", "iso27001"}
 
 
-def scan_subscription(db_conn, subscription_id: str, tenant_id: str) -> dict:
-    """Queue a scan for the subscription and return {"scan_id": str, "status": str}.
+def scan_subscription(db_manager, subscription_id: str, tenant_id: str) -> dict:
+    """Queue a scan through the shared admission path.
 
-    Inserts a row into the scans table with status='PENDING' and returns the
-    generated scan_id. The existing worker picks it up; this function only
-    queues it.
+    Unlike the other tools, the first argument is a ``DatabaseManager`` (not a
+    raw connection) so the scan goes through ``admit_scan``: an advisory lock,
+    idempotency, and the one-active-scan rule, exactly like the REST scan route.
+    This prevents a prompt-injected or buggy loop from stampeding scans.
+
+    Returns ``{"scan_id": str, "status": str, "created": bool}`` where
+    ``created`` is False when an existing pending/running scan was reused.
     """
-    sql = (
-        "INSERT INTO scans (subscription_id, tenant_id, status, created_at)"
-        " VALUES (%s, %s, 'PENDING', NOW()) RETURNING scan_id"
-    )
+    scan_id = str(uuid.uuid4())
     try:
-        with db_conn.cursor() as cur:
-            cur.execute(sql, (subscription_id, tenant_id))
-            row = cur.fetchone()
-            db_conn.commit()
-            if row is None:
-                raise RuntimeError("INSERT INTO scans did not return a scan_id")
-            return {"scan_id": str(row[0]), "status": "PENDING"}
-    except RuntimeError:
-        raise
+        row, created = db_manager.admit_scan(scan_id, subscription_id)
     except Exception:
-        try:
-            db_conn.rollback()
-        except Exception:
-            pass
         logger.exception(
             "scan_subscription failed for subscription_id=%s tenant_id=%s",
             subscription_id,
             tenant_id,
         )
         raise RuntimeError("Failed to queue scan")
+
+    row = row or {}
+    return {
+        "scan_id": str(row.get("scan_id", scan_id)),
+        "status": str(row.get("status", "pending")),
+        "created": bool(created),
+    }
 
 
 def get_findings(
