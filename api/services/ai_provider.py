@@ -157,17 +157,13 @@ def get_tool_completion(
     """
     provider = provider.lower().strip()
     if provider not in TOOL_PROVIDERS:
-        raise ValueError(
-            f"Unsupported tool-use provider '{provider}'. Choose from: {', '.join(TOOL_PROVIDERS)}"
-        )
+        raise ValueError(f"Unsupported tool-use provider '{provider}'. Choose from: {', '.join(TOOL_PROVIDERS)}")
     if not api_key or not api_key.strip():
         raise ValueError("api_key is required and cannot be empty")
 
     with LLM_PROVIDER_LATENCY_SECONDS.labels(provider=provider).time():
         if provider == "azure_openai":
-            return _azure_openai_tools(
-                api_key, system, messages, tools, azure_endpoint, azure_deployment, api_version
-            )
+            return _azure_openai_tools(api_key, system, messages, tools, azure_endpoint, azure_deployment, api_version)
         if provider == "openai":
             return _openai_tools(api_key, system, messages, tools, model or DEFAULT_MODELS["openai"])
         return _anthropic_tools(api_key, system, messages, tools, model or DEFAULT_MODELS["anthropic"])

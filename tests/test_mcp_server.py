@@ -103,8 +103,9 @@ def _build_call_tool(monkeypatch, fake_db=None, tool_overrides=None):
     db_instance = fake_db if fake_db is not None else MagicMock()
     db_cls = MagicMock(return_value=db_instance)
 
-    with patch("openshield_mcp.server._import_mcp", return_value=mcp_mocks), patch(
-        "api.models.finding.DatabaseManager", db_cls
+    with (
+        patch("openshield_mcp.server._import_mcp", return_value=mcp_mocks),
+        patch("api.models.finding.DatabaseManager", db_cls),
     ):
         for name, fn in (tool_overrides or {}).items():
             monkeypatch.setattr(f"api.agent.tools.{name}", fn)

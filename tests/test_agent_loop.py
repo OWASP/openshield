@@ -62,9 +62,7 @@ def test_text_answer_without_tools_is_low_confidence(monkeypatch):
 
 
 def test_tool_then_answer_is_grounded_high(monkeypatch):
-    monkeypatch.setattr(
-        agent_mod._tools, "get_findings", lambda *a, **k: [{"finding_id": 1, "severity": "HIGH"}]
-    )
+    monkeypatch.setattr(agent_mod._tools, "get_findings", lambda *a, **k: [{"finding_id": 1, "severity": "HIGH"}])
     result, _ = _run(
         monkeypatch,
         [
@@ -144,9 +142,7 @@ def test_write_tool_allowed_for_operator(monkeypatch):
 
 
 def test_tool_results_are_wrapped_as_untrusted(monkeypatch):
-    monkeypatch.setattr(
-        agent_mod._tools, "get_findings", lambda *a, **k: [{"finding_id": 1}]
-    )
+    monkeypatch.setattr(agent_mod._tools, "get_findings", lambda *a, **k: [{"finding_id": 1}])
     _, fake = _run(
         monkeypatch,
         [
@@ -182,9 +178,7 @@ def test_duplicate_tool_call_is_not_repeated(monkeypatch):
 
 
 def test_malformed_tool_name_does_not_raise(monkeypatch):
-    result, _ = _run(
-        monkeypatch, [{"type": "tool_use", "id": "1", "name": 123, "args": "not a dict"}]
-    )
+    result, _ = _run(monkeypatch, [{"type": "tool_use", "id": "1", "name": 123, "args": "not a dict"}])
     assert result["confidence"] == "LOW"
     assert isinstance(result["answer"], str)
 
@@ -212,8 +206,7 @@ def test_max_iterations_fallback(monkeypatch):
     monkeypatch.setattr(agent_mod._tools, "get_findings", lambda *a, **k: [])
     # Always ask for a differently-argued tool so dedupe never short-circuits.
     outputs = [
-        {"type": "tool_use", "id": str(i), "name": "get_findings", "args": {"severity": f"S{i}"}}
-        for i in range(8)
+        {"type": "tool_use", "id": str(i), "name": "get_findings", "args": {"severity": f"S{i}"}} for i in range(8)
     ]
     result, _ = _run(monkeypatch, outputs, max_iterations=8)
     assert result["iterations"] == 8
@@ -237,9 +230,7 @@ def test_empty_question_raises():
 
 def test_tools_used_records_order(monkeypatch):
     monkeypatch.setattr(agent_mod._tools, "get_findings", lambda *a, **k: [])
-    monkeypatch.setattr(
-        agent_mod._tools, "get_compliance_posture", lambda *a, **k: {"framework": "mcsb", "score": 0.9}
-    )
+    monkeypatch.setattr(agent_mod._tools, "get_compliance_posture", lambda *a, **k: {"framework": "mcsb", "score": 0.9})
     result, _ = _run(
         monkeypatch,
         [

@@ -157,13 +157,14 @@ def _dispatch_tool(
             return _tools.scan_subscription(db_conn, subscription_id, tenant_id)
         if tool_name == "get_findings":
             return _tools.get_findings(
-                read_conn, subscription_id, tenant_id,
-                severity=args.get("severity"), state=args.get("state"),
+                read_conn,
+                subscription_id,
+                tenant_id,
+                severity=args.get("severity"),
+                state=args.get("state"),
             )
         if tool_name == "get_compliance_posture":
-            return _tools.get_compliance_posture(
-                read_conn, args.get("framework", "mcsb"), subscription_id, tenant_id
-            )
+            return _tools.get_compliance_posture(read_conn, args.get("framework", "mcsb"), subscription_id, tenant_id)
         if tool_name == "get_attack_paths":
             return _tools.get_attack_paths(read_conn, str(args.get("scan_id", "")), tenant_id)
         if tool_name == "explain_finding":

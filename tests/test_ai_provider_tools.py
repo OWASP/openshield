@@ -47,8 +47,13 @@ def _capture_openai_style(monkeypatch, message):
 def test_azure_openai_returns_normalized_text(monkeypatch):
     captured = _capture_openai_style(monkeypatch, {"role": "assistant", "content": "hello"})
     out = ai_provider.get_tool_completion(
-        "azure_openai", "k", "sys", [{"role": "user", "content": "hi"}], tools=[],
-        azure_endpoint="https://x.openai.azure.com", azure_deployment="gpt4o",
+        "azure_openai",
+        "k",
+        "sys",
+        [{"role": "user", "content": "hi"}],
+        tools=[],
+        azure_endpoint="https://x.openai.azure.com",
+        azure_deployment="gpt4o",
     )
     assert out == {"type": "text", "text": "hello"}
     assert "x.openai.azure.com" in captured["url"]
@@ -60,15 +65,22 @@ def test_azure_openai_returns_normalized_tool_call(monkeypatch):
         "role": "assistant",
         "content": None,
         "tool_calls": [
-            {"id": "call_1", "type": "function",
-             "function": {"name": "get_findings", "arguments": '{"severity": "HIGH"}'}}
+            {
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": "get_findings", "arguments": '{"severity": "HIGH"}'},
+            }
         ],
     }
     _capture_openai_style(monkeypatch, message)
     out = ai_provider.get_tool_completion(
-        "azure_openai", "k", "sys", [{"role": "user", "content": "hi"}],
+        "azure_openai",
+        "k",
+        "sys",
+        [{"role": "user", "content": "hi"}],
         tools=[{"type": "function", "function": {"name": "get_findings", "parameters": {}}}],
-        azure_endpoint="https://x.openai.azure.com", azure_deployment="gpt4o",
+        azure_endpoint="https://x.openai.azure.com",
+        azure_deployment="gpt4o",
     )
     assert out == {"type": "tool_use", "id": "call_1", "name": "get_findings", "args": {"severity": "HIGH"}}
 
@@ -77,7 +89,11 @@ def test_azure_requires_endpoint_and_deployment(monkeypatch):
     _capture_openai_style(monkeypatch, {"role": "assistant", "content": "x"})
     try:
         ai_provider.get_tool_completion(
-            "azure_openai", "k", "sys", [{"role": "user", "content": "hi"}], tools=[],
+            "azure_openai",
+            "k",
+            "sys",
+            [{"role": "user", "content": "hi"}],
+            tools=[],
         )
     except ValueError as exc:
         assert "azure_endpoint" in str(exc)
@@ -86,13 +102,20 @@ def test_azure_requires_endpoint_and_deployment(monkeypatch):
 
 
 def test_tool_call_with_malformed_arguments_becomes_empty_args(monkeypatch):
-    message = {"role": "assistant", "content": None,
-               "tool_calls": [{"id": "c", "type": "function",
-                               "function": {"name": "get_findings", "arguments": "not json"}}]}
+    message = {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [{"id": "c", "type": "function", "function": {"name": "get_findings", "arguments": "not json"}}],
+    }
     _capture_openai_style(monkeypatch, message)
     out = ai_provider.get_tool_completion(
-        "azure_openai", "k", "sys", [{"role": "user", "content": "hi"}], tools=[],
-        azure_endpoint="https://x.openai.azure.com", azure_deployment="gpt4o",
+        "azure_openai",
+        "k",
+        "sys",
+        [{"role": "user", "content": "hi"}],
+        tools=[],
+        azure_endpoint="https://x.openai.azure.com",
+        azure_deployment="gpt4o",
     )
     assert out == {"type": "tool_use", "id": "c", "name": "get_findings", "args": {}}
 
@@ -103,7 +126,11 @@ def test_tool_call_with_malformed_arguments_becomes_empty_args(monkeypatch):
 def test_openai_returns_normalized_text(monkeypatch):
     captured = _capture_openai_style(monkeypatch, {"role": "assistant", "content": "hi there"})
     out = ai_provider.get_tool_completion(
-        "openai", "sk-test", "sys", [{"role": "user", "content": "hi"}], tools=[],
+        "openai",
+        "sk-test",
+        "sys",
+        [{"role": "user", "content": "hi"}],
+        tools=[],
     )
     assert out == {"type": "text", "text": "hi there"}
     assert "api.openai.com" in captured["url"]
@@ -115,13 +142,15 @@ def test_openai_returns_normalized_tool_call(monkeypatch):
         "role": "assistant",
         "content": None,
         "tool_calls": [
-            {"id": "call_x", "type": "function",
-             "function": {"name": "get_findings", "arguments": '{"state": "OPEN"}'}}
+            {"id": "call_x", "type": "function", "function": {"name": "get_findings", "arguments": '{"state": "OPEN"}'}}
         ],
     }
     _capture_openai_style(monkeypatch, message)
     out = ai_provider.get_tool_completion(
-        "openai", "sk-test", "sys", [{"role": "user", "content": "hi"}],
+        "openai",
+        "sk-test",
+        "sys",
+        [{"role": "user", "content": "hi"}],
         tools=[{"type": "function", "function": {"name": "get_findings", "parameters": {}}}],
     )
     assert out == {"type": "tool_use", "id": "call_x", "name": "get_findings", "args": {"state": "OPEN"}}
@@ -141,7 +170,11 @@ def test_anthropic_returns_normalized_text(monkeypatch):
 
     monkeypatch.setattr(ai_provider.requests, "post", fake_post)
     out = ai_provider.get_tool_completion(
-        "anthropic", "k", "sys", [{"role": "user", "content": "hi"}], tools=[],
+        "anthropic",
+        "k",
+        "sys",
+        [{"role": "user", "content": "hi"}],
+        tools=[],
     )
     assert out == {"type": "text", "text": "claude says hi"}
     assert "api.anthropic.com" in captured["url"]
@@ -151,13 +184,21 @@ def test_anthropic_returns_normalized_text(monkeypatch):
 
 def test_anthropic_returns_normalized_tool_call(monkeypatch):
     def fake_post(url, headers=None, json=None, timeout=None):
-        return _Resp(200, {"content": [
-            {"type": "tool_use", "id": "toolu_1", "name": "get_findings", "input": {"severity": "LOW"}},
-        ]})
+        return _Resp(
+            200,
+            {
+                "content": [
+                    {"type": "tool_use", "id": "toolu_1", "name": "get_findings", "input": {"severity": "LOW"}},
+                ]
+            },
+        )
 
     monkeypatch.setattr(ai_provider.requests, "post", fake_post)
     out = ai_provider.get_tool_completion(
-        "anthropic", "k", "sys", [{"role": "user", "content": "hi"}],
+        "anthropic",
+        "k",
+        "sys",
+        [{"role": "user", "content": "hi"}],
         tools=[{"type": "function", "function": {"name": "get_findings", "description": "d", "parameters": {}}}],
     )
     assert out == {"type": "tool_use", "id": "toolu_1", "name": "get_findings", "args": {"severity": "LOW"}}
