@@ -1,13 +1,22 @@
 """OpenShield MCP server: exposes 6 CSPM tools to Claude Desktop and Copilot.
 
 Run as a standalone script:
-    python -m mcp.server
+    python -m openshield_mcp.server
 
 The server communicates over stdio using the Model Context Protocol.
 
+This server is single-tenant and local: the tenant is fixed by the
+OPENSHIELD_TENANT_ID environment variable and the LLM caller can never
+override it. Write tools are additionally gated by OPENSHIELD_MCP_ROLE.
+
 Required environment variables:
-    DATABASE_URL          — PostgreSQL connection string
-    OPENSHIELD_TENANT_ID  — Tenant identifier (never supplied by the LLM caller)
+    DATABASE_URL          -- PostgreSQL connection string
+    OPENSHIELD_TENANT_ID  -- Tenant identifier (never supplied by the LLM caller)
+
+Optional environment variables:
+    OPENSHIELD_MCP_ROLE                 -- viewer (default) | operator | admin.
+                                           Write tools need operator/admin.
+    OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS -- comma-separated subscription allowlist.
 """
 
 from __future__ import annotations
@@ -16,15 +25,13 @@ import asyncio
 import json
 import logging
 import os
-import sys
+
+from api.agent.guardrails import can_call
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Tool definitions (plain dicts — loaded at import time, no mcp dependency).
-# The TOOLS list is intentionally a list of dicts here so that the module can
-# be imported for testing without the installed mcp package.  The _make_tools()
-# helper converts them to mcp.types.Tool objects at runtime.
 # ---------------------------------------------------------------------------
 
 _TOOL_SPECS: list[dict] = [
@@ -118,31 +125,23 @@ _TOOL_SPECS: list[dict] = [
 
 
 def _import_mcp():
-    """Import the installed mcp package, raising a clear error if missing.
+    """Import the installed mcp SDK, raising a clear error if it is missing.
 
-    The local mcp/ package shadows the installed one, so we temporarily
-    remove the project root from sys.path before importing, then restore it.
+    The package was renamed from ``mcp`` to ``openshield_mcp`` precisely so it
+    no longer shadows the installed ``mcp`` SDK, so a plain import is safe. The
+    import is deferred to runtime so this module can be imported in tests
+    without the SDK present.
     """
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    saved = sys.path[:]
-    # Remove project root so installed mcp is found instead of this package
-    sys.path = [p for p in sys.path if os.path.normcase(os.path.abspath(p)) != os.path.normcase(project_root)]
-    # Remove any stale local mcp entries
-    stale = [k for k in sys.modules if k == "mcp" or k.startswith("mcp.")]
-    for k in stale:
-        del sys.modules[k]
     try:
         from mcp.server import Server as _Server
         from mcp.server.stdio import stdio_server as _stdio_server
-        from mcp.types import Tool as _Tool, TextContent as _TextContent
+        from mcp.types import TextContent as _TextContent, Tool as _Tool
 
         return _Server, _stdio_server, _Tool, _TextContent
     except ImportError as exc:
         raise ImportError(
             "The 'mcp' package is required to run the MCP server. Install it with: pip install mcp"
         ) from exc
-    finally:
-        sys.path = saved
 
 
 def _make_tools(Tool):
@@ -172,12 +171,22 @@ def _subscription_is_authorized(subscription_id: str) -> bool:
     return not allowlist or subscription_id.lower() in allowlist
 
 
+def _role_allows(tool_name: str) -> bool:
+    """Whether the configured MCP role may call a tool.
+
+    Role comes from OPENSHIELD_MCP_ROLE (default "viewer"). Write tools require
+    operator/admin, enforced through the same guardrail the HTTP API uses.
+    """
+    return can_call(tool_name, os.environ.get("OPENSHIELD_MCP_ROLE", "viewer"))
+
+
 def _build_app():
     """Construct and return a fully wired MCP Server instance."""
-    try:
-        from psycopg2 import pool as _pg_pool
-    except ImportError as exc:
-        raise ImportError("psycopg2 is required: pip install psycopg2-binary") from exc
+    from api.models.finding import DatabaseManager
+
+    Server, stdio_server, Tool, TextContent = _import_mcp()
+    tools = _make_tools(Tool)
+    app = Server("openshield-cspm")
 
     from api.agent.tools import (
         explain_finding,
@@ -188,14 +197,11 @@ def _build_app():
         suggest_remediation,
     )
 
-    Server, stdio_server, Tool, TextContent = _import_mcp()
-    tools = _make_tools(Tool)
-    app = Server("openshield-cspm")
-
     db_url = os.environ["DATABASE_URL"]
-    # tenant_id always comes from env — never from LLM tool-call arguments
+    # tenant_id always comes from env — never from LLM tool-call arguments.
     tenant_id = os.environ["OPENSHIELD_TENANT_ID"]
-    _pool = _pg_pool.SimpleConnectionPool(1, 5, db_url)
+    db = DatabaseManager(db_url)
+    db.connect()
 
     @app.list_tools()
     async def list_tools() -> list:
@@ -203,17 +209,20 @@ def _build_app():
 
     @app.call_tool()
     async def call_tool(name: str, arguments: dict):
-        conn = _pool.getconn()
+        # Write tools are gated by the configured MCP role before anything else.
+        if not _role_allows(name):
+            return [TextContent(type="text", text=json.dumps({"error": "insufficient_permissions"}))]
         try:
             if name == "scan_subscription":
                 sub_id = arguments["subscription_id"]
                 if not _subscription_is_authorized(sub_id):
                     result = {"error": "subscription_id is not authorized for this deployment"}
                 else:
-                    result = scan_subscription(conn, sub_id, tenant_id)
+                    # scan_subscription takes the manager (shared admission path).
+                    result = scan_subscription(db, sub_id, tenant_id)
             elif name == "get_findings":
                 result = get_findings(
-                    conn,
+                    db.conn,
                     arguments["subscription_id"],
                     tenant_id,
                     severity=arguments.get("severity"),
@@ -221,24 +230,22 @@ def _build_app():
                 )
             elif name == "get_compliance_posture":
                 result = get_compliance_posture(
-                    conn,
+                    db.conn,
                     arguments["framework"],
                     arguments["subscription_id"],
                     tenant_id,
                 )
             elif name == "get_attack_paths":
-                result = get_attack_paths(conn, arguments["scan_id"], tenant_id)
+                result = get_attack_paths(db.conn, arguments["scan_id"], tenant_id)
             elif name == "explain_finding":
-                result = explain_finding(conn, arguments["finding_id"], tenant_id)
+                result = explain_finding(db.conn, arguments["finding_id"], tenant_id)
             elif name == "suggest_remediation":
-                result = suggest_remediation(conn, arguments["finding_id"], tenant_id)
+                result = suggest_remediation(db.conn, arguments["finding_id"], tenant_id)
             else:
                 result = {"error": f"unknown tool: {name}"}
         except Exception as exc:
             logger.exception("Tool %s failed", name)
             result = {"error": str(exc)}
-        finally:
-            _pool.putconn(conn)
         return [TextContent(type="text", text=json.dumps(result))]
 
     return app, stdio_server

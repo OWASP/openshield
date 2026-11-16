@@ -1,13 +1,14 @@
-"""Smoke tests for the OpenShield MCP server module."""
+"""Smoke and RBAC tests for the OpenShield MCP server module."""
 
+import asyncio
 import json
 from unittest.mock import MagicMock, patch
 
-from mcp.server import TOOLS, _subscription_is_authorized
+from openshield_mcp.server import TOOLS, _role_allows, _subscription_is_authorized
 
 
 def test_tools_count():
-    """mcp/server.py must expose exactly 6 CSPM tool definitions."""
+    """openshield_mcp/server.py must expose exactly 6 CSPM tool definitions."""
     assert len(TOOLS) == 6
 
 
@@ -50,66 +51,107 @@ def test_subscription_is_authorized_with_allowlist(monkeypatch):
     assert _subscription_is_authorized("sub-ccc") is False
 
 
-def test_call_tool_scan_subscription_blocked_when_not_authorized(monkeypatch):
-    """scan_subscription returns an error when subscription_id is not on the allowlist."""
-    monkeypatch.setenv("OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS", "sub-allowed")
+def test_role_allows_gates_write_tools(monkeypatch):
+    """Write tools need operator/admin; read tools are always allowed."""
+    monkeypatch.setenv("OPENSHIELD_MCP_ROLE", "viewer")
+    assert _role_allows("scan_subscription") is False
+    assert _role_allows("get_findings") is True
+
+    monkeypatch.setenv("OPENSHIELD_MCP_ROLE", "operator")
+    assert _role_allows("scan_subscription") is True
+
+    monkeypatch.setenv("OPENSHIELD_MCP_ROLE", "admin")
+    assert _role_allows("scan_subscription") is True
+
+    # Unset role defaults to viewer (fail closed for writes).
+    monkeypatch.delenv("OPENSHIELD_MCP_ROLE", raising=False)
+    assert _role_allows("scan_subscription") is False
+
+
+# ---------------------------------------------------------------------------
+# call_tool wiring
+# ---------------------------------------------------------------------------
+
+
+def _build_call_tool(monkeypatch, fake_db=None, tool_overrides=None):
+    """Build the app with mocked mcp SDK + DatabaseManager, returning call_tool.
+
+    ``tool_overrides`` maps api.agent.tools names to fakes; these must be
+    patched while _build_app runs because the server imports the tool functions
+    by name at build time.
+    """
     monkeypatch.setenv("DATABASE_URL", "postgresql://fake")
-    monkeypatch.setenv("OPENSHIELD_TENANT_ID", "tenant-1")
+    monkeypatch.setenv("OPENSHIELD_TENANT_ID", "expected-tenant")
 
-    mock_pool = MagicMock()
-    mock_conn = MagicMock()
-    mock_pool.getconn.return_value = mock_conn
-
-    captured = {"text": None}
-
-    def fake_text_content(type, text):
-        captured["text"] = text
-        return MagicMock(text=text)
-
-    fake_text_content_cls = MagicMock(side_effect=fake_text_content)
-
-    captured_call_tool = {}
+    captured = {}
 
     def fake_call_tool_decorator():
         def decorator(fn):
-            captured_call_tool["fn"] = fn
+            captured["fn"] = fn
             return fn
 
         return decorator
 
-    mock_server_instance = MagicMock()
-    mock_server_instance.call_tool = fake_call_tool_decorator
-    mock_server_instance.list_tools = MagicMock(return_value=lambda fn: fn)
-    mock_server_cls = MagicMock(return_value=mock_server_instance)
+    server_instance = MagicMock()
+    server_instance.call_tool = fake_call_tool_decorator
+    server_instance.list_tools = MagicMock(return_value=lambda fn: fn)
+    server_cls = MagicMock(return_value=server_instance)
 
-    _mcp_mocks = (mock_server_cls, MagicMock(), MagicMock(), fake_text_content_cls)
-    with (
-        patch("psycopg2.pool.SimpleConnectionPool", return_value=mock_pool),
-        patch("mcp.server._import_mcp", return_value=_mcp_mocks),
+    text_content_cls = MagicMock(side_effect=lambda type, text: MagicMock(text=text))
+    mcp_mocks = (server_cls, MagicMock(), MagicMock(), text_content_cls)
+
+    db_instance = fake_db if fake_db is not None else MagicMock()
+    db_cls = MagicMock(return_value=db_instance)
+
+    with patch("openshield_mcp.server._import_mcp", return_value=mcp_mocks), patch(
+        "api.models.finding.DatabaseManager", db_cls
     ):
-        from mcp.server import _build_app
+        for name, fn in (tool_overrides or {}).items():
+            monkeypatch.setattr(f"api.agent.tools.{name}", fn)
+        from openshield_mcp.server import _build_app
 
         _build_app()
 
-        import asyncio
+    return captured["fn"], db_instance
 
-        asyncio.get_event_loop().run_until_complete(
-            captured_call_tool["fn"]("scan_subscription", {"subscription_id": "sub-blocked"})
-        )
 
-    result_data = json.loads(captured["text"])
-    assert "error" in result_data
+def _run(fn, name, arguments):
+    return asyncio.new_event_loop().run_until_complete(fn(name, arguments))
+
+
+def test_call_tool_scan_denied_for_viewer_role(monkeypatch):
+    """A viewer role is denied scan_subscription before any work happens."""
+    monkeypatch.setenv("OPENSHIELD_MCP_ROLE", "viewer")
+    monkeypatch.setenv("OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS", "")
+
+    fake_db = MagicMock()
+    fn, _ = _build_call_tool(monkeypatch, fake_db=fake_db)
+    result = _run(fn, "scan_subscription", {"subscription_id": "sub-x"})
+
+    data = json.loads(result[0].text)
+    assert data == {"error": "insufficient_permissions"}
+    fake_db.admit_scan.assert_not_called()
+
+
+def test_call_tool_scan_blocked_when_not_authorized(monkeypatch):
+    """With a privileged role, an un-allowlisted subscription is still rejected."""
+    monkeypatch.setenv("OPENSHIELD_MCP_ROLE", "operator")
+    monkeypatch.setenv("OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS", "sub-allowed")
+
+    fake_db = MagicMock()
+    fn, _ = _build_call_tool(monkeypatch, fake_db=fake_db)
+    result = _run(fn, "scan_subscription", {"subscription_id": "sub-blocked"})
+
+    data = json.loads(result[0].text)
+    assert "error" in data
+    assert "not authorized" in data["error"]
+    fake_db.admit_scan.assert_not_called()
 
 
 def test_call_tool_tenant_id_comes_from_env(monkeypatch):
     """tenant_id is always sourced from OPENSHIELD_TENANT_ID, never from arguments."""
+    monkeypatch.setenv("OPENSHIELD_MCP_ROLE", "viewer")
     monkeypatch.setenv("OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS", "")
-    monkeypatch.setenv("DATABASE_URL", "postgresql://fake")
-    monkeypatch.setenv("OPENSHIELD_TENANT_ID", "expected-tenant")
-
-    mock_pool = MagicMock()
-    mock_conn = MagicMock()
-    mock_pool.getconn.return_value = mock_conn
 
     captured_tenant = {}
 
@@ -117,36 +159,7 @@ def test_call_tool_tenant_id_comes_from_env(monkeypatch):
         captured_tenant["value"] = tenant_id
         return []
 
-    captured_call_tool = {}
-
-    def fake_call_tool_decorator():
-        def decorator(fn):
-            captured_call_tool["fn"] = fn
-            return fn
-
-        return decorator
-
-    mock_server_instance = MagicMock()
-    mock_server_instance.call_tool = fake_call_tool_decorator
-    mock_server_instance.list_tools = MagicMock(return_value=lambda fn: fn)
-    mock_server_cls = MagicMock(return_value=mock_server_instance)
-
-    fake_text_content_cls = MagicMock(side_effect=lambda type, text: MagicMock(text=text))
-
-    _mcp_mocks = (mock_server_cls, MagicMock(), MagicMock(), fake_text_content_cls)
-    with (
-        patch("psycopg2.pool.SimpleConnectionPool", return_value=mock_pool),
-        patch("mcp.server._import_mcp", return_value=_mcp_mocks),
-        patch("api.agent.tools.get_findings", fake_get_findings),
-    ):
-        from mcp.server import _build_app
-
-        _build_app()
-
-        import asyncio
-
-        asyncio.get_event_loop().run_until_complete(
-            captured_call_tool["fn"]("get_findings", {"subscription_id": "sub-x"})
-        )
+    fn, _ = _build_call_tool(monkeypatch, tool_overrides={"get_findings": fake_get_findings})
+    _run(fn, "get_findings", {"subscription_id": "sub-x"})
 
     assert captured_tenant.get("value") == "expected-tenant"

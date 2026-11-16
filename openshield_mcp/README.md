@@ -16,8 +16,10 @@ The server makes the following tools available to connected LLM hosts:
 | `explain_finding` | Return full detail and risk context for a finding |
 | `suggest_remediation` | Return step-by-step remediation guidance for a finding |
 
-Tenant isolation is enforced server-side via `OPENSHIELD_TENANT_ID`. The LLM
-caller never supplies or influences the tenant identifier.
+This server is single-tenant and local: it serves exactly the one tenant named
+by `OPENSHIELD_TENANT_ID`, and the LLM caller never supplies or influences the
+tenant identifier. It is not a multi-tenant boundary; run one instance per
+tenant.
 
 ## Prerequisites
 
@@ -31,6 +33,8 @@ caller never supplies or influences the tenant identifier.
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string, e.g. `postgresql://user:pass@host/db` |
 | `OPENSHIELD_TENANT_ID` | Yes | Tenant identifier used for row-level isolation |
+| `OPENSHIELD_MCP_ROLE` | No | `viewer` (default), `operator`, or `admin`. Write tools (`scan_subscription`) require `operator`/`admin` |
+| `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS` | No | Comma-separated allowlist of subscription IDs that may be scanned |
 
 ## Adding to Claude Desktop
 
@@ -42,7 +46,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`
   "mcpServers": {
     "openshield-cspm": {
       "command": "python",
-      "args": ["-m", "mcp.server"],
+      "args": ["-m", "openshield_mcp.server"],
       "cwd": "/path/to/openshield",
       "env": {
         "DATABASE_URL": "postgresql://user:pass@localhost/openshield",
@@ -61,7 +65,7 @@ tool picker.
 ```bash
 DATABASE_URL=postgresql://user:pass@localhost/openshield \
 OPENSHIELD_TENANT_ID=my-tenant \
-python -m mcp.server
+python -m openshield_mcp.server
 ```
 
 The server speaks JSON-RPC over stdin/stdout and is designed to be launched
@@ -71,6 +75,8 @@ by an MCP host process, not run interactively.
 
 - `OPENSHIELD_TENANT_ID` is always read from the environment. The LLM cannot
   override it through tool arguments.
-- Each tool call opens and closes its own database connection (stateless per
-  call). No connection is held between calls.
+- Write tools are gated by `OPENSHIELD_MCP_ROLE`: `scan_subscription` is denied
+  unless the role is `operator` or `admin`, mirroring the HTTP API's RBAC.
+- `scan_subscription` goes through the shared scan-admission path (advisory
+  lock, idempotency, one-active-scan), so it cannot stampede scans.
 - No Flask or HTTP server code is present in this module.
