@@ -690,6 +690,48 @@ Finding fields such as `resource_name` and `description` can contain text writte
 
 ---
 
+## POST /api/agent/query
+
+Natural-language CSPM Q&A. The server runs a native tool-use agent loop (max 8 iterations) that can call six read/write tools (`get_findings`, `get_compliance_posture`, `get_attack_paths`, `explain_finding`, `suggest_remediation`, `scan_subscription`) and returns one grounded answer. Unlike the `/api/ai/*` endpoints, the provider and key are server-side configuration, never request fields.
+
+Request body:
+
+```json
+{
+  "question": "What are my critical findings?",
+  "subscription_id": "00000000-0000-0000-0000-000000000000",
+  "framework": "mcsb"
+}
+```
+
+- `question` (required) — cleaned and length-capped before use.
+- `subscription_id` (optional) — falls back to `AZURE_SUBSCRIPTION_ID`; checked against `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS` like `POST /api/scans/trigger`.
+- `framework` (optional) — appended to the question as a compliance-framework hint; it is never a security input.
+
+Server-side configuration: `AI_PROVIDER` (`azure_openai` default, `openai`, or `anthropic`), `AI_API_KEY`, optional `AI_MODEL`, and for Azure `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_DEPLOYMENT`. Missing key returns `503`.
+
+Response `200`:
+
+```json
+{
+  "answer": "You have 3 critical findings.",
+  "tools_used": ["get_findings"],
+  "iterations": 2,
+  "confidence": "HIGH"
+}
+```
+
+`confidence` is `HIGH` only when at least one tool call returned real evidence; provider failures and tool errors degrade to `LOW`, never a `500`.
+
+### Access and safety
+
+- Requires a valid JWT like every `/api/*` route. This is the one POST path a read-only `viewer` token may call; the state-changing `scan_subscription` tool is still refused inside the loop unless the token role is `operator`/`admin`, and admitted scans go through the same admission path and hourly quota as `POST /api/scans/trigger`.
+- `tenant_id` comes from the token only; a `tenant_id` in the body is ignored. Requests without a tenant claim return `403`.
+- Tool results are wrapped as untrusted data before reaching the model, every answer passes the same sanitization as the `/api/ai/*` endpoints, and tool read failures surface as explicit errors, never zeroed results.
+- Rate limited to 20 requests/min per caller (`429` beyond that).
+
+---
+
 ## Deferred endpoints
 
 The following endpoints are called by the frontend but have no backend implementation yet. The frontend falls back to static mock data when these return 404.

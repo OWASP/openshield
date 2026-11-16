@@ -212,6 +212,30 @@ class TestGetCompliancePosture:
         assert result["fail_count"] == 0
         assert result["gaps"] == []
 
+    def test_db_failure_returns_explicit_error_not_zeroed(self):
+        """A DB failure must surface as an error, never a zeroed 'all clear' score.
+
+        The compliance_scores table does not exist yet, so in production every
+        call takes this path; masking it as score 0.0 is the audit's C1 bug.
+        """
+
+        class _BrokenConn:
+            def cursor(self):
+                raise RuntimeError('relation "compliance_scores" does not exist')
+
+            def rollback(self):
+                pass
+
+        result = get_compliance_posture(
+            _BrokenConn(),
+            framework="mcsb",
+            subscription_id="sub-1",
+            tenant_id="tenant-1",
+        )
+        assert result.get("error") == "db_error"
+        assert result.get("framework") == "mcsb"
+        assert "score" not in result
+
 
 # ---------------------------------------------------------------------------
 # get_attack_paths

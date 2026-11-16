@@ -131,7 +131,8 @@ def get_compliance_posture(db_conn, framework: str, subscription_id: str, tenant
     Valid frameworks: "mcsb", "cis", "iso27001"
     Raises ValueError for unknown framework.
 
-    If no data exists yet returns zeroed-out structure.
+    If no row exists yet returns a zeroed-out structure. A read FAILURE returns
+    {"framework": ..., "error": "db_error"} instead, never a zeroed score.
     """
     if framework.lower() not in _VALID_FRAMEWORKS:
         raise ValueError(f"Unknown compliance framework: {framework!r}. Valid options: {sorted(_VALID_FRAMEWORKS)}")
@@ -175,7 +176,9 @@ def get_compliance_posture(db_conn, framework: str, subscription_id: str, tenant
             subscription_id,
             tenant_id,
         )
-        return empty
+        # Fail closed: a read failure must surface as an error the model has to
+        # report, never a zeroed score that reads like a real posture (audit C1).
+        return {"framework": framework, "error": "db_error"}
 
 
 def get_attack_paths(db_conn, scan_id: str, tenant_id: str) -> list:
