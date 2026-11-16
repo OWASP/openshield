@@ -63,10 +63,18 @@ def agent_query():
     if not _subscription_is_authorized(subscription_id):
         return jsonify({"error": "subscription_id is not authorized for this deployment"}), 403
 
+    # Optional compliance-framework hint. It is a prompt hint only (never a
+    # security boundary), so it may come from the body and is appended to the
+    # user's question rather than silently ignored.
+    framework = body.get("framework")
+    agent_question = question
+    if isinstance(framework, str) and framework.strip():
+        agent_question = f"{question}\n\n(Focus on the {framework.strip()} compliance framework.)"
+
     try:
         db = _get_db()
         result = run_agent(
-            question=question,
+            question=agent_question,
             subscription_id=subscription_id,
             tenant_id=tenant_id,
             db_conn=db,  # DatabaseManager: read tools use db.conn, scans use admit_scan

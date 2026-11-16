@@ -52,6 +52,27 @@ class TestAgentQueryRoute:
         assert data["iterations"] == _GOOD_RESULT["iterations"]
         assert data["confidence"] == _GOOD_RESULT["confidence"]
 
+    # 1b. framework from the body is appended to the question as a hint
+    def test_framework_is_appended_as_hint(self, client, auth_headers):
+        captured = {}
+
+        def _capture(**kwargs):
+            captured.update(kwargs)
+            return _GOOD_RESULT
+
+        with (
+            patch("api.routes.agent.run_agent", side_effect=_capture),
+            patch("api.routes.agent._get_db", return_value=_mock_db()),
+        ):
+            resp = self._post(
+                client,
+                auth_headers,
+                {"question": "Am I compliant?", "subscription_id": "sub-001", "framework": "mcsb"},
+            )
+        assert resp.status_code == 200
+        assert "Am I compliant?" in captured["question"]
+        assert "mcsb" in captured["question"]
+
     # 2. Missing question field returns 400
     def test_missing_question_returns_400(self, client, auth_headers):
         with patch.dict("os.environ", {"AI_API_KEY": "test-key"}):
