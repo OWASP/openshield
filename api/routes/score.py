@@ -52,11 +52,22 @@ def get_score():
 
 @score_bp.get("/api/score/cve-summary")
 def get_cve_summary():
-    """Return high-level CVE summary for the dashboard."""
+    """Return high-level CVE summary for the dashboard.
+
+    Accepts the same optional ``?subscription_id=`` as GET /api/score. The
+    dashboard renders the score and this summary side by side, so both must
+    describe the same subscription.
+    """
     try:
+        subscription_id = request.args.get("subscription_id") or os.environ.get("AZURE_SUBSCRIPTION_ID")
+        if subscription_id:
+            subscription_id = uuid_string(subscription_id, "subscription_id")
+
         db = _get_db()
-        result = db.get_cve_summary()
+        result = db.get_cve_summary(subscription_id=subscription_id)
         return jsonify(result)
+    except ValidationError:
+        return jsonify({"error": VALIDATION_ERROR_MESSAGE}), 400
     except Exception as exc:
         logger.error("Failed to fetch CVE summary: %s", exc)
         return jsonify({"error": "Failed to fetch CVE summary"}), 500

@@ -84,3 +84,43 @@ def test_route_rejects_a_malformed_subscription_id(client, auth_headers, monkeyp
 
     assert resp.status_code == 400
     db.get_score.assert_not_called()
+
+
+def test_cve_summary_route_passes_subscription_id_through_to_the_model(client, auth_headers, monkeypatch):
+    """/api/score/cve-summary must scope on ?subscription_id= exactly as
+    /api/score does. The dashboard renders both side by side, so an unscoped
+    summary beside a scoped score describes two different subscriptions."""
+    monkeypatch.delenv("AZURE_SUBSCRIPTION_ID", raising=False)
+    sub = "11111111-2222-3333-4444-555555555555"
+    db = MagicMock()
+    db.get_cve_summary.return_value = {"status": "OK", "total_findings": 3}
+    with patch.object(score_route, "_get_db", return_value=db):
+        resp = client.get(f"/api/score/cve-summary?subscription_id={sub}", headers=auth_headers)
+
+    assert resp.status_code == 200
+    db.get_cve_summary.assert_called_once_with(subscription_id=sub)
+
+
+def test_cve_summary_route_falls_back_to_the_configured_default_subscription(client, auth_headers, monkeypatch):
+    """With no query parameter the deployment's own AZURE_SUBSCRIPTION_ID is
+    used, the same fallback /api/score applies."""
+    sub = "11111111-2222-3333-4444-555555555555"
+    monkeypatch.setenv("AZURE_SUBSCRIPTION_ID", sub)
+    db = MagicMock()
+    db.get_cve_summary.return_value = {"status": "OK", "total_findings": 3}
+    with patch.object(score_route, "_get_db", return_value=db):
+        resp = client.get("/api/score/cve-summary", headers=auth_headers)
+
+    assert resp.status_code == 200
+    db.get_cve_summary.assert_called_once_with(subscription_id=sub)
+
+
+def test_cve_summary_route_rejects_a_malformed_subscription_id(client, auth_headers, monkeypatch):
+    """A non-UUID subscription_id is a 400, not a silently unscoped summary."""
+    monkeypatch.delenv("AZURE_SUBSCRIPTION_ID", raising=False)
+    db = MagicMock()
+    with patch.object(score_route, "_get_db", return_value=db):
+        resp = client.get("/api/score/cve-summary?subscription_id=not-a-uuid", headers=auth_headers)
+
+    assert resp.status_code == 400
+    db.get_cve_summary.assert_not_called()
