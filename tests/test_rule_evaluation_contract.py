@@ -68,8 +68,62 @@ def _kv_006_fixture() -> MockAzureClient:
     )
 
 
+def _storage_fixture() -> MockAzureClient:
+    """One compliant and one non-compliant account for every AZ-STOR rule."""
+
+    def account_id(name: str) -> str:
+        return f"/subscriptions/{_SUB}/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/{name}"
+
+    def endpoint(status: str) -> Any:
+        return make_resource(private_link_service_connection_state=make_resource(status=status))
+
+    required = {"oshield:cmk-required": "true", "oshield:immutability-required": "true"}
+    good = make_resource(
+        id=account_id("good"),
+        name="good",
+        location="eastus",
+        allow_blob_public_access=False,
+        enable_https_traffic_only=True,
+        allow_shared_key_access=False,
+        minimum_tls_version="TLS1_2",
+        sku=make_resource(name="Standard_GRS"),
+        encryption=make_resource(key_source="Microsoft.Keyvault"),
+        tags=required,
+        public_network_access="Enabled",
+        private_endpoint_connections=[endpoint("Approved")],
+    )
+    bad = make_resource(
+        id=account_id("bad"),
+        name="bad",
+        location="eastus",
+        allow_blob_public_access=True,
+        enable_https_traffic_only=False,
+        allow_shared_key_access=True,
+        minimum_tls_version="TLS1_0",
+        sku=make_resource(name="Standard_LRS"),
+        encryption=make_resource(key_source="Microsoft.Storage"),
+        tags=required,
+        public_network_access="Enabled",
+        private_endpoint_connections=[],
+    )
+    client = MockAzureClient().set_storage_accounts([good, bad])
+    client.set_storage_lifecycle_policy("rg", "good", True)
+    client.set_storage_lifecycle_policy("rg", "bad", False)
+    for service in ("blob", "queue", "table"):
+        client.set_storage_service_logging("rg", "good", service, True)
+        client.set_storage_service_logging("rg", "bad", service, False)
+    locked = make_resource(
+        name="locked",
+        immutability_policy=make_resource(state="Locked", immutability_period_since_creation_in_days=30),
+    )
+    client.set_blob_containers("rg", "good", [locked])
+    client.set_blob_containers("rg", "bad", [make_resource(name="open", immutability_policy=None)])
+    return client
+
+
 FIXTURES: Dict[str, Callable[[], MockAzureClient]] = {
     "AZ-KV-006": _kv_006_fixture,
+    **{f"AZ-STOR-{n:03d}": _storage_fixture for n in range(1, 11)},
 }
 
 

@@ -71,6 +71,10 @@ EVIDENCE_UNAVAILABLE = "EVIDENCE_UNAVAILABLE"
 MISSING_PROPERTIES = "MISSING_PROPERTIES"
 POLICY_NOT_REQUIRED = "POLICY_NOT_REQUIRED"
 APPROVED_EXCEPTION = "APPROVED_EXCEPTION"
+# Rule-specific codes, defined here so every reason code stays in one place.
+UNRECOGNIZED_TLS_VERSION = "UNRECOGNIZED_TLS_VERSION"  # AZ-STOR-007
+UNRECOGNIZED_KEY_SOURCE = "UNRECOGNIZED_KEY_SOURCE"  # AZ-STOR-008
+PUBLIC_ACCESS_DISABLED = "PUBLIC_ACCESS_DISABLED"  # AZ-STOR-010
 
 
 @dataclass
@@ -147,6 +151,22 @@ def no_resources_found(rule_id: str, resource_type: str, subscription_id: str) -
         status=EvaluationStatus.NOT_APPLICABLE,
         reason_code=NO_RESOURCES_FOUND,
         reason=f"No {resource_type} resources were returned for this subscription.",
+    )
+
+
+def missing_resource_id(rule_id: str, resource_type: str, subscription_id: str) -> "RuleEvaluation":
+    """UNKNOWN for a resource returned without an ID.
+
+    It cannot be evaluated or remediated, and a finding with an empty
+    resource_id would collide with every other one in persistence.
+    """
+    return RuleEvaluation(
+        rule_id=rule_id,
+        resource_id=subscription_scope_id(subscription_id),
+        resource_type=resource_type,
+        status=EvaluationStatus.UNKNOWN,
+        reason_code=MISSING_PROPERTIES,
+        reason=f"A {resource_type} resource was returned without a resource ID.",
     )
 
 
