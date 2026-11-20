@@ -181,16 +181,25 @@ def get_compliance_posture(db_conn, framework: str, subscription_id: str, tenant
         return {"framework": framework, "error": "db_error"}
 
 
-def get_attack_paths(db_conn, scan_id: str, tenant_id: str) -> list:
+def get_attack_paths(db_conn, scan_id: str, tenant_id: str) -> dict:
     """Return BFS attack paths for a scan.
 
-    STUB: returns empty list until PRs #352-354 merge.
+    Returns a not_available response until the graph traversal PRs (#352-354)
+    are deployed. Returning a clear status prevents the agent from interpreting
+    an empty list as "no attack paths found".
     """
     logger.warning(
-        "get_attack_paths called for scan_id=%s but attack paths are not yet available (pending PRs #352-354)",
+        "get_attack_paths called for scan_id=%s but attack path traversal is not yet deployed",
         scan_id,
     )
-    return []
+    return {
+        "status": "not_available",
+        "reason": (
+            "Attack path traversal is not yet available in this deployment. "
+            "The graph traversal feature is pending deployment. "
+            "Use get_findings to review individual security findings instead."
+        ),
+    }
 
 
 def explain_finding(db_conn, finding_id: int, tenant_id: str) -> dict | None:
