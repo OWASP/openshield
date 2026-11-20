@@ -16,7 +16,7 @@
     "@astrojs/sitemap": "^3.5.0",
     "@fontsource-variable/schibsted-grotesk": "^5.2.0",
     "@fontsource/dm-mono": "^5.2.0",
-    "astro": "^7.3.1",
+    "astro": "^7.4.1",
     "three": "^0.180.0"
   }
 }
