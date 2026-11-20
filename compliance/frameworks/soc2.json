@@ -127,6 +127,18 @@
       "review_status": "pending_review",
       "review_date": null
     },
+    "AZ-DB-008": {
+    "control_id": "CC6.7",
+    "control_name": "Protects Data in Transit",
+    "description": "The SQL server does not enforce a minimum TLS version of 1.2. CC6.7 requires that data transmitted over networks is protected using encryption. Enforcing TLS 1.2 minimum ensures secure protocols are used for all connections.",
+    "mapping_type": "supporting",
+    "evidence_type": "automated_configuration_scan",
+    "primary_source": "SOC 2 Type II (2017 Trust Services Criteria), criterion CC6.7",
+    "rationale": "AICPA SOC 2 (2017 Trust Services Criteria) criterion CC6.7 ('Protects Data in Transit') is evaluated by an independent auditor across technical, procedural and organizational evidence. OpenShield rule AZ-DB-008 evaluates one Azure technical control that provides supporting automated evidence toward this criterion; it is not a substitute for an auditor's evaluation.",
+    "owner": null,
+    "review_status": "pending_review",
+    "review_date": null
+    },
     "AZ-COSMOS-001": {
       "control_id": "CC6.3",
       "control_name": "Logical access security",
