@@ -23,7 +23,7 @@ from typing import Optional
 
 import requests
 
-from api.observability import NVD_REQUEST_LATENCY_SECONDS
+from openshield.metrics import NVD_REQUEST_LATENCY_SECONDS
 
 logger = logging.getLogger(__name__)
 
