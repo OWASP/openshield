@@ -166,7 +166,7 @@ def list_attack_paths():
                 JOIN scans s ON s.scan_id::text = ap.scan_id
                 JOIN graph_nodes src ON src.node_id = ap.source_node_id
                 JOIN graph_nodes tgt ON tgt.node_id = ap.target_node_id
-                WHERE ap.scan_id = %(scan_id)s
+                WHERE ap.scan_id = %(scan_id)s::uuid
                   AND ap.tenant_id = %(tenant_id)s
                   AND s.subscription_id = %(subscription_id)s
                   AND NOT EXISTS (

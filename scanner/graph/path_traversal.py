@@ -137,8 +137,8 @@ def _delete_stale_paths(conn: Any, scan_id: str, tenant_id: str) -> bool:
             DELETE FROM attack_paths ap
             USING scans previous, scans current
             WHERE ap.tenant_id = %(tenant_id)s
-              AND ap.scan_id <> %(scan_id)s
-              AND previous.scan_id::text = ap.scan_id
+              AND ap.scan_id <> %(scan_id)s::uuid
+              AND previous.scan_id = ap.scan_id
               AND current.scan_id = %(scan_id)s::uuid
               AND current.status = 'completed'
               AND previous.subscription_id = current.subscription_id
@@ -184,7 +184,7 @@ def _write_paths(
             ON CONFLICT (source_node_id, target_node_id, scan_id) DO NOTHING
             """,
             rows,
-            template="(%s, %s, %s, %s::uuid, %s::uuid, %s::uuid[], %s, %s, %s)",
+            template="(%s, %s, %s::uuid, %s::uuid, %s::uuid, %s::uuid[], %s, %s, %s)",
         )
         inserted = cur.rowcount
     # cur.rowcount reflects actual inserts after ON CONFLICT DO NOTHING;
