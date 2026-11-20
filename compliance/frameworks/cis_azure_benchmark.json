@@ -1734,6 +1734,126 @@
       "owner": null,
       "review_status": "pending_review",
       "review_date": null
+    },
+    "AZ-GOV-001": {
+      "control_id": "N/A-GOV-001",
+      "control_name": "Subscription Outside Approved Management Group Hierarchy",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "no_direct_mapping",
+      "primary_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+      "rationale": "No numbered control in this mapping pack directly maps to AZ-GOV-001. This rule is excluded from this framework score.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-002": {
+      "control_id": "N/A-GOV-002",
+      "control_name": "Required Security Policy Initiative Missing",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "no_direct_mapping",
+      "primary_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+      "rationale": "No numbered control in this mapping pack directly maps to AZ-GOV-002. This rule is excluded from this framework score.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-003": {
+      "control_id": "N/A-GOV-003",
+      "control_name": "Preventive Policy Uses Non-Enforcing Effect",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "no_direct_mapping",
+      "primary_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+      "rationale": "No numbered control in this mapping pack directly maps to AZ-GOV-003. This rule is excluded from this framework score.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-004": {
+      "control_id": "N/A-GOV-004",
+      "control_name": "Policy Exemption Missing Governance Metadata",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "no_direct_mapping",
+      "primary_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+      "rationale": "No numbered control in this mapping pack directly maps to AZ-GOV-004. This rule is excluded from this framework score.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-005": {
+      "control_id": "N/A-GOV-005",
+      "control_name": "Critical Production Resource Missing Deletion Lock",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "no_direct_mapping",
+      "primary_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+      "rationale": "No numbered control in this mapping pack directly maps to AZ-GOV-005. This rule is excluded from this framework score.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-006": {
+      "control_id": "N/A-GOV-006",
+      "control_name": "Excessive Subscription Owner Assignments",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "no_direct_mapping",
+      "primary_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+      "rationale": "No numbered control in this mapping pack directly maps to AZ-GOV-006. This rule is excluded from this framework score.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-007": {
+      "control_id": "N/A-GOV-007",
+      "control_name": "Privileged Access Assigned at Broad Scope",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "no_direct_mapping",
+      "primary_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+      "rationale": "No numbered control in this mapping pack directly maps to AZ-GOV-007. This rule is excluded from this framework score.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-008": {
+      "control_id": "N/A-GOV-008",
+      "control_name": "Undocumented Resource Provider Registered",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "no_direct_mapping",
+      "primary_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+      "rationale": "No numbered control in this mapping pack directly maps to AZ-GOV-008. This rule is excluded from this framework score.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-009": {
+      "control_id": "N/A-GOV-009",
+      "control_name": "Production Resource Missing Ownership Metadata",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "no_direct_mapping",
+      "primary_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+      "rationale": "No numbered control in this mapping pack directly maps to AZ-GOV-009. This rule is excluded from this framework score.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-010": {
+      "control_id": "N/A-GOV-010",
+      "control_name": "Security Configuration Drift Exceeds SLA",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "not_applicable",
+      "evidence_type": "no_direct_mapping",
+      "primary_source": "OpenShield compliance mapping pack, authored against CIS Microsoft Azure Foundations Benchmark v2.0.0. Technical-evidence mapping only.",
+      "rationale": "No numbered control in this mapping pack directly maps to AZ-GOV-010. This rule is excluded from this framework score.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   }
 }
