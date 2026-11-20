@@ -17,6 +17,7 @@ from azure.mgmt.resourcegraph.models import QueryRequest, QueryRequestOptions
 
 DEFAULT_QUERY = """
 Resources
+| extend properties = bag_merge(properties, pack('identity', identity))
 | project id, name, type, location, subscriptionId, resourceGroup, tenantId, tags, properties
 | order by id asc
 """.strip()
