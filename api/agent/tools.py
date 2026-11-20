@@ -100,9 +100,7 @@ def get_findings(
         "     SELECT scan_id FROM scans"
         "     WHERE subscription_id = %s AND status = 'completed'"
         "     ORDER BY started_at DESC LIMIT 1"
-        "   )"
-        + extra
-        + " LIMIT 200"
+        "   )" + extra + " LIMIT 200"
     )
     try:
         with db_conn.cursor() as cur:

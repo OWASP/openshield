@@ -108,11 +108,14 @@ class TestAgentQueryRoute:
         with (
             patch("api.routes.agent.run_agent", side_effect=RuntimeError("boom")),
             patch("api.routes.agent._get_db", return_value=_mock_db()),
-            patch.dict("os.environ", {
-                "AI_API_KEY": "test-key",
-                "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
-                "AZURE_OPENAI_DEPLOYMENT": "test-deployment",
-            }),
+            patch.dict(
+                "os.environ",
+                {
+                    "AI_API_KEY": "test-key",
+                    "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
+                    "AZURE_OPENAI_DEPLOYMENT": "test-deployment",
+                },
+            ),
         ):
             resp = client.post(
                 "/api/agent/query",
@@ -128,12 +131,15 @@ class TestAgentQueryRoute:
         with (
             patch("api.routes.agent.run_agent", return_value=_GOOD_RESULT),
             patch("api.routes.agent._get_db", return_value=_mock_db()),
-            patch.dict("os.environ", {
-                "AI_API_KEY": "test-key",
-                "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
-                "AZURE_OPENAI_DEPLOYMENT": "test-deployment",
-                "DATABASE_URL": "postgresql://test",
-            }),
+            patch.dict(
+                "os.environ",
+                {
+                    "AI_API_KEY": "test-key",
+                    "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
+                    "AZURE_OPENAI_DEPLOYMENT": "test-deployment",
+                    "DATABASE_URL": "postgresql://test",
+                },
+            ),
         ):
             # Patch _check_and_record directly: first 20 return True, then False
             call_count = {"n": 0}
@@ -184,11 +190,14 @@ class TestAgentQueryRoute:
         no_tenant_headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
         client = app_no_tenant_inject.test_client()
-        with patch.dict("os.environ", {
-            "AI_API_KEY": "test-key",
-            "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
-            "AZURE_OPENAI_DEPLOYMENT": "test-deployment",
-        }):
+        with patch.dict(
+            "os.environ",
+            {
+                "AI_API_KEY": "test-key",
+                "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
+                "AZURE_OPENAI_DEPLOYMENT": "test-deployment",
+            },
+        ):
             resp = client.post(
                 "/api/agent/query",
                 json={

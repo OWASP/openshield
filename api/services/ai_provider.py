@@ -202,6 +202,7 @@ def _azure_openai_tools(api_key, system, messages, tools, endpoint, deployment, 
     else:
         # No API key: use Managed Identity via DefaultAzureCredential.
         from azure.identity import DefaultAzureCredential  # noqa: PLC0415
+
         token = DefaultAzureCredential().get_token("https://cognitiveservices.azure.com/.default").token
         auth_headers = {"Authorization": f"Bearer {token}"}
     try:

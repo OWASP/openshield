@@ -72,25 +72,28 @@ def scan_with_findings(pg_conn):
             """,
             (str(scan_id), subscription_id),
         )
-        # Two findings: one HIGH, one MEDIUM
+        # Two findings: one HIGH, one MEDIUM.
+        # detected_at and finding_key are NOT NULL after migrations.
         cur.execute(
             """
             INSERT INTO findings
               (scan_id, rule_id, rule_name, severity, resource_id,
-               resource_name, resource_type, description, remediation)
+               resource_name, resource_type, description, remediation,
+               detected_at, finding_key)
             VALUES
               (%s, 'AZ-NET-001', 'Open NSG inbound', 'HIGH',
                '/subscriptions/{sub}/rg/rg1/nsg1',
                'nsg1', 'Microsoft.Network/networkSecurityGroups',
-               'NSG allows unrestricted inbound.', 'Restrict inbound rules.'),
+               'NSG allows unrestricted inbound.', 'Restrict inbound rules.',
+               NOW(), %s),
               (%s, 'AZ-STOR-001', 'Public blob access', 'MEDIUM',
                '/subscriptions/{sub}/rg/rg1/stor1',
                'stor1', 'Microsoft.Storage/storageAccounts',
-               'Storage account allows public blob access.', 'Disable public access.')
+               'Storage account allows public blob access.', 'Disable public access.',
+               NOW(), %s)
             """,
-            (str(scan_id), str(scan_id)),
+            (str(scan_id), f"test:nsg:{scan_id}", str(scan_id), f"test:stor:{scan_id}"),
         )
-    pg_conn.flush if hasattr(pg_conn, "flush") else None
 
     return pg_conn, str(scan_id), subscription_id, tenant_id
 
@@ -153,11 +156,12 @@ class TestGetFindingsPostgres:
                 """
                 INSERT INTO findings
                   (scan_id, rule_id, rule_name, severity, resource_id,
-                   resource_name, resource_type, description, remediation)
+                   resource_name, resource_type, description, remediation,
+                   detected_at, finding_key)
                 VALUES (%s, 'AZ-OLD-001', 'Old finding', 'LOW',
-                        '/subs/x', 'x', 'type', 'old', 'fix it')
+                        '/subs/x', 'x', 'type', 'old', 'fix it', NOW(), %s)
                 """,
-                (str(old_scan_id),),
+                (str(old_scan_id), f"test:old:{old_scan_id}"),
             )
         # Only the two findings from the most recent scan should appear
         result = get_findings(conn, subscription_id, tenant_id)
@@ -214,10 +218,15 @@ class TestGetCompliancePosturePostgres:
         _conn, _scan_id, subscription_id, tenant_id = scan_with_findings
         result = get_compliance_posture(db_manager, "mcsb", subscription_id, tenant_id)
         assert isinstance(result, dict)
-        assert result.get("framework") == "mcsb" or result.get("status") in (
-            "NO_SCAN_DATA",
-            None,
-        ) or "error" not in result
+        assert (
+            result.get("framework") == "mcsb"
+            or result.get("status")
+            in (
+                "NO_SCAN_DATA",
+                None,
+            )
+            or "error" not in result
+        )
 
     def test_raises_for_unknown_framework(self, db_manager):
         with pytest.raises(ValueError, match="Unknown compliance framework"):
