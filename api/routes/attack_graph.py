@@ -163,7 +163,7 @@ def list_attack_paths():
                        src.resource_type AS source_type, src.name AS source_name,
                        tgt.resource_type AS target_type, tgt.name AS target_name
                 FROM attack_paths ap
-                JOIN scans s ON s.scan_id::text = ap.scan_id
+                JOIN scans s ON s.scan_id = ap.scan_id
                 JOIN graph_nodes src ON src.node_id = ap.source_node_id
                 JOIN graph_nodes tgt ON tgt.node_id = ap.target_node_id
                 WHERE ap.scan_id = %(scan_id)s::uuid
@@ -215,7 +215,7 @@ def get_attack_path(path_id: str):
                        ap.target_node_id::text, ap.path_node_ids, ap.path_length,
                        ap.min_confidence, ap.relationship_types, ap.computed_at
                 FROM attack_paths ap
-                JOIN scans s ON s.scan_id::text = ap.scan_id
+                JOIN scans s ON s.scan_id = ap.scan_id
                 WHERE ap.path_id = %(path_id)s::uuid
                   AND ap.tenant_id = %(tenant_id)s
                   AND s.subscription_id = %(subscription_id)s
