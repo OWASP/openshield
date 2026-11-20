@@ -238,7 +238,7 @@ def _build_app():
                     result = {"error": "subscription_id is not authorized for this deployment"}
                 else:
                     result = get_compliance_posture(
-                        db.conn,
+                        db,
                         arguments["framework"],
                         sub_id,
                         tenant_id,

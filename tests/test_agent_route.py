@@ -31,7 +31,12 @@ class TestAgentQueryRoute:
 
     def _post(self, client, auth_headers, body, env=None):
         env = env or {}
-        with patch.dict("os.environ", {"AI_API_KEY": "test-key", **env}):
+        defaults = {
+            "AI_API_KEY": "test-key",
+            "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
+            "AZURE_OPENAI_DEPLOYMENT": "test-deployment",
+        }
+        with patch.dict("os.environ", {**defaults, **env}):
             return client.post("/api/agent/query", json=body, headers=auth_headers)
 
     # 1. Valid request returns 200 with all expected fields
@@ -87,9 +92,9 @@ class TestAgentQueryRoute:
         assert resp.status_code == 400
         assert resp.get_json()["error"] == "question is required"
 
-    # 4. Missing AI_API_KEY returns 503
+    # 4. Missing AI_API_KEY returns 503 when using a provider that requires a key
     def test_missing_api_key_returns_503(self, client, auth_headers):
-        with patch.dict("os.environ", {"AI_API_KEY": ""}):
+        with patch.dict("os.environ", {"AI_PROVIDER": "openai", "AI_API_KEY": ""}):
             resp = client.post(
                 "/api/agent/query",
                 json={"question": "What are my findings?", "subscription_id": "sub-001"},
@@ -103,7 +108,11 @@ class TestAgentQueryRoute:
         with (
             patch("api.routes.agent.run_agent", side_effect=RuntimeError("boom")),
             patch("api.routes.agent._get_db", return_value=_mock_db()),
-            patch.dict("os.environ", {"AI_API_KEY": "test-key"}),
+            patch.dict("os.environ", {
+                "AI_API_KEY": "test-key",
+                "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
+                "AZURE_OPENAI_DEPLOYMENT": "test-deployment",
+            }),
         ):
             resp = client.post(
                 "/api/agent/query",
@@ -119,7 +128,12 @@ class TestAgentQueryRoute:
         with (
             patch("api.routes.agent.run_agent", return_value=_GOOD_RESULT),
             patch("api.routes.agent._get_db", return_value=_mock_db()),
-            patch.dict("os.environ", {"AI_API_KEY": "test-key", "DATABASE_URL": "postgresql://test"}),
+            patch.dict("os.environ", {
+                "AI_API_KEY": "test-key",
+                "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
+                "AZURE_OPENAI_DEPLOYMENT": "test-deployment",
+                "DATABASE_URL": "postgresql://test",
+            }),
         ):
             # Patch _check_and_record directly: first 20 return True, then False
             call_count = {"n": 0}
@@ -170,7 +184,11 @@ class TestAgentQueryRoute:
         no_tenant_headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
         client = app_no_tenant_inject.test_client()
-        with patch.dict("os.environ", {"AI_API_KEY": "test-key"}):
+        with patch.dict("os.environ", {
+            "AI_API_KEY": "test-key",
+            "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
+            "AZURE_OPENAI_DEPLOYMENT": "test-deployment",
+        }):
             resp = client.post(
                 "/api/agent/query",
                 json={

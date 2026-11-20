@@ -164,7 +164,7 @@ def _dispatch_tool(
                 state=args.get("state"),
             )
         if tool_name == "get_compliance_posture":
-            return _tools.get_compliance_posture(read_conn, args.get("framework", "mcsb"), subscription_id, tenant_id)
+            return _tools.get_compliance_posture(db_conn, args.get("framework", "mcsb"), subscription_id, tenant_id)
         if tool_name == "get_attack_paths":
             return _tools.get_attack_paths(read_conn, str(args.get("scan_id", "")), tenant_id)
         if tool_name == "explain_finding":

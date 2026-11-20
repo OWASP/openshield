@@ -74,29 +74,35 @@ def get_findings(
     severity: str = None,
     state: str = None,
 ) -> list:
-    """Return findings for the subscription, filtered by severity and/or state.
+    """Return findings from the most recent completed scan for the subscription.
+
+    Queries the baseline ``findings`` and ``scans`` tables. ``state`` is not
+    supported without lifecycle tables and is silently ignored; all results are
+    returned as 'open'. The parameter is kept for API compatibility with callers
+    that will pass it once the lifecycle tables from PR #326 are deployed.
 
     Returns a list of dicts with keys:
         finding_id, rule_id, resource_id, severity, state
     """
-    params = [tenant_id, subscription_id]
-    where_clauses = [
-        "fl.tenant_id = %s",
-        "sro.subscription_id = %s",
-    ]
+    params: list = [subscription_id, subscription_id]
+    extra = ""
     if severity is not None:
-        where_clauses.append("UPPER(sro.severity) = UPPER(%s)")
+        extra += " AND UPPER(f.severity) = UPPER(%s)"
         params.append(severity)
-    if state is not None:
-        where_clauses.append("UPPER(fl.state) = UPPER(%s)")
-        params.append(state)
 
     sql = (
-        "SELECT fl.finding_id, ff.rule_id, ff.resource_id, sro.severity, fl.state"
-        " FROM finding_lifecycles fl"
-        " JOIN finding_fingerprints ff ON ff.fingerprint_id = fl.fingerprint_id"
-        " JOIN scan_rule_outcomes sro ON sro.outcome_id = fl.outcome_id"
-        " WHERE " + " AND ".join(where_clauses) + " LIMIT 200"  # nosec B608 — clauses are static strings; only values use %s placeholders
+        "SELECT f.id AS finding_id, f.rule_id, f.resource_id, f.severity, 'open' AS state"
+        " FROM findings f"
+        " JOIN scans s ON s.scan_id = f.scan_id"
+        " WHERE s.subscription_id = %s"
+        "   AND s.status = 'completed'"
+        "   AND s.scan_id = ("
+        "     SELECT scan_id FROM scans"
+        "     WHERE subscription_id = %s AND status = 'completed'"
+        "     ORDER BY started_at DESC LIMIT 1"
+        "   )"
+        + extra
+        + " LIMIT 200"  # nosec B608 — only %s parameters; no user data in SQL
     )
     try:
         with db_conn.cursor() as cur:
@@ -118,66 +124,44 @@ def get_findings(
         except Exception:
             pass
         logger.exception(
-            "get_findings failed for subscription_id=%s tenant_id=%s",
+            "get_findings failed for subscription_id=%s",
             subscription_id,
-            tenant_id,
         )
         return [{"error": "db_error"}]
 
 
-def get_compliance_posture(db_conn, framework: str, subscription_id: str, tenant_id: str) -> dict:
-    """Return compliance posture for a framework.
+def get_compliance_posture(db_manager, framework: str, subscription_id: str, tenant_id: str) -> dict:
+    """Return compliance posture using DatabaseManager.get_compliance_score.
+
+    The first argument must be a DatabaseManager so that the richer
+    ``get_compliance_score`` method (which reads from ``scans`` and the
+    framework mapping packs on disk) is used instead of the ``compliance_scores``
+    aggregate table that is not yet present in the baseline schema.
 
     Valid frameworks: "mcsb", "cis", "iso27001"
     Raises ValueError for unknown framework.
 
-    If no row exists yet returns a zeroed-out structure. A read FAILURE returns
-    {"framework": ..., "error": "db_error"} instead, never a zeroed score.
+    A read FAILURE returns {"framework": ..., "error": "db_error"} instead of a
+    zeroed score so callers can distinguish "db down" from "posture is clean".
     """
     if framework.lower() not in _VALID_FRAMEWORKS:
         raise ValueError(f"Unknown compliance framework: {framework!r}. Valid options: {sorted(_VALID_FRAMEWORKS)}")
 
-    sql = (
-        "SELECT score, pass_count, fail_count, gaps"
-        " FROM compliance_scores"
-        " WHERE LOWER(framework) = LOWER(%s)"
-        "   AND subscription_id = %s"
-        "   AND tenant_id = %s"
-        " LIMIT 1"
-    )
-    empty = {
-        "framework": framework,
-        "score": 0.0,
-        "pass_count": 0,
-        "fail_count": 0,
-        "gaps": [],
-    }
+    get_score = getattr(db_manager, "get_compliance_score", None)
+    if get_score is None:
+        logger.error(
+            "get_compliance_posture requires a DatabaseManager, got %r",
+            type(db_manager).__name__,
+        )
+        return {"framework": framework, "error": "db_error"}
     try:
-        with db_conn.cursor() as cur:
-            cur.execute(sql, (framework, subscription_id, tenant_id))
-            row = cur.fetchone()
-            if row is None:
-                return empty
-            return {
-                "framework": framework,
-                "score": float(row[0]),
-                "pass_count": int(row[1]),
-                "fail_count": int(row[2]),
-                "gaps": row[3] if row[3] is not None else [],
-            }
+        return get_score(framework, subscription_id)
     except Exception:
-        try:
-            db_conn.rollback()
-        except Exception:
-            pass
         logger.exception(
-            "get_compliance_posture failed for framework=%s subscription_id=%s tenant_id=%s",
+            "get_compliance_posture failed for framework=%s subscription_id=%s",
             framework,
             subscription_id,
-            tenant_id,
         )
-        # Fail closed: a read failure must surface as an error the model has to
-        # report, never a zeroed score that reads like a real posture (audit C1).
         return {"framework": framework, "error": "db_error"}
 
 
@@ -203,23 +187,22 @@ def get_attack_paths(db_conn, scan_id: str, tenant_id: str) -> dict:
 
 
 def explain_finding(db_conn, finding_id: int, tenant_id: str) -> dict | None:
-    """Return full detail for a finding including playbook.
+    """Return full detail for a finding from the baseline ``findings`` table.
 
-    Returns None if the finding does not exist or belongs to a different tenant.
+    Returns None if the finding does not exist. ``tenant_id`` is kept in the
+    signature for future lifecycle-table integration (PR #326); isolation is
+    currently enforced at the route level via the subscription allow-list.
     """
     sql = (
-        "SELECT fl.finding_id, ff.rule_id, ff.resource_id, sro.severity,"
-        "       sro.description, sro.remediation, fl.state"
-        " FROM finding_lifecycles fl"
-        " JOIN finding_fingerprints ff ON ff.fingerprint_id = fl.fingerprint_id"
-        " JOIN scan_rule_outcomes sro ON sro.outcome_id = fl.outcome_id"
-        " WHERE fl.finding_id = %s"
-        "   AND fl.tenant_id = %s"
+        "SELECT f.id, f.rule_id, f.resource_id, f.severity,"
+        "       f.description, f.remediation, 'open' AS state"
+        " FROM findings f"
+        " WHERE f.id = %s"
         " LIMIT 1"
     )
     try:
         with db_conn.cursor() as cur:
-            cur.execute(sql, (finding_id, tenant_id))
+            cur.execute(sql, (finding_id,))
             row = cur.fetchone()
             if row is None:
                 return None
@@ -237,11 +220,7 @@ def explain_finding(db_conn, finding_id: int, tenant_id: str) -> dict | None:
             db_conn.rollback()
         except Exception:
             pass
-        logger.exception(
-            "explain_finding failed for finding_id=%s tenant_id=%s",
-            finding_id,
-            tenant_id,
-        )
+        logger.exception("explain_finding failed for finding_id=%s", finding_id)
         return {"error": "db_error"}
 
 

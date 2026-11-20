@@ -62,13 +62,16 @@ class _FakeConn:
 
 
 class _FakeDM:
-    """Minimal DatabaseManager stand-in exposing only admit_scan."""
+    """Minimal DatabaseManager stand-in exposing admit_scan and get_compliance_score."""
 
-    def __init__(self, result=None, raises=None):
+    def __init__(self, result=None, raises=None, compliance_result=None, compliance_raises=None):
         self._result = result
         self._raises = raises
+        self._compliance_result = compliance_result
+        self._compliance_raises = compliance_raises
         self.calls = []
         self.quotas = []
+        self.compliance_calls: list = []
 
     def admit_scan(self, scan_id, subscription_id, *, idempotency_key=None, max_scans_per_hour=0):
         self.calls.append((scan_id, subscription_id))
@@ -76,6 +79,21 @@ class _FakeDM:
         if self._raises is not None:
             raise self._raises
         return self._result
+
+    def get_compliance_score(self, framework, subscription_id=None):
+        self.compliance_calls.append((framework, subscription_id))
+        if self._compliance_raises is not None:
+            raise self._compliance_raises
+        if self._compliance_result is not None:
+            return self._compliance_result
+        return {
+            "framework": framework,
+            "status": "NO_SCAN_DATA",
+            "score_percent": None,
+            "passed": None,
+            "failed": None,
+            "controls": [],
+        }
 
 
 class TestScanSubscription:
@@ -152,17 +170,20 @@ class TestGetFindings:
         params = conn._cursor.executed_params
         assert "HIGH" in params
 
-    def test_state_filter_passes_correct_param(self):
-        """get_findings with state filter includes state in the SQL params."""
+    def test_state_filter_is_silently_ignored(self):
+        """get_findings accepts state= without error but ignores it.
+
+        Without lifecycle tables all findings are 'open'; passing state is a
+        no-op until PR #326 ships.
+        """
         conn = _FakeConn(rows=[])
-        get_findings(
+        result = get_findings(
             conn,
             subscription_id="sub-1",
             tenant_id="tenant-1",
             state="OPEN",
         )
-        params = conn._cursor.executed_params
-        assert "OPEN" in params
+        assert isinstance(result, list)
 
 
 # ---------------------------------------------------------------------------
@@ -171,63 +192,53 @@ class TestGetFindings:
 
 
 class TestGetCompliancePosture:
-    def test_valid_framework_returns_expected_keys(self):
-        """get_compliance_posture with a valid framework returns required keys."""
-        row = (85.5, 42, 8, ["gap-1", "gap-2"])
-        conn = _FakeConn(rows=[row])
+    def test_valid_framework_delegates_to_get_compliance_score(self):
+        """get_compliance_posture calls DatabaseManager.get_compliance_score and returns its result."""
+        expected = {
+            "framework": "mcsb",
+            "score_percent": 72.5,
+            "passed": 29,
+            "failed": 11,
+            "controls": [],
+        }
+        dm = _FakeDM(compliance_result=expected)
         result = get_compliance_posture(
-            conn,
+            dm,
             framework="mcsb",
             subscription_id="sub-1",
             tenant_id="tenant-1",
         )
-        assert result["framework"] == "mcsb"
-        assert result["score"] == 85.5
-        assert result["pass_count"] == 42
-        assert result["fail_count"] == 8
-        assert result["gaps"] == ["gap-1", "gap-2"]
+        assert result == expected
+        assert dm.compliance_calls == [("mcsb", "sub-1")]
 
     def test_raises_value_error_for_unknown_framework(self):
         """get_compliance_posture raises ValueError for an unrecognised framework."""
-        conn = _FakeConn(rows=[])
+        dm = _FakeDM()
         with pytest.raises(ValueError, match="Unknown compliance framework"):
             get_compliance_posture(
-                conn,
+                dm,
                 framework="nist-made-up",
                 subscription_id="sub-1",
                 tenant_id="tenant-1",
             )
 
-    def test_no_data_returns_zeroed_structure(self):
-        """get_compliance_posture returns zeroed structure when no rows exist."""
-        conn = _FakeConn(rows=[])
+    def test_no_scan_data_returned_as_is(self):
+        """get_compliance_posture passes NO_SCAN_DATA back unchanged."""
+        dm = _FakeDM()
         result = get_compliance_posture(
-            conn,
+            dm,
             framework="cis",
             subscription_id="sub-1",
             tenant_id="tenant-1",
         )
-        assert result["score"] == 0.0
-        assert result["pass_count"] == 0
-        assert result["fail_count"] == 0
-        assert result["gaps"] == []
+        assert result.get("status") == "NO_SCAN_DATA"
+        assert result.get("framework") == "cis"
 
     def test_db_failure_returns_explicit_error_not_zeroed(self):
-        """A DB failure must surface as an error, never a zeroed 'all clear' score.
-
-        The compliance_scores table does not exist yet, so in production every
-        call takes this path; masking it as score 0.0 is the audit's C1 bug.
-        """
-
-        class _BrokenConn:
-            def cursor(self):
-                raise RuntimeError('relation "compliance_scores" does not exist')
-
-            def rollback(self):
-                pass
-
+        """A failure in get_compliance_score must surface as an error, never a zeroed score."""
+        dm = _FakeDM(compliance_raises=RuntimeError("db down"))
         result = get_compliance_posture(
-            _BrokenConn(),
+            dm,
             framework="mcsb",
             subscription_id="sub-1",
             tenant_id="tenant-1",
@@ -236,6 +247,18 @@ class TestGetCompliancePosture:
         assert result.get("framework") == "mcsb"
         assert "score" not in result
 
+    def test_missing_get_compliance_score_method_returns_error(self):
+        """A raw connection (no get_compliance_score) returns db_error, never crashes."""
+        conn = _FakeConn(rows=[])
+        result = get_compliance_posture(
+            conn,
+            framework="iso27001",
+            subscription_id="sub-1",
+            tenant_id="tenant-1",
+        )
+        assert result.get("error") == "db_error"
+        assert result.get("framework") == "iso27001"
+
 
 # ---------------------------------------------------------------------------
 # get_attack_paths
@@ -243,11 +266,17 @@ class TestGetCompliancePosture:
 
 
 class TestGetAttackPaths:
-    def test_returns_empty_list(self):
-        """get_attack_paths is a stub and always returns an empty list."""
+    def test_returns_not_available_status(self):
+        """get_attack_paths returns a not_available dict until path traversal is deployed.
+
+        An empty list would let the agent interpret zero results as "no attack paths
+        found", which is misleading before the traversal feature is live.
+        """
         conn = _FakeConn(rows=[])
         result = get_attack_paths(conn, scan_id="scan-1", tenant_id="tenant-1")
-        assert result == []
+        assert isinstance(result, dict)
+        assert result.get("status") == "not_available"
+        assert "reason" in result
 
 
 # ---------------------------------------------------------------------------
