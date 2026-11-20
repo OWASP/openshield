@@ -243,7 +243,7 @@ def suggest_remediation(db_conn, finding_id: int, tenant_id: str) -> dict | None
     belongs to a different tenant.
     """
     detail = explain_finding(db_conn, finding_id, tenant_id)
-    if detail is None:
+    if detail is None or "error" in detail:
         return None
     return {
         "finding_id": detail["finding_id"],

@@ -158,7 +158,8 @@ def get_tool_completion(
     provider = provider.lower().strip()
     if provider not in TOOL_PROVIDERS:
         raise ValueError(f"Unsupported tool-use provider '{provider}'. Choose from: {', '.join(TOOL_PROVIDERS)}")
-    if not api_key or not api_key.strip():
+    # azure_openai supports Managed Identity (empty api_key); all other providers require a key.
+    if provider != "azure_openai" and (not api_key or not api_key.strip()):
         raise ValueError("api_key is required and cannot be empty")
 
     with LLM_PROVIDER_LATENCY_SECONDS.labels(provider=provider).time():
@@ -196,10 +197,17 @@ def _azure_openai_tools(api_key, system, messages, tools, endpoint, deployment, 
     if not endpoint or not deployment:
         raise ValueError("azure_openai requires azure_endpoint and azure_deployment")
     url = f"{endpoint.rstrip('/')}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
+    if api_key and api_key.strip():
+        auth_headers = {"api-key": api_key}
+    else:
+        # No API key: use Managed Identity via DefaultAzureCredential.
+        from azure.identity import DefaultAzureCredential  # noqa: PLC0415
+        token = DefaultAzureCredential().get_token("https://cognitiveservices.azure.com/.default").token
+        auth_headers = {"Authorization": f"Bearer {token}"}
     try:
         resp = requests.post(
             url,
-            headers={"api-key": api_key, "content-type": "application/json"},
+            headers={**auth_headers, "content-type": "application/json"},
             json=_openai_style_payload(system, messages, tools),
             timeout=30,
         )

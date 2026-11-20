@@ -47,8 +47,13 @@ def agent_query():
     azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
     azure_deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT")
 
-    if not api_key:
+    # azure_openai can authenticate via Managed Identity (empty api_key is valid);
+    # all other providers require an explicit key.
+    if not api_key and provider != "azure_openai":
         return jsonify({"error": "AI provider not configured"}), 503
+    # azure_openai still needs endpoint+deployment even with Managed Identity.
+    if provider == "azure_openai" and not (azure_endpoint and azure_deployment):
+        return jsonify({"error": "AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_DEPLOYMENT are required for azure_openai"}), 503
 
     tenant_id = g.user.get("tenant") or ""
     if not tenant_id:
