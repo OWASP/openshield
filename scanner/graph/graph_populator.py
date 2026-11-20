@@ -17,6 +17,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Explicit mapping from Python enum to the SQL CHECK-constraint value.
+# If a new InventoryStatus variant is ever added, this dict must be updated,
+# and populate_graph will raise ValueError before any writes rather than failing
+# inside the transaction and being silently swallowed.
+_SCOPE_STATUS_SQL: dict[InventoryStatus, str] = {
+    InventoryStatus.COMPLETE: "COMPLETE",
+    InventoryStatus.PARTIAL: "PARTIAL",
+}
+
 _UPSERT_EDGE_SQL = """
 INSERT INTO graph_edges (
     edge_id, source_node_id, target_node_id, relationship_type,
@@ -122,6 +131,12 @@ def populate_graph(scan_id: str, snapshot: InventorySnapshot, dsn: str) -> None:
 
     if snapshot.status == InventoryStatus.FAILED:
         return
+    scope_status_sql = _SCOPE_STATUS_SQL.get(snapshot.status)
+    if scope_status_sql is None:
+        raise ValueError(
+            f"graph: unrecognised InventoryStatus {snapshot.status!r}; "
+            "update _SCOPE_STATUS_SQL to map it to a SQL CHECK value"
+        )
     try:
         # Publish the new scope only after every write succeeds. Partial snapshots
         # retain historical rows, but the views expose only explicit current evidence.
@@ -179,7 +194,7 @@ def populate_graph(scan_id: str, snapshot: InventorySnapshot, dsn: str) -> None:
                             snapshot.tenant_id,
                             subscription,
                             snapshot.snapshot_id,
-                            snapshot.status.value,
+                            scope_status_sql,
                             snapshot.collected_at,
                         ),
                     )
