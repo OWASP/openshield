@@ -91,7 +91,7 @@ def get_findings(
         params.append(severity)
 
     sql = (
-        "SELECT f.id AS finding_id, f.rule_id, f.resource_id, f.severity, 'open' AS state"
+        "SELECT f.id AS finding_id, f.rule_id, f.resource_id, f.severity, 'open' AS state"  # nosec B608
         " FROM findings f"
         " JOIN scans s ON s.scan_id = f.scan_id"
         " WHERE s.subscription_id = %s"
@@ -102,7 +102,7 @@ def get_findings(
         "     ORDER BY started_at DESC LIMIT 1"
         "   )"
         + extra
-        + " LIMIT 200"  # nosec B608 — only %s parameters; no user data in SQL
+        + " LIMIT 200"
     )
     try:
         with db_conn.cursor() as cur:
