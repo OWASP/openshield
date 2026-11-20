@@ -63,13 +63,15 @@ def agent_query():
     if not _subscription_is_authorized(subscription_id):
         return jsonify({"error": "subscription_id is not authorized for this deployment"}), 403
 
-    # Optional compliance-framework hint. It is a prompt hint only (never a
-    # security boundary), so it may come from the body and is appended to the
-    # user's question rather than silently ignored.
+    # Optional compliance-framework hint inserted into the agent prompt.
+    # Validated against an allowlist to prevent prompt injection via this field.
+    _VALID_FRAMEWORKS = {"mcsb", "cis", "iso27001"}
     framework = body.get("framework")
     agent_question = question
-    if isinstance(framework, str) and framework.strip():
-        agent_question = f"{question}\n\n(Focus on the {framework.strip()} compliance framework.)"
+    if isinstance(framework, str) and framework.strip().lower() in _VALID_FRAMEWORKS:
+        agent_question = f"{question}\n\n(Focus on the {framework.strip().lower()} compliance framework.)"
+    elif framework is not None and framework != "":
+        return jsonify({"error": f"framework must be one of: {', '.join(sorted(_VALID_FRAMEWORKS))}"}), 400
 
     try:
         db = _get_db()

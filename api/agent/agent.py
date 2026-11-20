@@ -168,9 +168,15 @@ def _dispatch_tool(
         if tool_name == "get_attack_paths":
             return _tools.get_attack_paths(read_conn, str(args.get("scan_id", "")), tenant_id)
         if tool_name == "explain_finding":
-            return _tools.explain_finding(read_conn, args.get("finding_id"), tenant_id)
+            finding_id = args.get("finding_id")
+            if not isinstance(finding_id, int):
+                return {"error": "finding_id is required and must be an integer"}
+            return _tools.explain_finding(read_conn, finding_id, tenant_id)
         if tool_name == "suggest_remediation":
-            return _tools.suggest_remediation(read_conn, args.get("finding_id"), tenant_id)
+            finding_id = args.get("finding_id")
+            if not isinstance(finding_id, int):
+                return {"error": "finding_id is required and must be an integer"}
+            return _tools.suggest_remediation(read_conn, finding_id, tenant_id)
         return {"error": "unknown_tool"}
     except Exception as exc:  # noqa: BLE001
         logger.warning("Tool %r raised an exception: %s", tool_name, exc)

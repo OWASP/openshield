@@ -221,20 +221,28 @@ def _build_app():
                     # scan_subscription takes the manager (shared admission path).
                     result = scan_subscription(db, sub_id, tenant_id)
             elif name == "get_findings":
-                result = get_findings(
-                    db.conn,
-                    arguments["subscription_id"],
-                    tenant_id,
-                    severity=arguments.get("severity"),
-                    state=arguments.get("state"),
-                )
+                sub_id = arguments["subscription_id"]
+                if not _subscription_is_authorized(sub_id):
+                    result = {"error": "subscription_id is not authorized for this deployment"}
+                else:
+                    result = get_findings(
+                        db.conn,
+                        sub_id,
+                        tenant_id,
+                        severity=arguments.get("severity"),
+                        state=arguments.get("state"),
+                    )
             elif name == "get_compliance_posture":
-                result = get_compliance_posture(
-                    db.conn,
-                    arguments["framework"],
-                    arguments["subscription_id"],
-                    tenant_id,
-                )
+                sub_id = arguments["subscription_id"]
+                if not _subscription_is_authorized(sub_id):
+                    result = {"error": "subscription_id is not authorized for this deployment"}
+                else:
+                    result = get_compliance_posture(
+                        db.conn,
+                        arguments["framework"],
+                        sub_id,
+                        tenant_id,
+                    )
             elif name == "get_attack_paths":
                 result = get_attack_paths(db.conn, arguments["scan_id"], tenant_id)
             elif name == "explain_finding":
