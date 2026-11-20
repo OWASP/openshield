@@ -27,6 +27,7 @@ from api.observability import (
 )
 from scanner.engine import ScanEngine
 from scanner.enrichment_worker import process_enrichment_job
+from scanner.lifecycle_worker import process_lifecycle_job
 
 configure_logging()
 logger = logging.getLogger("scanner.worker")
@@ -157,6 +158,7 @@ def run_worker():
             # 1. Cleanup stale scans from previous crashes
             db.recover_stale_scans()
             db.recover_stale_enrichment_jobs()
+            db.recover_stale_lifecycle_jobs()
 
             # 2. Publish current queue depth
             PENDING_SCANS.set(len(db.get_pending_scans()))
@@ -170,12 +172,16 @@ def run_worker():
             if enrichment_job:
                 process_enrichment_job(db, enrichment_job, worker_id, lease_seconds)
 
+            lifecycle_job = db.claim_next_lifecycle_job(worker_id, lease_seconds)
+            if lifecycle_job:
+                process_lifecycle_job(db, lifecycle_job, worker_id, lease_seconds)
+
             # 4. Atomic scan claim
             scan = db.claim_next_pending_scan(worker_id, lease_seconds)
             if not scan:
                 # Only idle when there was no work at all; an iteration that
-                # ran an enrichment job polls again immediately.
-                if not enrichment_job:
+                # ran an enrichment or lifecycle job polls again immediately.
+                if not enrichment_job and not lifecycle_job:
                     time.sleep(POLL_INTERVAL_SECONDS)
                 continue
 
@@ -216,6 +222,10 @@ def run_worker():
                 if heartbeat.lost.is_set():
                     raise LostLease(f"Scan {scan_id} lost its lease before completion")
                 db.save_scan(result, worker_id, fencing_token)
+
+                # Lifecycle application is now durable: save_scan() enqueues a
+                # lifecycle_job in the same transaction, so apply_scan() will
+                # run even if this worker crashes immediately after saving.
                 SCANS_TOTAL.labels(status="completed").inc()
                 logger.info(
                     "Successfully completed scan %s",

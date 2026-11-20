@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, pool
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # OpenShield intentionally uses raw SQL rather than ORM metadata. Migration
 # revisions therefore define every schema operation explicitly.
