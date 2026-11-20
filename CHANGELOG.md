@@ -9,6 +9,7 @@ OpenShield uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add shared failure-injection scenarios for the evaluate() contract for issue #389: `tests/test_failure_injection.py` runs every migrated rule through `ScanEngine` and the compliance report for failed collection, permission denial, timeout, exhausted throttling, malformed output, empty inventory and partial inventory, and `docs/failure-scenario-matrix.md` documents the failure-to-status matrix.
 - Add the evaluate() contract foundation for issue #369: `AzureClient.list_storage_accounts()` and `list_key_vaults()` return `None` when the list call fails, shared `inventory_unavailable()`, `no_resources_found()` and `fail_findings()` helpers with standard reason codes in `scanner/evaluation.py`, and `tests/test_rule_evaluation_contract.py`, which every rule exposing `evaluate()` must pass.
 - Add the remediation approval, idempotency, audit and rescan gate (`api/models/remediation.py`, `docs/remediation-gate.md`) for issue #266: approved-only, allowlisted, at-most-once execution grants with an append-only audit trail and rescan-based verification. Proposal-only; nothing executes a playbook.
 - Add all ten evidence-rich enterprise network and perimeter controls `AZ-NET-018` through `AZ-NET-027` for issue #253, preserving API failures and incomplete data as indeterminate.
