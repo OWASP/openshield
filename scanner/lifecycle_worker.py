@@ -9,6 +9,15 @@ from api.services.pattern_service import PatternService
 
 logger = logging.getLogger("scanner.lifecycle_worker")
 
+# Checked once at import time so misconfiguration surfaces in the worker log
+# immediately on startup rather than silently failing inside each job.
+if not (os.environ.get("OPENSHIELD_TENANT_ID") or os.environ.get("AZURE_TENANT_ID")):
+    logger.warning(
+        "OPENSHIELD_TENANT_ID and AZURE_TENANT_ID are both unset. "
+        "All lifecycle jobs will fail until one is configured. "
+        "Set OPENSHIELD_TENANT_ID in your environment (see .env.example)."
+    )
+
 
 def process_lifecycle_job(
     db: DatabaseManager,
