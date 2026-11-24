@@ -18,5 +18,8 @@
     "@fontsource/dm-mono": "^5.2.0",
     "astro": "^7.3.1",
     "three": "^0.180.0"
+  },
+  "overrides": {
+    "fast-xml-parser": "^5.12.0"
   }
 }
