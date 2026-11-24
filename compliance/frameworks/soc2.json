@@ -1734,6 +1734,126 @@
       "owner": null,
       "review_status": "pending_review",
       "review_date": null
+    },
+    "AZ-GOV-001": {
+      "control_id": "CC6.3",
+      "control_name": "Subscription Outside Approved Management Group Hierarchy",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+      "rationale": "AZ-GOV-001 supplies Azure configuration evidence supporting CC6.3. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-002": {
+      "control_id": "CC5.2",
+      "control_name": "Required Security Policy Initiative Missing",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+      "rationale": "AZ-GOV-002 supplies Azure configuration evidence supporting CC5.2. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-003": {
+      "control_id": "CC5.2",
+      "control_name": "Preventive Policy Uses Non-Enforcing Effect",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+      "rationale": "AZ-GOV-003 supplies Azure configuration evidence supporting CC5.2. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-004": {
+      "control_id": "CC5.3",
+      "control_name": "Policy Exemption Missing Governance Metadata",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+      "rationale": "AZ-GOV-004 supplies Azure configuration evidence supporting CC5.3. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-005": {
+      "control_id": "CC6.5",
+      "control_name": "Critical Production Resource Missing Deletion Lock",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+      "rationale": "AZ-GOV-005 supplies Azure configuration evidence supporting CC6.5. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-006": {
+      "control_id": "CC6.3",
+      "control_name": "Excessive Subscription Owner Assignments",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+      "rationale": "AZ-GOV-006 supplies Azure configuration evidence supporting CC6.3. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-007": {
+      "control_id": "CC6.3",
+      "control_name": "Privileged Access Assigned at Broad Scope",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+      "rationale": "AZ-GOV-007 supplies Azure configuration evidence supporting CC6.3. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-008": {
+      "control_id": "CC6.6",
+      "control_name": "Undocumented Resource Provider Registered",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+      "rationale": "AZ-GOV-008 supplies Azure configuration evidence supporting CC6.6. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-009": {
+      "control_id": "CC2.2",
+      "control_name": "Production Resource Missing Ownership Metadata",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+      "rationale": "AZ-GOV-009 supplies Azure configuration evidence supporting CC2.2. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
+    },
+    "AZ-GOV-010": {
+      "control_id": "CC7.2",
+      "control_name": "Security Configuration Drift Exceeds SLA",
+      "description": "OpenShield evaluates this governance control from read-only Azure control-plane evidence and organisation-approved policy inputs.",
+      "mapping_type": "supporting",
+      "evidence_type": "automated_configuration_scan",
+      "primary_source": "OpenShield compliance mapping pack, authored against the AICPA SOC 2 2017 Trust Services Criteria. Technical-evidence mapping only.",
+      "rationale": "AZ-GOV-010 supplies Azure configuration evidence supporting CC7.2. It does not establish full organizational compliance; policy and process evidence require separate review.",
+      "owner": null,
+      "review_status": "pending_review",
+      "review_date": null
     }
   }
 }
