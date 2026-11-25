@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "owasp-openshield"
-version = "0.1.0"
+dynamic = ["version"]
 description = "OpenShield Azure security posture scanner CLI"
 readme = "docs/pypi-readme.md"
 license = "MIT"

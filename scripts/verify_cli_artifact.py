@@ -72,6 +72,13 @@ def main() -> None:
             run(str(python), "-m", "pip", "check", cwd=target)
             run(str(openshield), "--help", cwd=target)
             run(str(openshield), "--version", cwd=target)
+            release_tag = os.environ.get("RELEASE_TAG")
+            if release_tag:
+                expected = release_tag.lstrip("v")
+                version_result = run(str(openshield), "--version", cwd=target, capture_output=True)
+                output = version_result.stdout.strip()
+                print(f"Version check: expected {expected}, got {output}")
+                assert expected in output, f"Version mismatch: expected {expected!r} in {output!r}"
             run(str(openshield), "scan", "--help", cwd=target)
             verification = """
 import importlib.resources as resources

@@ -44,7 +44,6 @@ Findings: 1
 Failed rules: none
 ```
 
-A [terminal recording of an installed local wheel](assets/cli-installed-wheel.cast) captures `pip check`, `openshield --version`, `openshield scan --help`, and invalid-configuration JSON with exit code 2. Play it with `asciinema play docs/assets/cli-installed-wheel.cast` if asciinema is installed. The recorded development version came from the PR checkout; the recording does not show a live Azure scan or an install from PyPI.
 
 | Exit | Meaning |
 | --- | --- |
@@ -77,7 +76,7 @@ flowchart LR
   Tag[Signed release tag] --> Build[Build wheel and sdist]
   Build --> Verify[Fresh installs on Linux, macOS, Windows]
   Verify --> GitHub[GitHub Release, checksums and attestations]
-  GitHub --> PyPI[Protected pypi environment and Trusted Publishing]
+  GitHub --> PyPI[PyPI publication - follow-up once publisher is registered]
   PyPI --> Consumer[pip install owasp-openshield]
   Consumer --> CLI[openshield scan]
   CLI --> Azure[Azure Resource Manager and rule APIs]
@@ -85,6 +84,6 @@ flowchart LR
 
 The package contains `openshield`, the standalone `scanner` modules and all `scanner.rules` modules, `contracts/severity.v1.json`, and referenced `playbooks/cli` scripts. It excludes the API, worker entry points, database, frontend, website, tests, and deployment files. `scanner/engine.py` imports scanner metrics from `openshield.metrics`; `api.observability` re-exports the same collectors for the hosted services.
 
-The release job verifies that the signed tag points to `main`, builds and installs both Python artifacts, and adds their hashes and provenance attestations to the existing GitHub Release. A separate job with only `id-token: write` uses PyPI Trusted Publishing from the protected `pypi` environment. A repository administrator must create that environment with required reviewers, and the PyPI owner must register `OWASP/openshield`, `release.yml`, and `pypi` before the first release. The repository variable `PYPI_TRUSTED_PUBLISHING_READY=true` is set only after both controls are verified; without it, the PyPI job is skipped. Recheck name availability immediately before tagging. Pending publisher registration does not reserve a name.
+The release job verifies that the signed tag points to `main`, builds and installs both Python artifacts, and adds their hashes and provenance attestations to the existing GitHub Release. PyPI publishing is not yet wired up in `release.yml`; it will be added in a follow-up once the pending publisher is registered on PyPI. Recheck name availability immediately before tagging. Pending publisher registration does not reserve a name.
 
 Release evidence must be reported separately: local tests, clean artifact installs, three-platform CI, human review, signed tag, GitHub Release assets, PyPI publication, and an installation from the public PyPI index. None implies the next gate occurred.
