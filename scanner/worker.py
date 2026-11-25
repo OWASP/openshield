@@ -27,6 +27,7 @@ from api.observability import (
 )
 from scanner.engine import ScanEngine
 from scanner.enrichment_worker import process_enrichment_job
+from scanner.graph.graph_populator import populate_graph
 from scanner.lifecycle_worker import process_lifecycle_job
 
 configure_logging()
@@ -222,6 +223,12 @@ def run_worker():
                 if heartbeat.lost.is_set():
                     raise LostLease(f"Scan {scan_id} lost its lease before completion")
                 db.save_scan(result, worker_id, fencing_token)
+                dsn = os.environ.get("DATABASE_URL")
+                if engine.snapshot and dsn:
+                    try:
+                        populate_graph(scan_id, engine.snapshot, dsn)
+                    except Exception:
+                        logger.warning("Graph publication failed for persisted scan %s", scan_id, exc_info=True)
 
                 # Lifecycle application is now durable: save_scan() enqueues a
                 # lifecycle_job in the same transaction, so apply_scan() will
