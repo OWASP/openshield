@@ -3,6 +3,15 @@
 import logging
 from typing import Any, Dict, List
 
+from scanner.evaluation import EvaluationStatus, RuleEvaluation, fail_findings
+from scanner.rules._supply_chain_common import (
+    SERVICE_ENDPOINT_TYPE,
+    evaluate_service_endpoints,
+    evaluation,
+    failed,
+    missing,
+)
+
 RULE_ID = "AZ-SC-007"
 RULE_NAME = "Pipeline Service Connection Scoped to Subscription"
 SEVERITY = "HIGH"
@@ -27,49 +36,42 @@ PLAYBOOK = "playbooks/cli/fix_az_sc_007.sh"
 logger = logging.getLogger(__name__)
 
 
+def _judge(endpoint: Any, resource_id: str) -> RuleEvaluation:
+    data = getattr(endpoint, "data", None) or {}
+    scope_level = str(data.get("scopeLevel", "") or "").lower()
+    if not scope_level:
+        return missing(
+            RULE_ID, resource_id, SERVICE_ENDPOINT_TYPE, "The service connection did not report a scopeLevel."
+        )
+    evidence = {"scope_level": scope_level}
+    if scope_level != "subscription":
+        return evaluation(RULE_ID, resource_id, SERVICE_ENDPOINT_TYPE, EvaluationStatus.PASS, evidence=evidence)
+    finding = {
+        "rule_id": RULE_ID,
+        "rule_name": RULE_NAME,
+        "severity": SEVERITY,
+        "category": CATEGORY,
+        "resource_id": resource_id,
+        "resource_name": getattr(endpoint, "name", ""),
+        "resource_type": SERVICE_ENDPOINT_TYPE,
+        "description": DESCRIPTION,
+        "remediation": REMEDIATION,
+        "playbook": PLAYBOOK,
+        "frameworks": FRAMEWORKS,
+        "metadata": {
+            "scope_level": scope_level,
+            "is_shared_with_other_projects": bool(getattr(endpoint, "is_shared", False)),
+            "subscription_id": data.get("subscriptionId", ""),
+        },
+    }
+    return failed(RULE_ID, finding, evidence)
+
+
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Detect Azure DevOps service connections scoped to the whole subscription."""
-    findings: List[Dict[str, Any]] = []
+    """Return the findings attached to this rule's FAIL evaluations."""
+    return fail_findings(evaluate(azure_client, subscription_id))
 
-    devops_client = getattr(azure_client, "devops_client", None)
-    if devops_client is None:
-        return findings
 
-    endpoints = devops_client.get_service_endpoints()
-    if endpoints is None:
-        logger.warning("%s: Azure DevOps service endpoints could not be enumerated", RULE_ID)
-        return findings
-
-    for endpoint in endpoints:
-        endpoint_type = getattr(endpoint, "type", "") or ""
-        if endpoint_type.lower() != "azurerm":
-            continue
-
-        data = getattr(endpoint, "data", None) or {}
-        scope_level = str(data.get("scopeLevel", "")).lower()
-
-        if scope_level == "subscription":
-            endpoint_id = getattr(endpoint, "id", "")
-            endpoint_name = getattr(endpoint, "name", "")
-            findings.append(
-                {
-                    "rule_id": RULE_ID,
-                    "rule_name": RULE_NAME,
-                    "severity": SEVERITY,
-                    "category": CATEGORY,
-                    "resource_id": f"azuredevops:serviceendpoint/{endpoint_id}",
-                    "resource_name": endpoint_name,
-                    "resource_type": "AzureDevOps/ServiceEndpoint",
-                    "description": DESCRIPTION,
-                    "remediation": REMEDIATION,
-                    "playbook": PLAYBOOK,
-                    "frameworks": FRAMEWORKS,
-                    "metadata": {
-                        "scope_level": scope_level,
-                        "is_shared_with_other_projects": bool(getattr(endpoint, "is_shared", False)),
-                        "subscription_id": data.get("subscriptionId", ""),
-                    },
-                }
-            )
-
-    return findings
+def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
+    """Report a status for every AzureRM service connection, PASS included."""
+    return evaluate_service_endpoints(RULE_ID, azure_client, subscription_id, _judge)

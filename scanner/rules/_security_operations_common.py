@@ -1,40 +1,23 @@
-"""Shared, secret-safe helpers for the issue #262 security-operations rules (AZ-SECOPS-001..010).
+"""Shared, secret-safe helpers for the security-operations rules (AZ-SECOPS-001..010).
 
-Reconciling the 4-state PASS/FAIL/UNKNOWN/NOT_APPLICABLE model required by
-issue #262 with the existing findings-list-only ``scan()`` contract:
+Every rule reports its coverage through ``evaluate()`` (the contract in
+``scanner/evaluation.py``), so PASS, UNKNOWN and NOT_APPLICABLE are explicit
+rows rather than an empty findings list plus a log line:
 
-``scanner/engine.py`` treats *presence of a finding in the returned list* as
-the only signal of non-compliance (it feeds the list straight into a
-severity-weighted score). It has no field or side channel for a rule to say
-"this resource is compliant", "this is out of scope", or "I could not tell".
-Two existing rule families in this repo already answer this exact question:
-``scanner/rules/az_dl_001.py``/``az_dl_002.py`` (via
-``scanner/rules/_data_link_common.py``) and ``az_kv_003.py``. Both follow the
-same pattern and this module continues it rather than inventing a third,
-incompatible convention:
+  * The collector is the rule's inventory. If it cannot be built, the rule is
+    ERROR / INVENTORY_UNAVAILABLE, and so is any subscription-wide collection
+    that FAILED.
+  * The organisation policy is opt-in. If it is unset, missing or invalid,
+    the rule is UNKNOWN / POLICY_NOT_CONFIGURED: there is nothing approved to
+    judge against, and an unconfigured deployment is not a failed scan.
+  * A per-resource or per-workspace gap (a lookup that failed for one scope,
+    a field the API did not return) is UNKNOWN for that scope only.
+  * FAIL still needs positive evidence of a missing or unsafe control, and
+    carries the same finding dict ``scan()`` returned before.
 
-  * PASS is an empty list. No finding is emitted for a compliant resource.
-  * NOT_APPLICABLE is an empty list plus an ``INFO``-level log line. Nothing
-    in scope means nothing to report.
-  * UNKNOWN is an empty list plus a ``WARNING``-level log line. A collector
-    failure, an inaccessible permission, or a policy that cannot be loaded
-    must never be silently promoted to a compliance claim, so it is treated
-    the same as "no evidence of a violation" for scoring purposes and is
-    never converted into a FAIL.
-  * FAIL is the only outcome that produces a finding dict, and only when
-    there is positive evidence of a missing or unsafe control.
-
-This satisfies "Return NOT_APPLICABLE / UNKNOWN" and "Return FAIL only with
-positive evidence" without changing what ``engine.py`` does with the return
-value of ``scan()``. The richer per-finding metadata the issue also asks for
-(scope, category, destination, retention, ownership, evidence/timestamp,
-remediation, permissions, severity, confidence, and an UNKNOWN reason) is
-carried on every FAIL finding's ``metadata`` dict so a UI or export can still
-show "why" even though UNKNOWN/NOT_APPLICABLE outcomes themselves are not
-individually addressable dict rows. This is a real, structural limitation of
-the current engine contract for these two states — flagged here rather than
-worked around by inventing a second, parallel result channel that
-``engine.py`` (out of scope for this change) does not consume.
+The richer metadata from issue #262 (scope, destination, retention,
+ownership, evidence timestamp, permissions, confidence) stays on each FAIL
+finding's ``metadata``.
 """
 
 from __future__ import annotations
@@ -42,13 +25,25 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
+from scanner.evaluation import (
+    APPROVED_EXCEPTION,
+    EVIDENCE_UNAVAILABLE,
+    INVENTORY_UNAVAILABLE,
+    POLICY_NOT_CONFIGURED,
+    EvaluationStatus,
+    RuleEvaluation,
+    inventory_unavailable,
+    no_resources_found,
+    subscription_scope_id,
+)
 from scanner.security_operations import (
     CollectionResult,
     CollectionStatus,
     SecurityOperationsCollector,
     SecurityOperationsPolicy,
+    arm_resource_inventory,
     load_security_operations_policy,
 )
 
@@ -59,6 +54,12 @@ logger = logging.getLogger(__name__)
 # path has no approved scope, destinations, retention, or SLA to evaluate
 # against, so its only safe outcome is UNKNOWN — never PASS and never FAIL.
 POLICY_PATH_ENV_VAR = "OPENSHIELD_SECURITY_OPERATIONS_POLICY"
+
+SUBSCRIPTION_RESOURCE_TYPE = "Microsoft.Resources/subscriptions"
+CRITICAL_RESOURCE_TYPE = "critical-resource"
+
+# Kept under its original name for existing imports.
+default_resource_inventory = arm_resource_inventory
 
 
 def value(item: Any, field: str, default: Any = None) -> Any:
@@ -99,33 +100,27 @@ def load_policy_from_env(rule_id: str) -> Optional[SecurityOperationsPolicy]:
         return None
 
 
-def default_resource_inventory(credential: Any, subscription_id: str) -> Callable[[], Sequence[Any]]:
-    """Build a resource_inventory callable backed by the generic ARM resource list.
+def build_collector(azure_client: Any, subscription_id: str) -> Any:
+    """Return the collector for this scan, or ``None`` when it cannot be built.
 
-    ``SecurityOperationsCollector.critical_resource_ids`` needs a callable
-    returning every resource in the subscription (id + type only). No
-    existing AzureClient method returns a generic, subscription-wide
-    inventory, so this uses azure-mgmt-resource directly — the standard SDK
-    for enumerating resources across all providers/types.
+    ``AzureClient.get_security_operations_collector()`` is preferred, so the
+    collector is reached through the client like every other inventory. A
+    client without that method falls back to building one from its
+    credential.
     """
-
-    def _list() -> Sequence[Any]:
-        from azure.mgmt.resource import ResourceManagementClient
-
-        client = ResourceManagementClient(credential, subscription_id)
-        return list(client.resources.list())
-
-    return _list
-
-
-def build_collector(azure_client: Any, subscription_id: str) -> SecurityOperationsCollector:
-    """Build a SecurityOperationsCollector from the AzureClient supplied to scan()."""
+    hook = getattr(azure_client, "get_security_operations_collector", None)
+    if callable(hook):
+        return hook(subscription_id)
     credential = getattr(azure_client, "credential", None)
-    return SecurityOperationsCollector(
-        credential,
-        subscription_id,
-        resource_inventory=default_resource_inventory(credential, subscription_id),
-    )
+    try:
+        return SecurityOperationsCollector(
+            credential,
+            subscription_id,
+            resource_inventory=default_resource_inventory(credential, subscription_id),
+        )
+    except Exception as exc:
+        logger.error("security-operations collector could not be built: %s", exc)
+        return None
 
 
 def is_usable(result: CollectionResult[Any]) -> bool:
@@ -146,6 +141,188 @@ def is_excluded(resource_id: str, policy: SecurityOperationsPolicy) -> bool:
     """
     normalised = str(resource_id or "").strip().lower()
     return normalised in policy.approved_exclusions
+
+
+def destinations_of(setting: Any) -> List[str]:
+    """Normalised export destinations of one diagnostic setting."""
+    found = []
+    for field in ("workspace_id", "storage_account_id", "event_hub_authorization_rule_id"):
+        dest = value(setting, field)
+        if dest:
+            found.append(str(dest).strip().lower())
+    return found
+
+
+# ── evaluate() building blocks ──────────────────────────────────────────────
+
+
+def prepare(
+    rule_id: str,
+    resource_type: str,
+    azure_client: Any,
+    subscription_id: str,
+    build: Callable[[Any, str], Any],
+) -> Tuple[Any, Optional[SecurityOperationsPolicy], Optional[List[RuleEvaluation]]]:
+    """Resolve the collector and the policy, or the terminal evaluations when either is missing.
+
+    ``build`` is the rule module's own ``build_collector`` reference, so a
+    test that patches it on the module keeps working. Returns
+    ``(collector, policy, None)`` when the rule can go on, else
+    ``(None, None, evaluations)``.
+    """
+    collector = build(azure_client, subscription_id)
+    if collector is None:
+        return None, None, [inventory_unavailable(rule_id, resource_type, subscription_id)]
+    if not collector:
+        # A client that reports no security-operations evidence sources at all.
+        return None, None, [no_resources_found(rule_id, resource_type, subscription_id)]
+    policy = load_policy_from_env(rule_id)
+    if policy is None:
+        return (
+            None,
+            None,
+            [
+                RuleEvaluation(
+                    rule_id=rule_id,
+                    resource_id=subscription_scope_id(subscription_id),
+                    resource_type=resource_type,
+                    status=EvaluationStatus.UNKNOWN,
+                    reason_code=POLICY_NOT_CONFIGURED,
+                    reason=f"{POLICY_PATH_ENV_VAR} is unset or invalid; there is no approved policy to judge against.",
+                )
+            ],
+        )
+    return collector, policy, None
+
+
+def collection_failed(
+    rule_id: str, resource_type: str, subscription_id: str, result: CollectionResult[Any]
+) -> RuleEvaluation:
+    """ERROR for a subscription-wide collection that produced no usable evidence."""
+    return RuleEvaluation(
+        rule_id=rule_id,
+        resource_id=subscription_scope_id(subscription_id),
+        resource_type=resource_type,
+        status=EvaluationStatus.ERROR,
+        reason_code=INVENTORY_UNAVAILABLE,
+        reason=f"{result.source} could not be collected ({result.error_code or 'COLLECTION_FAILED'}).",
+    )
+
+
+def scope_unknown(rule_id: str, resource_id: str, resource_type: str, reason: str) -> RuleEvaluation:
+    """UNKNOWN for one scope whose evidence could not be collected."""
+    return RuleEvaluation(
+        rule_id=rule_id,
+        resource_id=resource_id,
+        resource_type=resource_type,
+        status=EvaluationStatus.UNKNOWN,
+        reason_code=EVIDENCE_UNAVAILABLE,
+        reason=reason,
+    )
+
+
+def not_applicable(rule_id: str, resource_id: str, resource_type: str, reason_code: str, reason: str) -> RuleEvaluation:
+    return RuleEvaluation(
+        rule_id=rule_id,
+        resource_id=resource_id,
+        resource_type=resource_type,
+        status=EvaluationStatus.NOT_APPLICABLE,
+        reason_code=reason_code,
+        reason=reason,
+    )
+
+
+def passed(rule_id: str, resource_id: str, resource_type: str, evidence: Dict[str, Any]) -> RuleEvaluation:
+    return RuleEvaluation(
+        rule_id=rule_id,
+        resource_id=resource_id,
+        resource_type=resource_type,
+        status=EvaluationStatus.PASS,
+        evidence=evidence,
+    )
+
+
+def failed(rule_id: str, finding: Dict[str, Any], evidence: Dict[str, Any]) -> RuleEvaluation:
+    """FAIL carrying ``finding``; the evaluation's resource matches the finding's."""
+    return RuleEvaluation(
+        rule_id=rule_id,
+        resource_id=finding["resource_id"],
+        resource_type=finding["resource_type"],
+        status=EvaluationStatus.FAIL,
+        evidence=evidence,
+        finding=finding,
+    )
+
+
+def workspace_resource_id(subscription_id: str, scope: str) -> str:
+    """ARM ID for a Sentinel scope given either as an ID or as ``resource_group/workspace``."""
+    if scope.startswith("/"):
+        return scope
+    resource_group, _, workspace_name = scope.partition("/")
+    return (
+        f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}"
+        f"/providers/Microsoft.OperationalInsights/workspaces/{workspace_name}"
+    )
+
+
+def evaluate_critical_resources(
+    rule_id: str,
+    azure_client: Any,
+    subscription_id: str,
+    build: Callable[[Any, str], Any],
+    judge: Callable[[str, Sequence[Any], SecurityOperationsPolicy], RuleEvaluation],
+) -> List[RuleEvaluation]:
+    """Shared flow for the per-critical-resource diagnostics rules (AZ-SECOPS-003..005).
+
+    The critical-resource inventory is the rule's inventory: a failure is
+    ERROR and an empty one NOT_APPLICABLE. Approved exclusions are
+    NOT_APPLICABLE / APPROVED_EXCEPTION. If the diagnostic settings cannot be
+    read, every in-scope resource is UNKNOWN. Otherwise ``judge`` decides
+    each resource from its diagnostic settings.
+    """
+    collector, policy, early = prepare(rule_id, CRITICAL_RESOURCE_TYPE, azure_client, subscription_id, build)
+    if early is not None:
+        return early
+    critical = collector.critical_resource_ids(policy)
+    if not is_usable(critical):
+        return [collection_failed(rule_id, CRITICAL_RESOURCE_TYPE, subscription_id, critical)]
+    if not critical.items:
+        return [no_resources_found(rule_id, CRITICAL_RESOURCE_TYPE, subscription_id)]
+
+    evaluations: List[RuleEvaluation] = []
+    in_scope: List[str] = []
+    for resource_id in critical.items:
+        if is_excluded(resource_id, policy):
+            evaluations.append(
+                not_applicable(
+                    rule_id,
+                    resource_id,
+                    CRITICAL_RESOURCE_TYPE,
+                    APPROVED_EXCEPTION,
+                    "The resource is an approved exclusion in the security-operations policy.",
+                )
+            )
+        else:
+            in_scope.append(resource_id)
+    if not in_scope:
+        return evaluations
+
+    diagnostics = collector.resource_diagnostic_settings(in_scope)
+    if not is_usable(diagnostics) or not diagnostics.items:
+        logger.warning("%s: resource diagnostic settings unavailable (%s)", rule_id, diagnostics.error_code)
+        return evaluations + [
+            scope_unknown(
+                rule_id,
+                resource_id,
+                CRITICAL_RESOURCE_TYPE,
+                "The resource's diagnostic settings could not be collected.",
+            )
+            for resource_id in in_scope
+        ]
+    per_resource = diagnostics.items[0]
+    for resource_id in in_scope:
+        evaluations.append(judge(resource_id, per_resource.get(resource_id, ()), policy))
+    return evaluations
 
 
 def build_finding(

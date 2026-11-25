@@ -185,6 +185,14 @@ class MockAzureClient:
     def get_container_registries(self) -> Optional[List[Any]]:
         return self._container_registries
 
+    def list_devops_service_endpoints(self) -> Optional[List[Any]]:
+        """Mirror AzureClient: raise when ``devops_client`` is unset, else delegate."""
+        from scanner.devops_client import IntegrationNotConfigured
+
+        if self.devops_client is None:
+            raise IntegrationNotConfigured("Azure DevOps is not configured")
+        return self.devops_client.get_service_endpoints()
+
     def set_blob_containers(
         self, resource_group: str, account_name: str, containers: Optional[List[Any]]
     ) -> "MockAzureClient":

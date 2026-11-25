@@ -14,12 +14,22 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Callable, Dict
 
 import pytest
 
 from scanner.evaluation import EvaluationStatus, RuleEvaluation, fail_findings
 from tests.helpers.mock_azure import MockAzureClient, make_resource
+from tests.helpers.security_operations import (
+    DEFAULT_POLICY_PAYLOAD,
+    diagnostic_setting,
+    log_setting,
+    make_collector,
+    retention_policy,
+    workspace,
+    write_policy,
+)
 
 _SUB = "00000000-0000-0000-0000-000000000001"
 _SCOPE = f"/subscriptions/{_SUB}"
@@ -150,6 +160,271 @@ _AUDIT_DEFINITION = {
 _PREVENTIVE_ASSIGNMENT = {
     "id": f"{_SCOPE}/providers/Microsoft.Authorization/policyAssignments/deny",
     "properties": {"policyDefinitionId": "/definitions/deny-public", "parameters": {}},
+}
+
+
+# ── Security-operations fixtures (AZ-SECOPS-*) ─────────────────────────────
+#
+# The collector is reached through ``get_security_operations_collector`` on
+# the client, exactly like AzureClient; the policy comes from
+# DEFAULT_POLICY_PAYLOAD via the autouse ``_security_operations_policy_env``
+# fixture below.
+
+_SECOPS_APPROVED = DEFAULT_POLICY_PAYLOAD["approved_destination_ids"][0]
+_CRITICAL_ID = f"{_SCOPE}/resourceGroups/app/providers/Microsoft.KeyVault/vaults/kv1"
+
+
+def _secops_client(**collector_doubles: Any) -> MockAzureClient:
+    collector = make_collector(**collector_doubles)
+    client = MockAzureClient()
+    client.get_security_operations_collector = lambda _sub, _collector=collector: _collector
+    return client
+
+
+def _subscription_settings(*settings: Any) -> SimpleNamespace:
+    return SimpleNamespace(subscription_diagnostic_settings=SimpleNamespace(list=lambda: list(settings)))
+
+
+def _critical_client(*settings: Any) -> MockAzureClient:
+    """One critical Key Vault whose diagnostic settings are ``settings``."""
+    return _secops_client(
+        resource_inventory=lambda: [SimpleNamespace(id=_CRITICAL_ID, type="Microsoft.KeyVault/vaults")],
+        monitor_client=SimpleNamespace(diagnostic_settings=SimpleNamespace(list=lambda _rid: list(settings))),
+    )
+
+
+def _all_categories() -> list:
+    return [log_setting(category=c) for c in DEFAULT_POLICY_PAYLOAD["required_activity_categories"]]
+
+
+def _defender_client(storage_tier: str) -> MockAzureClient:
+    pricings = [
+        SimpleNamespace(name="VirtualMachines", pricing_tier="Standard"),
+        SimpleNamespace(name="StorageAccounts", pricing_tier=storage_tier),
+    ]
+    security = SimpleNamespace(pricings=SimpleNamespace(list=lambda _scope: SimpleNamespace(value=pricings)))
+    return _secops_client(security_client=security)
+
+
+def _assessment_client(age_days: int) -> MockAzureClient:
+    first_seen = (datetime.now(timezone.utc) - timedelta(days=age_days)).isoformat()
+    assessment = SimpleNamespace(
+        id=f"{_SCOPE}/providers/Microsoft.Security/assessments/a1",
+        name="a1",
+        metadata=SimpleNamespace(display_name="Recommendation a1", severity="High"),
+        status=SimpleNamespace(code="Unhealthy"),
+        additional_data={"firstEvaluationDate": first_seen},
+        resource_details=SimpleNamespace(
+            id=f"{_SCOPE}/resourceGroups/app/providers/Microsoft.Compute/virtualMachines/vm1"
+        ),
+    )
+    security = SimpleNamespace(assessments=SimpleNamespace(list=lambda _scope: [assessment]))
+    return _secops_client(security_client=security)
+
+
+def _sentinel_client(connectors: list = (), alert_rules: list = ()) -> MockAzureClient:
+    sentinel = SimpleNamespace(
+        sentinel_onboarding_states=SimpleNamespace(list=lambda _rg, _wn: SimpleNamespace(value=[SimpleNamespace()])),
+        data_connectors=SimpleNamespace(list=lambda _rg, _wn: list(connectors)),
+        alert_rules=SimpleNamespace(list=lambda _rg, _wn: list(alert_rules)),
+        automation_rules=SimpleNamespace(list=lambda _rg, _wn: []),
+    )
+    return _secops_client(
+        log_analytics_client=SimpleNamespace(workspaces=SimpleNamespace(list=lambda: [workspace(name="ws1")])),
+        sentinel_client_factory=lambda _rg: sentinel,
+    )
+
+
+def _incident_response_client(monitored: bool) -> MockAzureClient:
+    group = SimpleNamespace(enabled=True, email_receivers=[SimpleNamespace()] if monitored else [])
+    return _secops_client(
+        monitor_client=SimpleNamespace(action_groups=SimpleNamespace(list_by_subscription_id=lambda: [group])),
+        log_analytics_client=SimpleNamespace(workspaces=SimpleNamespace(list=lambda: [])),
+    )
+
+
+# ── Supply-chain fixtures (AZ-SC-*) ─────────────────────────────────────────
+
+
+def _registry_client(include_fail: bool) -> MockAzureClient:
+    """A registry passing AZ-SC-001..004, plus one failing all four when ``include_fail``."""
+
+    def registry(name: str, ok: bool) -> Any:
+        status = "enabled" if ok else "disabled"
+        return make_resource(
+            id=f"{_SCOPE}/resourceGroups/rg/providers/Microsoft.ContainerRegistry/registries/{name}",
+            name=name,
+            sku=make_resource(tier="Premium"),
+            properties=make_resource(
+                admin_user_enabled=not ok,
+                public_network_access="Disabled" if ok else "Enabled",
+                anonymous_pull_enabled=not ok,
+                policies=make_resource(
+                    retention_policy=make_resource(status=status),
+                    quarantine_policy=make_resource(status=status),
+                ),
+            ),
+        )
+
+    registries = [registry("acrgood", True)]
+    if include_fail:
+        registries.append(registry("acrbad", False))
+    return MockAzureClient().set_container_registries(registries)
+
+
+def _tfstate_client(include_fail: bool) -> MockAzureClient:
+    """A Terraform state account passing AZ-SC-005/006, plus a failing one when ``include_fail``."""
+    client = MockAzureClient()
+    accounts = []
+    for name, ok in (("tfgood", True), ("tfbad", False)):
+        if not ok and not include_fail:
+            continue
+        accounts.append(
+            make_resource(
+                id=f"{_SCOPE}/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/{name}", name=name
+            )
+        )
+        container = make_resource(
+            name="tfstate", container_properties=make_resource(public_access="None" if ok else "Container")
+        )
+        client.set_blob_containers("rg", name, [container])
+        client.set_blob_service_properties(
+            "rg", name, make_resource(is_versioning_enabled=ok, delete_retention_policy=None)
+        )
+    client.set_storage_accounts(accounts)
+    return client
+
+
+class _DevOps:
+    def __init__(self, endpoints: list) -> None:
+        self._endpoints = endpoints
+
+    def get_service_endpoints(self) -> list:
+        return self._endpoints
+
+
+def _devops_client(include_fail: bool) -> MockAzureClient:
+    """A service connection passing AZ-SC-007/008, plus a failing one when ``include_fail``."""
+
+    def endpoint(name: str, ok: bool) -> Any:
+        return SimpleNamespace(
+            id=f"endpoint-{name}",
+            name=name,
+            type="AzureRM",
+            is_shared=False,
+            data={"scopeLevel": "ResourceGroup" if ok else "Subscription", "subscriptionId": _SUB},
+            authorization=SimpleNamespace(scheme="WorkloadIdentityFederation" if ok else "ServicePrincipal"),
+        )
+
+    endpoints = [endpoint("good", True)]
+    if include_fail:
+        endpoints.append(endpoint("bad", False))
+    client = MockAzureClient()
+    client.devops_client = _DevOps(endpoints)
+    return client
+
+
+_SECOPS_FIXTURES: Dict[str, ContractFixture] = {
+    "AZ-SECOPS-001": ContractFixture(
+        passing=lambda: _secops_client(
+            monitor_client=_subscription_settings(diagnostic_setting(workspace_id=_SECOPS_APPROVED))
+        ),
+        failing=lambda: _secops_client(monitor_client=_subscription_settings()),
+    ),
+    "AZ-SECOPS-002": ContractFixture(
+        passing=lambda: _secops_client(
+            monitor_client=_subscription_settings(
+                diagnostic_setting(workspace_id=_SECOPS_APPROVED, logs=_all_categories())
+            )
+        ),
+        failing=lambda: _secops_client(
+            monitor_client=_subscription_settings(
+                diagnostic_setting(workspace_id=_SECOPS_APPROVED, logs=[log_setting(category="Administrative")])
+            )
+        ),
+    ),
+    "AZ-SECOPS-003": ContractFixture(
+        passing=lambda: _critical_client(diagnostic_setting(workspace_id=_SECOPS_APPROVED)),
+        failing=lambda: _critical_client(),
+    ),
+    "AZ-SECOPS-004": ContractFixture(
+        passing=lambda: _critical_client(
+            diagnostic_setting(
+                storage_account_id=f"{_SCOPE}/resourceGroups/sec/providers/Microsoft.Storage/storageAccounts/logs",
+                logs=[log_setting(category="AuditEvent", retention_policy=retention_policy(enabled=True, days=120))],
+            )
+        ),
+        failing=lambda: _critical_client(
+            diagnostic_setting(
+                storage_account_id=f"{_SCOPE}/resourceGroups/sec/providers/Microsoft.Storage/storageAccounts/logs",
+                logs=[log_setting(category="AuditEvent", retention_policy=retention_policy(enabled=True, days=30))],
+            )
+        ),
+    ),
+    "AZ-SECOPS-005": ContractFixture(
+        passing=lambda: _critical_client(diagnostic_setting(workspace_id=_SECOPS_APPROVED)),
+        failing=lambda: _critical_client(
+            diagnostic_setting(
+                workspace_id=f"{_SCOPE}/resourceGroups/app/providers/Microsoft.OperationalInsights/workspaces/app-logs"
+            )
+        ),
+    ),
+    "AZ-SECOPS-006": ContractFixture(
+        passing=lambda: _defender_client("Standard"),
+        failing=lambda: _defender_client("Free"),
+    ),
+    "AZ-SECOPS-007": ContractFixture(
+        passing=lambda: _assessment_client(age_days=5),
+        failing=lambda: _assessment_client(age_days=45),
+    ),
+    "AZ-SECOPS-008": ContractFixture(
+        passing=lambda: _sentinel_client(
+            connectors=[
+                SimpleNamespace(kind="AzureActiveDirectory", data_types=None),
+                SimpleNamespace(kind="AzureSecurityCenter", data_types=None),
+            ]
+        ),
+        failing=lambda: _sentinel_client(connectors=[SimpleNamespace(kind="AzureActiveDirectory", data_types=None)]),
+    ),
+    "AZ-SECOPS-009": ContractFixture(
+        passing=lambda: _sentinel_client(
+            alert_rules=[
+                SimpleNamespace(display_name="Privileged role change", severity="High", enabled=True),
+                SimpleNamespace(display_name="Credential abuse", severity="High", enabled=True),
+            ]
+        ),
+        failing=lambda: _sentinel_client(
+            alert_rules=[SimpleNamespace(display_name="Privileged role change", severity="High", enabled=True)]
+        ),
+    ),
+    "AZ-SECOPS-010": ContractFixture(
+        passing=lambda: _incident_response_client(monitored=True),
+        failing=lambda: _incident_response_client(monitored=False),
+    ),
+}
+
+_SUPPLY_CHAIN_FIXTURES: Dict[str, ContractFixture] = {
+    **{
+        f"AZ-SC-{n:03d}": ContractFixture(
+            passing=lambda: _registry_client(include_fail=False),
+            failing=lambda: _registry_client(include_fail=True),
+        )
+        for n in range(1, 5)
+    },
+    **{
+        f"AZ-SC-{n:03d}": ContractFixture(
+            passing=lambda: _tfstate_client(include_fail=False),
+            failing=lambda: _tfstate_client(include_fail=True),
+        )
+        for n in (5, 6)
+    },
+    **{
+        f"AZ-SC-{n:03d}": ContractFixture(
+            passing=lambda: _devops_client(include_fail=False),
+            failing=lambda: _devops_client(include_fail=True),
+        )
+        for n in (7, 8)
+    },
 }
 
 
@@ -298,7 +573,16 @@ FIXTURES: Dict[str, ContractFixture] = {
             }
         ),
     ),
+    **_SECOPS_FIXTURES,
+    **_SUPPLY_CHAIN_FIXTURES,
 }
+
+
+@pytest.fixture(autouse=True)
+def _security_operations_policy_env(tmp_path, monkeypatch):
+    """Point OPENSHIELD_SECURITY_OPERATIONS_POLICY at DEFAULT_POLICY_PAYLOAD so
+    the AZ-SECOPS fixtures have an approved policy to judge against."""
+    monkeypatch.setenv("OPENSHIELD_SECURITY_OPERATIONS_POLICY", str(write_policy(tmp_path)))
 
 
 @pytest.fixture(autouse=True)

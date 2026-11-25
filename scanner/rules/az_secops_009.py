@@ -3,7 +3,25 @@
 import logging
 from typing import Any, Dict, List
 
-from scanner.rules._security_operations_common import build_collector, build_finding, load_policy_from_env, value
+from scanner.evaluation import (
+    POLICY_NOT_REQUIRED,
+    RuleEvaluation,
+    fail_findings,
+    no_resources_found,
+    subscription_scope_id,
+)
+from scanner.rules._security_operations_common import (
+    build_collector,
+    build_finding,
+    collection_failed,
+    failed,
+    not_applicable,
+    passed,
+    prepare,
+    scope_unknown,
+    value,
+    workspace_resource_id,
+)
 from scanner.security_operations import CollectionStatus, workspace_scope_key
 
 logger = logging.getLogger(__name__)
@@ -29,6 +47,8 @@ REMEDIATION = (
     "    --kind Scheduled --severity High --display-name <use-case-name> ..."
 )
 PLAYBOOK = "playbooks/cli/fix_az_secops_009.sh"
+_RESOURCE_TYPE = "Microsoft.SecurityInsights/alertRules"
+_WORKSPACE_TYPE = "Microsoft.OperationalInsights/workspaces"
 
 _HIGH_SEVERITY = {"high"}
 
@@ -50,77 +70,93 @@ def _rule_covers(rule: Any, use_case: str) -> bool:
 
 
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Flag Sentinel workspaces missing enabled High-severity coverage for a required use case."""
-    policy = load_policy_from_env(RULE_ID)
-    if policy is None:
-        return []
-    if not policy.required_high_severity_analytics:
-        logger.info("%s: no required high-severity analytics configured; rule is not applicable", RULE_ID)
-        return []
+    """Return the findings attached to this rule's FAIL evaluations."""
+    return fail_findings(evaluate(azure_client, subscription_id))
 
-    collector = build_collector(azure_client, subscription_id)
-    workspaces_result = collector.sentinel_onboarded_workspaces()
-    if workspaces_result.status is CollectionStatus.FAILED:
-        logger.warning(
-            "%s: Sentinel onboarding discovery unavailable (%s); result is UNKNOWN",
+
+def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
+    """Report, per onboarded Sentinel workspace and required use case, whether enabled High-severity coverage exists."""
+    collector, policy, early = prepare(RULE_ID, _RESOURCE_TYPE, azure_client, subscription_id, build_collector)
+    if early is not None:
+        return early
+    use_cases = list(dict.fromkeys(policy.required_high_severity_analytics))
+    if not use_cases:
+        return [
+            not_applicable(
+                RULE_ID,
+                subscription_scope_id(subscription_id),
+                _RESOURCE_TYPE,
+                POLICY_NOT_REQUIRED,
+                "The security-operations policy requires no High-severity analytics use cases.",
+            )
+        ]
+
+    workspaces = collector.sentinel_onboarded_workspaces()
+    if workspaces.status is CollectionStatus.FAILED:
+        return [collection_failed(RULE_ID, _WORKSPACE_TYPE, subscription_id, workspaces)]
+    evaluations: List[RuleEvaluation] = [
+        scope_unknown(
             RULE_ID,
-            workspaces_result.error_code,
+            workspace_resource_id(subscription_id, scope),
+            _WORKSPACE_TYPE,
+            "Sentinel onboarding could not be checked for this workspace.",
         )
-        return []
-    if not workspaces_result.items:
-        logger.info("%s: no Sentinel-onboarded workspaces found; rule is not applicable", RULE_ID)
-        return []
+        for scope in workspaces.failed_scopes
+    ]
+    if not workspaces.items:
+        return evaluations or [no_resources_found(RULE_ID, _WORKSPACE_TYPE, subscription_id)]
 
-    rules_result = collector.sentinel_alert_rules(workspaces_result.items)
-    if rules_result.status is CollectionStatus.FAILED:
-        logger.warning(
-            "%s: Sentinel analytics rules unavailable (%s); result is UNKNOWN", RULE_ID, rules_result.error_code
-        )
-        return []
-    if not rules_result.items:
-        return []
-
-    per_workspace = rules_result.items[0]
-    findings: List[Dict[str, Any]] = []
-    for workspace in workspaces_result.items:
+    rules_result = collector.sentinel_alert_rules(workspaces.items)
+    per_workspace = rules_result.items[0] if rules_result.items else {}
+    for workspace in workspaces.items:
         scope_key = workspace_scope_key(workspace)
-        if scope_key in rules_result.failed_scopes:
-            logger.warning(
-                "%s: analytics rule collection failed for %s; result is UNKNOWN for that scope", RULE_ID, scope_key
+        base_id = f"{value(workspace, 'id', '')}/providers/Microsoft.SecurityInsights/alertRules"
+        if rules_result.status is CollectionStatus.FAILED or scope_key in rules_result.failed_scopes:
+            evaluations.extend(
+                scope_unknown(
+                    RULE_ID,
+                    f"{base_id}/{use_case}",
+                    _RESOURCE_TYPE,
+                    f"Sentinel analytics rules could not be collected for workspace {scope_key}.",
+                )
+                for use_case in use_cases
             )
             continue
 
-        rules = per_workspace.get(scope_key, ())
         covering_enabled_high = [
-            rule for rule in rules if _rule_enabled(rule) and _rule_severity(rule) in _HIGH_SEVERITY
+            rule
+            for rule in per_workspace.get(scope_key, ())
+            if _rule_enabled(rule) and _rule_severity(rule) in _HIGH_SEVERITY
         ]
-
-        for use_case in policy.required_high_severity_analytics:
-            if any(_rule_covers(rule, use_case) for rule in covering_enabled_high):
+        for use_case in use_cases:
+            resource_id = f"{base_id}/{use_case}"
+            covering = [
+                str(value(rule, "display_name") or "") for rule in covering_enabled_high if _rule_covers(rule, use_case)
+            ]
+            evidence = {"workspace": scope_key, "use_case": use_case, "covering_rules": covering}
+            if covering:
+                evaluations.append(passed(RULE_ID, resource_id, _RESOURCE_TYPE, evidence))
                 continue
-            findings.append(
-                build_finding(
-                    rule_id=RULE_ID,
-                    rule_name=RULE_NAME,
-                    severity=SEVERITY,
-                    category=CATEGORY,
-                    resource_id=(
-                        f"{value(workspace, 'id', '')}/providers/Microsoft.SecurityInsights/alertRules/{use_case}"
-                    ),
-                    resource_name=f"{value(workspace, 'name', '')}/{use_case}",
-                    resource_type="Microsoft.SecurityInsights/alertRules",
-                    description=DESCRIPTION,
-                    remediation=REMEDIATION,
-                    playbook=PLAYBOOK,
-                    frameworks=FRAMEWORKS,
-                    scope=f"sentinel-workspace:{scope_key}",
-                    metadata={
-                        "destination": scope_key,
-                        "use_case": use_case,
-                        "required_high_severity_analytics": list(policy.required_high_severity_analytics),
-                        "permissions_required": ["Microsoft.SecurityInsights/alertRules/read"],
-                        "unknown_reason": None,
-                    },
-                )
+            finding = build_finding(
+                rule_id=RULE_ID,
+                rule_name=RULE_NAME,
+                severity=SEVERITY,
+                category=CATEGORY,
+                resource_id=resource_id,
+                resource_name=f"{value(workspace, 'name', '')}/{use_case}",
+                resource_type=_RESOURCE_TYPE,
+                description=DESCRIPTION,
+                remediation=REMEDIATION,
+                playbook=PLAYBOOK,
+                frameworks=FRAMEWORKS,
+                scope=f"sentinel-workspace:{scope_key}",
+                metadata={
+                    "destination": scope_key,
+                    "use_case": use_case,
+                    "required_high_severity_analytics": list(policy.required_high_severity_analytics),
+                    "permissions_required": ["Microsoft.SecurityInsights/alertRules/read"],
+                    "unknown_reason": None,
+                },
             )
-    return findings
+            evaluations.append(failed(RULE_ID, finding, evidence))
+    return evaluations

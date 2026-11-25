@@ -4,6 +4,15 @@ import logging
 import re
 from typing import Any, Dict, List
 
+from scanner.evaluation import EVIDENCE_UNAVAILABLE, NO_RESOURCES_FOUND, EvaluationStatus, RuleEvaluation, fail_findings
+from scanner.rules._supply_chain_common import (
+    CONTAINER_TYPE,
+    STORAGE_ACCOUNT_TYPE,
+    evaluate_storage_accounts,
+    evaluation,
+    failed,
+)
+
 RULE_ID = "AZ-SC-005"
 RULE_NAME = "Terraform State Storage Container Publicly Readable"
 SEVERITY = "CRITICAL"
@@ -32,54 +41,82 @@ logger = logging.getLogger(__name__)
 _TFSTATE_NAME_PATTERN = re.compile(r"tf[-_]?state|terraform[-_]?state", re.IGNORECASE)
 
 
+def _judge_account(
+    azure_client: Any, account: Any, account_id: str, account_name: str, resource_group: str
+) -> List[RuleEvaluation]:
+    containers = azure_client.get_blob_containers(resource_group, account_name)
+    if containers is None:
+        logger.warning("%s: blob containers unknown for %s", RULE_ID, account_name)
+        return [
+            evaluation(
+                RULE_ID,
+                account_id,
+                STORAGE_ACCOUNT_TYPE,
+                EvaluationStatus.UNKNOWN,
+                reason_code=EVIDENCE_UNAVAILABLE,
+                reason="Blob containers could not be listed for the storage account.",
+            )
+        ]
+    state_containers = [c for c in containers if _TFSTATE_NAME_PATTERN.search(getattr(c, "name", "") or "")]
+    if not state_containers:
+        return [
+            evaluation(
+                RULE_ID,
+                account_id,
+                STORAGE_ACCOUNT_TYPE,
+                EvaluationStatus.NOT_APPLICABLE,
+                reason_code=NO_RESOURCES_FOUND,
+                reason="The storage account has no container named like a Terraform state backend.",
+            )
+        ]
+
+    evaluations: List[RuleEvaluation] = []
+    for container in state_containers:
+        container_name = getattr(container, "name", "")
+        container_id = f"{account_id}/blobServices/default/containers/{container_name}"
+        props = getattr(container, "container_properties", None) or container
+        public_access = str(getattr(props, "public_access", "") or "").lower()
+        evidence = {"public_access": public_access or "none"}
+        if public_access not in ("container", "blob"):
+            evaluations.append(
+                evaluation(RULE_ID, container_id, CONTAINER_TYPE, EvaluationStatus.PASS, evidence=evidence)
+            )
+            continue
+        finding = {
+            "rule_id": RULE_ID,
+            "rule_name": RULE_NAME,
+            "severity": SEVERITY,
+            "category": CATEGORY,
+            "resource_id": container_id,
+            "resource_name": f"{account_name}/{container_name}",
+            "resource_type": CONTAINER_TYPE,
+            "description": DESCRIPTION,
+            "remediation": REMEDIATION,
+            "playbook": PLAYBOOK,
+            "frameworks": FRAMEWORKS,
+            "metadata": {
+                "resource_group": resource_group,
+                "storage_account": account_name,
+                "container_name": container_name,
+                "public_access": public_access,
+            },
+        }
+        evaluations.append(failed(RULE_ID, finding, evidence))
+    return evaluations
+
+
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Detect publicly readable blob containers that look like Terraform state backends."""
-    findings: List[Dict[str, Any]] = []
+    """Return the findings attached to this rule's FAIL evaluations."""
+    return fail_findings(evaluate(azure_client, subscription_id))
 
-    for account in azure_client.get_storage_accounts():
-        account_id = getattr(account, "id", "")
-        account_name = getattr(account, "name", "")
-        if not account_id or not account_name:
-            continue
 
-        parsed = azure_client.parse_resource_id(account_id)
-        resource_group = parsed.get("resource_group", "")
-        if not resource_group:
-            continue
-
-        containers = azure_client.get_blob_containers(resource_group, account_name)
-        if containers is None:
-            logger.warning("%s: blob containers unknown for %s", RULE_ID, account_name)
-            continue
-
-        for container in containers:
-            container_name = getattr(container, "name", "")
-            if not _TFSTATE_NAME_PATTERN.search(container_name):
-                continue
-
-            props = getattr(container, "container_properties", None) or container
-            public_access = str(getattr(props, "public_access", "") or "").lower()
-            if public_access in ("container", "blob"):
-                findings.append(
-                    {
-                        "rule_id": RULE_ID,
-                        "rule_name": RULE_NAME,
-                        "severity": SEVERITY,
-                        "category": CATEGORY,
-                        "resource_id": f"{account_id}/blobServices/default/containers/{container_name}",
-                        "resource_name": f"{account_name}/{container_name}",
-                        "resource_type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-                        "description": DESCRIPTION,
-                        "remediation": REMEDIATION,
-                        "playbook": PLAYBOOK,
-                        "frameworks": FRAMEWORKS,
-                        "metadata": {
-                            "resource_group": resource_group,
-                            "storage_account": account_name,
-                            "container_name": container_name,
-                            "public_access": public_access,
-                        },
-                    }
-                )
-
-    return findings
+def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
+    """Report a status for every Terraform-state-like blob container, per storage account."""
+    return evaluate_storage_accounts(
+        RULE_ID,
+        azure_client,
+        subscription_id,
+        lambda account, account_id, name, resource_group: _judge_account(
+            azure_client, account, account_id, name, resource_group
+        ),
+    )

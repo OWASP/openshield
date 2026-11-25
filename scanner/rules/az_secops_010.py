@@ -3,11 +3,16 @@
 import logging
 from typing import Any, Dict, List
 
+from scanner.evaluation import EVIDENCE_UNAVAILABLE, EvaluationStatus, RuleEvaluation, fail_findings
 from scanner.rules._security_operations_common import (
+    SUBSCRIPTION_RESOURCE_TYPE,
     build_collector,
     build_finding,
+    collection_failed,
+    failed,
     is_usable,
-    load_policy_from_env,
+    passed,
+    prepare,
     value,
 )
 from scanner.security_operations import CollectionStatus, workspace_scope_key
@@ -84,71 +89,84 @@ def _automation_rule_coverage(automation_rules_result: Any, workspaces: Any) -> 
     return has_coverage, evidence_is_complete
 
 
+def _unknown(resource_id: str, reason: str) -> RuleEvaluation:
+    return RuleEvaluation(
+        rule_id=RULE_ID,
+        resource_id=resource_id,
+        resource_type=SUBSCRIPTION_RESOURCE_TYPE,
+        status=EvaluationStatus.UNKNOWN,
+        reason_code=EVIDENCE_UNAVAILABLE,
+        reason=reason,
+    )
+
+
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Flag a subscription with no monitored action group and no Sentinel automation-rule routing."""
-    policy = load_policy_from_env(RULE_ID)
-    if policy is None:
-        return []
+    """Return the findings attached to this rule's FAIL evaluations."""
+    return fail_findings(evaluate(azure_client, subscription_id))
 
-    collector = build_collector(azure_client, subscription_id)
-    action_groups_result = collector.action_groups()
-    if action_groups_result.status is CollectionStatus.FAILED:
-        logger.warning(
-            "%s: action groups unavailable (%s); result is UNKNOWN", RULE_ID, action_groups_result.error_code
-        )
-        return []
 
-    has_monitored_action_group = any(_action_group_is_monitored(g) for g in action_groups_result.items)
-    if has_monitored_action_group:
-        return []
+def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
+    """Report whether the subscription routes incidents to a monitored destination.
 
-    # No action group covers it; a Sentinel automation rule routing incidents
-    # onward is an accepted alternative destination, so check before failing.
-    workspaces_result = collector.sentinel_onboarded_workspaces()
-    if not is_usable(workspaces_result):
-        logger.warning(
-            "%s: Sentinel onboarding discovery unavailable (%s); result is UNKNOWN",
-            RULE_ID,
-            workspaces_result.error_code,
-        )
-        return []
+    A monitored action group is enough for PASS. Without one, Sentinel
+    automation rules are the second source of evidence; if that evidence
+    cannot be read (fully or for some workspaces) the result is UNKNOWN,
+    because the unreadable workspace might be the one that routes incidents.
+    """
+    collector, policy, early = prepare(
+        RULE_ID, SUBSCRIPTION_RESOURCE_TYPE, azure_client, subscription_id, build_collector
+    )
+    if early is not None:
+        return early
+
+    resource_id = f"/subscriptions/{subscription_id}"
+    action_groups = collector.action_groups()
+    if action_groups.status is CollectionStatus.FAILED:
+        return [collection_failed(RULE_ID, SUBSCRIPTION_RESOURCE_TYPE, subscription_id, action_groups)]
+    monitored_groups = [g for g in action_groups.items if _action_group_is_monitored(g)]
+    if monitored_groups:
+        return [
+            passed(
+                RULE_ID,
+                resource_id,
+                SUBSCRIPTION_RESOURCE_TYPE,
+                {"monitored_action_groups": len(monitored_groups), "action_groups_found": len(action_groups.items)},
+            )
+        ]
+
+    workspaces = collector.sentinel_onboarded_workspaces()
+    if not is_usable(workspaces):
+        return [_unknown(resource_id, "No monitored action group, and Sentinel onboarding could not be checked.")]
 
     has_automation_coverage = False
     evidence_is_complete = True
-    if workspaces_result.items:
-        automation_rules_result = collector.sentinel_automation_rules(workspaces_result.items)
-        if not is_usable(automation_rules_result):
-            logger.warning(
-                "%s: Sentinel automation rules unavailable (%s); result is UNKNOWN",
-                RULE_ID,
-                automation_rules_result.error_code,
-            )
-            return []
-        has_automation_coverage, evidence_is_complete = _automation_rule_coverage(
-            automation_rules_result, workspaces_result.items
-        )
+    if workspaces.items:
+        automation_rules = collector.sentinel_automation_rules(workspaces.items)
+        if not is_usable(automation_rules):
+            return [
+                _unknown(resource_id, "No monitored action group, and Sentinel automation rules could not be read.")
+            ]
+        has_automation_coverage, evidence_is_complete = _automation_rule_coverage(automation_rules, workspaces.items)
 
+    evidence = {
+        "action_groups_found": len(action_groups.items),
+        "monitored_action_groups": 0,
+        "sentinel_onboarded_workspaces": len(workspaces.items),
+        "sentinel_automation_rule_coverage": has_automation_coverage,
+    }
     if has_automation_coverage:
-        return []
-
-    # sentinel_onboarded_workspaces() itself can also be PARTIAL: some
-    # workspaces were confirmed onboarded (and checked above), but others
-    # could not be checked at all, so their automation-rule coverage is
-    # completely unknown, not just incomplete.
-    if not evidence_is_complete or workspaces_result.status is CollectionStatus.PARTIAL:
-        logger.warning(
-            "%s: incomplete Sentinel evidence (some workspace scopes unreachable); result is UNKNOWN", RULE_ID
-        )
-        return []
+        return [passed(RULE_ID, resource_id, SUBSCRIPTION_RESOURCE_TYPE, evidence)]
+    if not evidence_is_complete or workspaces.status is CollectionStatus.PARTIAL:
+        return [_unknown(resource_id, "No monitored action group, and some Sentinel workspaces could not be checked.")]
 
     finding = build_finding(
         rule_id=RULE_ID,
         rule_name=RULE_NAME,
         severity=SEVERITY,
         category=CATEGORY,
-        resource_id=f"/subscriptions/{subscription_id}",
+        resource_id=resource_id,
         resource_name=subscription_id,
-        resource_type="Microsoft.Resources/subscriptions",
+        resource_type=SUBSCRIPTION_RESOURCE_TYPE,
         description=DESCRIPTION,
         remediation=REMEDIATION,
         playbook=PLAYBOOK,
@@ -156,7 +174,7 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
         scope="subscription-incident-response-destination",
         metadata={
             "destination": "none-monitored",
-            "action_groups_found": len(action_groups_result.items),
+            "action_groups_found": len(action_groups.items),
             "sentinel_automation_rule_coverage": has_automation_coverage,
             "permissions_required": [
                 "Microsoft.Insights/actionGroups/read",
@@ -165,4 +183,4 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
             "unknown_reason": None,
         },
     )
-    return [finding]
+    return [failed(RULE_ID, finding, evidence)]

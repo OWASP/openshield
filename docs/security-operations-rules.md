@@ -30,8 +30,9 @@ not a production baseline and is never loaded automatically.
 Every AZ-SECOPS rule reads its policy from the file named by the
 `OPENSHIELD_SECURITY_OPERATIONS_POLICY` environment variable. If the variable is unset, the
 referenced file is missing, or the file fails `load_security_operations_policy`'s strict
-validation, the rule logs a warning and returns no findings — an unapproved policy can never
-produce a compliance claim in either direction. Operators must set this variable to their
+validation, the rule reports `UNKNOWN / POLICY_NOT_CONFIGURED` and no findings — an unapproved
+policy can never produce a compliance claim in either direction. It is UNKNOWN rather than ERROR,
+so a deployment that has not opted in is not reported as a failed scan. Operators must set this variable to their
 organisation's own policy file (never the example file) before running these ten rules.
 
 ## Sentinel scope: auto-discovered, not configured
@@ -48,30 +49,30 @@ the next scan with no policy change required.
 
 ## Outcome model
 
-Issue #262 requires a four-state PASS/FAIL/UNKNOWN/NOT_APPLICABLE outcome per control, but
-`scanner/engine.py` only consumes a findings list and treats *presence of a finding* as the sole
-non-compliance signal (it feeds the list directly into severity-weighted scoring). All ten rules
-therefore represent the outcomes as follows, matching the existing convention already used by
-`az_dl_001`/`az_dl_002` and `az_kv_003`:
+All ten rules implement `evaluate()` (the coverage contract in `scanner/evaluation.py`, issue
+#375), so every outcome is an explicit evaluation row; `scan()` returns the findings attached to
+the FAIL rows.
 
-- **PASS** — an empty list. No finding is emitted for a compliant resource.
-- **NOT_APPLICABLE** — an empty list plus an `INFO`-level log line (e.g. no critical resources in
-  scope, no Sentinel-onboarded workspaces, no required plans/connectors/analytics configured).
-- **UNKNOWN** — an empty list plus a `WARNING`-level log line. Any collector failure — a missing
-  policy, a permission error, an inaccessible workspace, a failed Defender/Sentinel API call — is
-  UNKNOWN and is never promoted to FAIL or silently treated as PASS.
-- **FAIL** — the only outcome that produces a finding dict, and only with positive evidence of a
-  missing or unsafe control (e.g. an actual diagnostic setting missing an approved destination, an
-  actual disabled Defender plan, an actual disconnected connector).
+| Situation | Status | `reason_code` |
+|---|---|---|
+| Policy unset, missing or invalid | UNKNOWN | `POLICY_NOT_CONFIGURED` |
+| Collector cannot be built, or a subscription-wide collection failed (diagnostic settings, critical-resource inventory, Defender pricing or assessments, Log Analytics workspaces, action groups) | ERROR | `INVENTORY_UNAVAILABLE` |
+| The policy requires nothing for this rule (no plans, connectors, categories or use cases) | NOT_APPLICABLE | `POLICY_NOT_REQUIRED` |
+| Nothing in scope (no critical resources, no Sentinel-onboarded workspace, no export for this rule to judge) | NOT_APPLICABLE | `NO_RESOURCES_FOUND` |
+| Critical resource on the policy's approved exclusion list | NOT_APPLICABLE | `APPROVED_EXCEPTION` |
+| One resource's or workspace's evidence could not be collected (diagnostic settings, Sentinel onboarding, connectors, analytics rules) | UNKNOWN for that scope | `EVIDENCE_UNAVAILABLE` |
+| A required field is missing (a Defender recommendation with no usable timestamp or no resource ID) | UNKNOWN | `MISSING_PROPERTIES` |
+| Positive evidence the control is in place | PASS, with the inspected values as evidence | — |
+| Positive evidence of a missing or unsafe control | FAIL, with the finding | — |
 
-This is a real, structural limitation of the current engine contract: NOT_APPLICABLE and UNKNOWN
-are not individually addressable as distinct dict rows the way FAIL findings are. The richer
-per-finding metadata issue #262 also asks for — scope, category, destination, retention,
+FAIL still requires positive evidence; a failed or partial collection is never promoted to FAIL
+or treated as PASS. AZ-SECOPS-007 reports one row per affected resource: FAIL when any of its
+High-severity recommendations is past the SLA (the finding describes the oldest and, when several
+are overdue, lists them under `metadata.overdue_recommendations`).
+
+The richer per-finding metadata issue #262 asks for — scope, category, destination, retention,
 ownership, evidence timestamp, remediation, permissions required, severity, confidence, and an
-`unknown_reason` field — is carried on every FAIL finding's `metadata` dict so downstream tooling
-can still see "why," even though that metadata cannot currently attach to an outcome that produces
-no finding at all. Changing `engine.py`'s contract to add first-class UNKNOWN/NOT_APPLICABLE rows
-was out of scope for this change and would affect every existing rule, not just these ten.
+`unknown_reason` field — stays on every FAIL finding's `metadata` dict.
 
 ## Rule details
 

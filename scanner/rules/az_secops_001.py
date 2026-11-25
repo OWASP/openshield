@@ -3,11 +3,16 @@
 import logging
 from typing import Any, Dict, List
 
+from scanner.evaluation import RuleEvaluation, fail_findings
 from scanner.rules._security_operations_common import (
+    SUBSCRIPTION_RESOURCE_TYPE,
     build_collector,
     build_finding,
+    collection_failed,
+    failed,
     is_usable,
-    load_policy_from_env,
+    passed,
+    prepare,
     value,
 )
 
@@ -46,36 +51,39 @@ def _destinations(setting: Any) -> set:
 
 
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Flag a subscription with no activity-log export to any approved destination."""
-    policy = load_policy_from_env(RULE_ID)
-    if policy is None:
-        return []
+    """Return the findings attached to this rule's FAIL evaluations."""
+    return fail_findings(evaluate(azure_client, subscription_id))
 
-    collector = build_collector(azure_client, subscription_id)
+
+def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
+    """Report whether the subscription's activity log is exported to an approved destination."""
+    collector, policy, early = prepare(
+        RULE_ID, SUBSCRIPTION_RESOURCE_TYPE, azure_client, subscription_id, build_collector
+    )
+    if early is not None:
+        return early
+
     result = collector.subscription_diagnostic_settings()
     if not is_usable(result):
-        logger.warning(
-            "%s: subscription diagnostic settings unavailable (%s); result is UNKNOWN", RULE_ID, result.error_code
-        )
-        return []
+        return [collection_failed(RULE_ID, SUBSCRIPTION_RESOURCE_TYPE, subscription_id, result)]
 
-    approved_hit = False
-    for setting in result.items:
-        if _destinations(setting) & policy.approved_destination_ids:
-            approved_hit = True
-            break
-
-    if approved_hit:
-        return []
+    destinations = sorted({dest for setting in result.items for dest in _destinations(setting)})
+    approved = sorted(set(destinations) & policy.approved_destination_ids)
+    evidence = {"destinations": destinations, "diagnostic_settings_found": len(result.items)}
+    resource_id = f"/subscriptions/{subscription_id}"
+    if approved:
+        return [
+            passed(RULE_ID, resource_id, SUBSCRIPTION_RESOURCE_TYPE, {**evidence, "approved_destinations": approved})
+        ]
 
     finding = build_finding(
         rule_id=RULE_ID,
         rule_name=RULE_NAME,
         severity=SEVERITY,
         category=CATEGORY,
-        resource_id=f"/subscriptions/{subscription_id}",
+        resource_id=resource_id,
         resource_name=subscription_id,
-        resource_type="Microsoft.Resources/subscriptions",
+        resource_type=SUBSCRIPTION_RESOURCE_TYPE,
         description=DESCRIPTION,
         remediation=REMEDIATION,
         playbook=PLAYBOOK,
@@ -90,4 +98,4 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
             "unknown_reason": None,
         },
     )
-    return [finding]
+    return [failed(RULE_ID, finding, evidence)]

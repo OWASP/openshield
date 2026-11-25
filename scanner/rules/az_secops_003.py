@@ -1,16 +1,20 @@
 """AZ-SECOPS-003: A critical resource lacks required diagnostic settings."""
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 
+from scanner.evaluation import RuleEvaluation, fail_findings
 from scanner.rules._security_operations_common import (
+    CRITICAL_RESOURCE_TYPE,
     build_collector,
     build_finding,
-    is_excluded,
-    is_usable,
-    load_policy_from_env,
+    destinations_of,
+    evaluate_critical_resources,
+    failed,
+    passed,
     value,
 )
+from scanner.security_operations import SecurityOperationsPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -45,59 +49,40 @@ def _has_approved_export(settings: Any, approved_destination_ids: frozenset) -> 
     return False
 
 
+def _judge(resource_id: str, settings: Sequence[Any], policy: SecurityOperationsPolicy) -> RuleEvaluation:
+    destinations = sorted({dest for setting in settings for dest in destinations_of(setting)})
+    evidence = {"destinations": destinations, "diagnostic_settings_found": len(settings)}
+    if _has_approved_export(settings, policy.approved_destination_ids):
+        return passed(RULE_ID, resource_id, CRITICAL_RESOURCE_TYPE, evidence)
+    finding = build_finding(
+        rule_id=RULE_ID,
+        rule_name=RULE_NAME,
+        severity=SEVERITY,
+        category=CATEGORY,
+        resource_id=resource_id,
+        resource_name=resource_id.rsplit("/", 1)[-1],
+        resource_type=CRITICAL_RESOURCE_TYPE,
+        description=DESCRIPTION,
+        remediation=REMEDIATION,
+        playbook=PLAYBOOK,
+        frameworks=FRAMEWORKS,
+        scope="critical-resource-diagnostics",
+        metadata={
+            "destination": "none-approved",
+            "approved_destination_ids": sorted(policy.approved_destination_ids),
+            "diagnostic_settings_found": len(settings),
+            "permissions_required": ["Microsoft.Insights/diagnosticSettings/read"],
+            "unknown_reason": None,
+        },
+    )
+    return failed(RULE_ID, finding, evidence)
+
+
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Flag critical resources with no diagnostic setting at an approved destination."""
-    policy = load_policy_from_env(RULE_ID)
-    if policy is None:
-        return []
+    """Return the findings attached to this rule's FAIL evaluations."""
+    return fail_findings(evaluate(azure_client, subscription_id))
 
-    collector = build_collector(azure_client, subscription_id)
-    critical_result = collector.critical_resource_ids(policy)
-    if not is_usable(critical_result):
-        logger.warning(
-            "%s: critical resource inventory unavailable (%s); result is UNKNOWN", RULE_ID, critical_result.error_code
-        )
-        return []
 
-    critical_ids = [rid for rid in critical_result.items if not is_excluded(rid, policy)]
-    if not critical_ids:
-        logger.info("%s: no in-scope critical resources; rule is not applicable", RULE_ID)
-        return []
-
-    diag_result = collector.resource_diagnostic_settings(critical_ids)
-    if not is_usable(diag_result) or not diag_result.items:
-        logger.warning(
-            "%s: resource diagnostic settings unavailable (%s); result is UNKNOWN", RULE_ID, diag_result.error_code
-        )
-        return []
-
-    per_resource = diag_result.items[0]
-    findings: List[Dict[str, Any]] = []
-    for resource_id in critical_ids:
-        settings = per_resource.get(resource_id, ())
-        if _has_approved_export(settings, policy.approved_destination_ids):
-            continue
-        findings.append(
-            build_finding(
-                rule_id=RULE_ID,
-                rule_name=RULE_NAME,
-                severity=SEVERITY,
-                category=CATEGORY,
-                resource_id=resource_id,
-                resource_name=resource_id.rsplit("/", 1)[-1],
-                resource_type="critical-resource",
-                description=DESCRIPTION,
-                remediation=REMEDIATION,
-                playbook=PLAYBOOK,
-                frameworks=FRAMEWORKS,
-                scope="critical-resource-diagnostics",
-                metadata={
-                    "destination": "none-approved",
-                    "approved_destination_ids": sorted(policy.approved_destination_ids),
-                    "diagnostic_settings_found": len(settings),
-                    "permissions_required": ["Microsoft.Insights/diagnosticSettings/read"],
-                    "unknown_reason": None,
-                },
-            )
-        )
-    return findings
+def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
+    """Report, per in-scope critical resource, whether its logs reach an approved destination."""
+    return evaluate_critical_resources(RULE_ID, azure_client, subscription_id, build_collector, _judge)
