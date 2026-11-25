@@ -76,6 +76,10 @@ APPROVED_EXCEPTION = "APPROVED_EXCEPTION"
 #                            the rule cannot judge compliance and must fail
 #                            closed rather than read as a pass.
 POLICY_UNAVAILABLE = "POLICY_UNAVAILABLE"
+# Rule-specific codes, defined here so every reason code stays in one place.
+UNRECOGNIZED_TLS_VERSION = "UNRECOGNIZED_TLS_VERSION"  # AZ-STOR-007
+UNRECOGNIZED_KEY_SOURCE = "UNRECOGNIZED_KEY_SOURCE"  # AZ-STOR-008
+PUBLIC_ACCESS_DISABLED = "PUBLIC_ACCESS_DISABLED"  # AZ-STOR-010
 
 
 @dataclass
@@ -152,6 +156,22 @@ def no_resources_found(rule_id: str, resource_type: str, subscription_id: str) -
         status=EvaluationStatus.NOT_APPLICABLE,
         reason_code=NO_RESOURCES_FOUND,
         reason=f"No {resource_type} resources were returned for this subscription.",
+    )
+
+
+def missing_resource_id(rule_id: str, resource_type: str, subscription_id: str) -> "RuleEvaluation":
+    """UNKNOWN for a resource returned without an ID.
+
+    It cannot be evaluated or remediated, and a finding with an empty
+    resource_id would collide with every other one in persistence.
+    """
+    return RuleEvaluation(
+        rule_id=rule_id,
+        resource_id=subscription_scope_id(subscription_id),
+        resource_type=resource_type,
+        status=EvaluationStatus.UNKNOWN,
+        reason_code=MISSING_PROPERTIES,
+        reason=f"A {resource_type} resource was returned without a resource ID.",
     )
 
 

@@ -89,6 +89,60 @@ def _kv_006_client(include_fail: bool) -> MockAzureClient:
     return MockAzureClient().set_key_vaults(vaults)
 
 
+def _storage_client(include_fail: bool) -> MockAzureClient:
+    """A compliant account for every AZ-STOR rule, plus a non-compliant one
+    when ``include_fail`` is set."""
+
+    def account_id(name: str) -> str:
+        return f"{_SCOPE}/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/{name}"
+
+    def endpoint(status: str) -> Any:
+        return make_resource(private_link_service_connection_state=make_resource(status=status))
+
+    required = {"oshield:cmk-required": "true", "oshield:immutability-required": "true"}
+    good = make_resource(
+        id=account_id("good"),
+        name="good",
+        location="eastus",
+        allow_blob_public_access=False,
+        enable_https_traffic_only=True,
+        allow_shared_key_access=False,
+        minimum_tls_version="TLS1_2",
+        sku=make_resource(name="Standard_GRS"),
+        encryption=make_resource(key_source="Microsoft.Keyvault"),
+        tags=required,
+        public_network_access="Enabled",
+        private_endpoint_connections=[endpoint("Approved")],
+    )
+    bad = make_resource(
+        id=account_id("bad"),
+        name="bad",
+        location="eastus",
+        allow_blob_public_access=True,
+        enable_https_traffic_only=False,
+        allow_shared_key_access=True,
+        minimum_tls_version="TLS1_0",
+        sku=make_resource(name="Standard_LRS"),
+        encryption=make_resource(key_source="Microsoft.Storage"),
+        tags=required,
+        public_network_access="Enabled",
+        private_endpoint_connections=[],
+    )
+    client = MockAzureClient().set_storage_accounts([good, bad] if include_fail else [good])
+    client.set_storage_lifecycle_policy("rg", "good", True)
+    client.set_storage_lifecycle_policy("rg", "bad", False)
+    for service in ("blob", "queue", "table"):
+        client.set_storage_service_logging("rg", "good", service, True)
+        client.set_storage_service_logging("rg", "bad", service, False)
+    locked = make_resource(
+        name="locked",
+        immutability_policy=make_resource(state="Locked", immutability_period_since_creation_in_days=30),
+    )
+    client.set_blob_containers("rg", "good", [locked])
+    client.set_blob_containers("rg", "bad", [make_resource(name="open", immutability_policy=None)])
+    return client
+
+
 # ── Governance fixtures: a crafted snapshot + the shared policy below ───────
 
 _GOV_POLICY = {
@@ -298,6 +352,13 @@ FIXTURES: Dict[str, ContractFixture] = {
             }
         ),
     ),
+    **{
+        f"AZ-STOR-{n:03d}": ContractFixture(
+            passing=lambda: _storage_client(include_fail=False),
+            failing=lambda: _storage_client(include_fail=True),
+        )
+        for n in range(1, 11)
+    },
 }
 
 
