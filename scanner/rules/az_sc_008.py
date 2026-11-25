@@ -3,6 +3,15 @@
 import logging
 from typing import Any, Dict, List
 
+from scanner.evaluation import EvaluationStatus, RuleEvaluation, fail_findings
+from scanner.rules._supply_chain_common import (
+    SERVICE_ENDPOINT_TYPE,
+    evaluate_service_endpoints,
+    evaluation,
+    failed,
+    missing,
+)
+
 RULE_ID = "AZ-SC-008"
 RULE_NAME = "Pipeline Service Connection Uses Password Instead of Federated Credential"
 SEVERITY = "MEDIUM"
@@ -32,50 +41,41 @@ logger = logging.getLogger(__name__)
 _SECRETLESS_SCHEMES = {"workloadidentityfederation", "managedserviceidentity"}
 
 
+def _judge(endpoint: Any, resource_id: str) -> RuleEvaluation:
+    authorization = getattr(endpoint, "authorization", None)
+    scheme = str(getattr(authorization, "scheme", "") or "").lower() if authorization else ""
+    if not scheme:
+        return missing(
+            RULE_ID,
+            resource_id,
+            SERVICE_ENDPOINT_TYPE,
+            "The service connection did not report an authorization scheme.",
+        )
+    evidence = {"authorization_scheme": scheme}
+    if scheme in _SECRETLESS_SCHEMES:
+        return evaluation(RULE_ID, resource_id, SERVICE_ENDPOINT_TYPE, EvaluationStatus.PASS, evidence=evidence)
+    finding = {
+        "rule_id": RULE_ID,
+        "rule_name": RULE_NAME,
+        "severity": SEVERITY,
+        "category": CATEGORY,
+        "resource_id": resource_id,
+        "resource_name": getattr(endpoint, "name", ""),
+        "resource_type": SERVICE_ENDPOINT_TYPE,
+        "description": DESCRIPTION,
+        "remediation": REMEDIATION,
+        "playbook": PLAYBOOK,
+        "frameworks": FRAMEWORKS,
+        "metadata": {"authorization_scheme": scheme},
+    }
+    return failed(RULE_ID, finding, evidence)
+
+
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Detect Azure DevOps service connections using a password/secret scheme."""
-    findings: List[Dict[str, Any]] = []
+    """Return the findings attached to this rule's FAIL evaluations."""
+    return fail_findings(evaluate(azure_client, subscription_id))
 
-    devops_client = getattr(azure_client, "devops_client", None)
-    if devops_client is None:
-        return findings
 
-    endpoints = devops_client.get_service_endpoints()
-    if endpoints is None:
-        logger.warning("%s: Azure DevOps service endpoints could not be enumerated", RULE_ID)
-        return findings
-
-    for endpoint in endpoints:
-        endpoint_type = getattr(endpoint, "type", "") or ""
-        if endpoint_type.lower() != "azurerm":
-            continue
-
-        authorization = getattr(endpoint, "authorization", None)
-        scheme = str(getattr(authorization, "scheme", "") or "").lower() if authorization else ""
-        if not scheme:
-            logger.warning("%s: authorization scheme unknown for %s", RULE_ID, getattr(endpoint, "name", "?"))
-            continue
-
-        if scheme not in _SECRETLESS_SCHEMES:
-            endpoint_id = getattr(endpoint, "id", "")
-            endpoint_name = getattr(endpoint, "name", "")
-            findings.append(
-                {
-                    "rule_id": RULE_ID,
-                    "rule_name": RULE_NAME,
-                    "severity": SEVERITY,
-                    "category": CATEGORY,
-                    "resource_id": f"azuredevops:serviceendpoint/{endpoint_id}",
-                    "resource_name": endpoint_name,
-                    "resource_type": "AzureDevOps/ServiceEndpoint",
-                    "description": DESCRIPTION,
-                    "remediation": REMEDIATION,
-                    "playbook": PLAYBOOK,
-                    "frameworks": FRAMEWORKS,
-                    "metadata": {
-                        "authorization_scheme": scheme,
-                    },
-                }
-            )
-
-    return findings
+def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
+    """Report a status for every AzureRM service connection, PASS included."""
+    return evaluate_service_endpoints(RULE_ID, azure_client, subscription_id, _judge)

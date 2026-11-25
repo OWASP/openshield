@@ -3,12 +3,18 @@
 import logging
 from typing import Any, Dict, List
 
+from scanner.evaluation import NO_RESOURCES_FOUND, POLICY_NOT_REQUIRED, RuleEvaluation, fail_findings
 from scanner.rules._security_operations_common import (
+    SUBSCRIPTION_RESOURCE_TYPE,
     build_collector,
     build_finding,
+    collection_failed,
     enum_value,
+    failed,
     is_usable,
-    load_policy_from_env,
+    not_applicable,
+    passed,
+    prepare,
     value,
 )
 
@@ -55,38 +61,65 @@ def _enabled_categories_at_approved_destinations(settings: Any, approved_destina
 
 
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Flag missing required activity-log categories among approved-destination exports."""
-    policy = load_policy_from_env(RULE_ID)
-    if policy is None:
-        return []
+    """Return the findings attached to this rule's FAIL evaluations."""
+    return fail_findings(evaluate(azure_client, subscription_id))
 
-    collector = build_collector(azure_client, subscription_id)
+
+def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
+    """Report whether the approved activity-log exports cover every required category."""
+    collector, policy, early = prepare(
+        RULE_ID, SUBSCRIPTION_RESOURCE_TYPE, azure_client, subscription_id, build_collector
+    )
+    if early is not None:
+        return early
+
+    resource_id = f"/subscriptions/{subscription_id}"
+    if not policy.required_activity_categories:
+        return [
+            not_applicable(
+                RULE_ID,
+                resource_id,
+                SUBSCRIPTION_RESOURCE_TYPE,
+                POLICY_NOT_REQUIRED,
+                "The security-operations policy requires no activity-log categories.",
+            )
+        ]
+
     result = collector.subscription_diagnostic_settings()
     if not is_usable(result):
-        logger.warning(
-            "%s: subscription diagnostic settings unavailable (%s); result is UNKNOWN", RULE_ID, result.error_code
-        )
-        return []
+        return [collection_failed(RULE_ID, SUBSCRIPTION_RESOURCE_TYPE, subscription_id, result)]
 
     enabled = _enabled_categories_at_approved_destinations(result.items, policy.approved_destination_ids)
     if not enabled:
-        # AZ-SECOPS-001 already reports the missing-export case; avoid a
-        # duplicate, less-specific finding here when there is no approved
-        # export to evaluate categories against.
-        return []
+        # AZ-SECOPS-001 reports the missing approved export; there are no
+        # categories at an approved destination for this rule to judge.
+        return [
+            not_applicable(
+                RULE_ID,
+                resource_id,
+                SUBSCRIPTION_RESOURCE_TYPE,
+                NO_RESOURCES_FOUND,
+                "No activity-log export reaches an approved destination; AZ-SECOPS-001 reports that.",
+            )
+        ]
 
     missing = {c for c in policy.required_activity_categories if c not in enabled}
+    evidence = {
+        "enabled_categories": sorted(enabled),
+        "required_categories": sorted(policy.required_activity_categories),
+        "missing_categories": sorted(missing),
+    }
     if not missing:
-        return []
+        return [passed(RULE_ID, resource_id, SUBSCRIPTION_RESOURCE_TYPE, evidence)]
 
     finding = build_finding(
         rule_id=RULE_ID,
         rule_name=RULE_NAME,
         severity=SEVERITY,
         category=CATEGORY,
-        resource_id=f"/subscriptions/{subscription_id}",
+        resource_id=resource_id,
         resource_name=subscription_id,
-        resource_type="Microsoft.Resources/subscriptions",
+        resource_type=SUBSCRIPTION_RESOURCE_TYPE,
         description=DESCRIPTION,
         remediation=REMEDIATION,
         playbook=PLAYBOOK,
@@ -100,4 +133,4 @@ def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
             "unknown_reason": None,
         },
     )
-    return [finding]
+    return [failed(RULE_ID, finding, evidence)]

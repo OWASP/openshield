@@ -3,7 +3,25 @@
 import logging
 from typing import Any, Dict, List
 
-from scanner.rules._security_operations_common import build_collector, build_finding, load_policy_from_env, value
+from scanner.evaluation import (
+    POLICY_NOT_REQUIRED,
+    RuleEvaluation,
+    fail_findings,
+    no_resources_found,
+    subscription_scope_id,
+)
+from scanner.rules._security_operations_common import (
+    build_collector,
+    build_finding,
+    collection_failed,
+    failed,
+    not_applicable,
+    passed,
+    prepare,
+    scope_unknown,
+    value,
+    workspace_resource_id,
+)
 from scanner.security_operations import CollectionStatus, workspace_scope_key
 
 logger = logging.getLogger(__name__)
@@ -28,6 +46,8 @@ REMEDIATION = (
     "Enabled and actively ingesting."
 )
 PLAYBOOK = "playbooks/cli/fix_az_secops_008.sh"
+_RESOURCE_TYPE = "Microsoft.SecurityInsights/dataConnectors"
+_WORKSPACE_TYPE = "Microsoft.OperationalInsights/workspaces"
 
 
 def _connector_kind(connector: Any) -> str:
@@ -55,80 +75,92 @@ def _connector_connected(connector: Any) -> bool:
 
 
 def scan(azure_client: Any, subscription_id: str) -> List[Dict[str, Any]]:
-    """Flag required Sentinel connectors missing or unhealthy on onboarded workspaces."""
-    policy = load_policy_from_env(RULE_ID)
-    if policy is None:
-        return []
+    """Return the findings attached to this rule's FAIL evaluations."""
+    return fail_findings(evaluate(azure_client, subscription_id))
+
+
+def evaluate(azure_client: Any, subscription_id: str) -> List[RuleEvaluation]:
+    """Report, per onboarded Sentinel workspace and required connector, whether it is connected."""
+    collector, policy, early = prepare(RULE_ID, _RESOURCE_TYPE, azure_client, subscription_id, build_collector)
+    if early is not None:
+        return early
     if not policy.required_sentinel_connectors:
-        logger.info("%s: no required Sentinel connectors configured; rule is not applicable", RULE_ID)
-        return []
+        return [
+            not_applicable(
+                RULE_ID,
+                subscription_scope_id(subscription_id),
+                _RESOURCE_TYPE,
+                POLICY_NOT_REQUIRED,
+                "The security-operations policy requires no Sentinel data connectors.",
+            )
+        ]
 
-    collector = build_collector(azure_client, subscription_id)
-    workspaces_result = collector.sentinel_onboarded_workspaces()
-    if workspaces_result.status is CollectionStatus.FAILED:
-        logger.warning(
-            "%s: Sentinel onboarding discovery unavailable (%s); result is UNKNOWN",
+    workspaces = collector.sentinel_onboarded_workspaces()
+    if workspaces.status is CollectionStatus.FAILED:
+        return [collection_failed(RULE_ID, _WORKSPACE_TYPE, subscription_id, workspaces)]
+    evaluations: List[RuleEvaluation] = [
+        scope_unknown(
             RULE_ID,
-            workspaces_result.error_code,
+            workspace_resource_id(subscription_id, scope),
+            _WORKSPACE_TYPE,
+            "Sentinel onboarding could not be checked for this workspace.",
         )
-        return []
-    if not workspaces_result.items:
-        logger.info("%s: no Sentinel-onboarded workspaces found; rule is not applicable", RULE_ID)
-        return []
+        for scope in workspaces.failed_scopes
+    ]
+    if not workspaces.items:
+        return evaluations or [no_resources_found(RULE_ID, _WORKSPACE_TYPE, subscription_id)]
 
-    connectors_result = collector.sentinel_data_connectors(workspaces_result.items)
-    if connectors_result.status is CollectionStatus.FAILED:
-        logger.warning(
-            "%s: Sentinel data connectors unavailable (%s); result is UNKNOWN", RULE_ID, connectors_result.error_code
-        )
-        return []
-    if not connectors_result.items:
-        return []
-
-    per_workspace = connectors_result.items[0]
-    findings: List[Dict[str, Any]] = []
-    for workspace in workspaces_result.items:
+    connectors = collector.sentinel_data_connectors(workspaces.items)
+    per_workspace = connectors.items[0] if connectors.items else {}
+    required_kinds = sorted(policy.required_sentinel_connectors)
+    for workspace in workspaces.items:
         workspace_name = str(value(workspace, "name") or "")
         scope_key = workspace_scope_key(workspace)
-        if scope_key in connectors_result.failed_scopes:
-            logger.warning(
-                "%s: connector collection failed for %s; result is UNKNOWN for that scope", RULE_ID, scope_key
+        base_id = f"{value(workspace, 'id', '')}/providers/Microsoft.SecurityInsights/dataConnectors"
+        if connectors.status is CollectionStatus.FAILED or scope_key in connectors.failed_scopes:
+            evaluations.extend(
+                scope_unknown(
+                    RULE_ID,
+                    f"{base_id}/{required}",
+                    _RESOURCE_TYPE,
+                    f"Sentinel data connectors could not be collected for workspace {scope_key}.",
+                )
+                for required in required_kinds
             )
             continue
 
-        connectors = per_workspace.get(scope_key, ())
-        by_kind = {}
-        for connector in connectors:
+        by_kind: Dict[str, List[Any]] = {}
+        for connector in per_workspace.get(scope_key, ()):
             by_kind.setdefault(_connector_kind(connector), []).append(connector)
-
-        for required in sorted(policy.required_sentinel_connectors):
+        for required in required_kinds:
             candidates = by_kind.get(required, [])
-            if candidates and any(_connector_connected(c) for c in candidates):
+            connected = bool(candidates) and any(_connector_connected(c) for c in candidates)
+            state = "connected" if connected else ("missing" if not candidates else "disconnected")
+            evidence = {"workspace": scope_key, "connector_kind": required, "connector_state": state}
+            resource_id = f"{base_id}/{required}"
+            if connected:
+                evaluations.append(passed(RULE_ID, resource_id, _RESOURCE_TYPE, evidence))
                 continue
-            state = "missing" if not candidates else "disconnected"
-            findings.append(
-                build_finding(
-                    rule_id=RULE_ID,
-                    rule_name=RULE_NAME,
-                    severity=SEVERITY,
-                    category=CATEGORY,
-                    resource_id=(
-                        f"{value(workspace, 'id', '')}/providers/Microsoft.SecurityInsights/dataConnectors/{required}"
-                    ),
-                    resource_name=f"{workspace_name}/{required}",
-                    resource_type="Microsoft.SecurityInsights/dataConnectors",
-                    description=DESCRIPTION,
-                    remediation=REMEDIATION,
-                    playbook=PLAYBOOK,
-                    frameworks=FRAMEWORKS,
-                    scope=f"sentinel-workspace:{scope_key}",
-                    metadata={
-                        "destination": scope_key,
-                        "connector_kind": required,
-                        "connector_state": state,
-                        "permissions_required": ["Microsoft.SecurityInsights/dataConnectors/read"],
-                        "unknown_reason": None,
-                    },
-                )
+            finding = build_finding(
+                rule_id=RULE_ID,
+                rule_name=RULE_NAME,
+                severity=SEVERITY,
+                category=CATEGORY,
+                resource_id=resource_id,
+                resource_name=f"{workspace_name}/{required}",
+                resource_type=_RESOURCE_TYPE,
+                description=DESCRIPTION,
+                remediation=REMEDIATION,
+                playbook=PLAYBOOK,
+                frameworks=FRAMEWORKS,
+                scope=f"sentinel-workspace:{scope_key}",
+                metadata={
+                    "destination": scope_key,
+                    "connector_kind": required,
+                    "connector_state": state,
+                    "permissions_required": ["Microsoft.SecurityInsights/dataConnectors/read"],
+                    "unknown_reason": None,
+                },
             )
-    return findings
+            evaluations.append(failed(RULE_ID, finding, evidence))
+    return evaluations

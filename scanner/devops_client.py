@@ -20,6 +20,15 @@ AZURE_DEVOPS_RESOURCE_ID = "499b84ac-1321-427f-aa17-267ca6975798"
 _UNSET = object()
 
 
+class IntegrationNotConfigured(Exception):
+    """Raised when Azure DevOps is not configured for this scan.
+
+    Kept distinct from a failed call (which returns ``None``) so a rule can
+    report NOT_APPLICABLE for "not set up" and ERROR for "set up but
+    unreachable".
+    """
+
+
 class DevOpsClient:
     """Wraps the Azure DevOps Service Endpoint API for pipeline scan rules.
 

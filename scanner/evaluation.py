@@ -76,6 +76,19 @@ APPROVED_EXCEPTION = "APPROVED_EXCEPTION"
 #                            the rule cannot judge compliance and must fail
 #                            closed rather than read as a pass.
 POLICY_UNAVAILABLE = "POLICY_UNAVAILABLE"
+# POLICY_NOT_CONFIGURED  UNKNOWN  an opt-in organisation policy (for example
+#                                  the security-operations policy) is unset,
+#                                  missing or invalid, so the rule has nothing
+#                                  approved to judge against. UNKNOWN, not
+#                                  ERROR: the policy is optional and an
+#                                  unconfigured deployment is not a failed scan.
+POLICY_NOT_CONFIGURED = "POLICY_NOT_CONFIGURED"
+# INTEGRATION_NOT_CONFIGURED  NOT_APPLICABLE  an optional external integration
+#                                             (Azure DevOps) is not configured,
+#                                             as opposed to configured but
+#                                             unreachable (ERROR /
+#                                             INVENTORY_UNAVAILABLE).
+INTEGRATION_NOT_CONFIGURED = "INTEGRATION_NOT_CONFIGURED"
 
 
 @dataclass

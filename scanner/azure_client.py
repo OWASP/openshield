@@ -1278,6 +1278,39 @@ class AzureClient:
             logger.error("get_governance_snapshot failed: %s", exc)
             return None
 
+    def get_security_operations_collector(self, subscription_id: str) -> Optional[Any]:
+        """Build the read-only collector the AZ-SECOPS rules read their evidence from.
+
+        Building it makes no API calls. Returns ``None`` only when the
+        collector cannot be constructed, which the rules report as
+        ERROR / INVENTORY_UNAVAILABLE.
+        """
+        from scanner.security_operations import SecurityOperationsCollector, arm_resource_inventory
+
+        try:
+            return SecurityOperationsCollector(
+                self.credential,
+                subscription_id,
+                resource_inventory=arm_resource_inventory(self.credential, subscription_id),
+            )
+        except Exception as exc:
+            logger.error("get_security_operations_collector failed: %s", exc)
+            return None
+
+    def list_devops_service_endpoints(self) -> Optional[List[Any]]:
+        """List Azure DevOps service connections for the configured project.
+
+        Returns ``None`` when Azure DevOps is configured but the call fails.
+        Raises ``IntegrationNotConfigured`` when it is not configured at all,
+        so the AZ-SC service-connection rules can report NOT_APPLICABLE for an
+        opt-out and ERROR for an outage.
+        """
+        from scanner.devops_client import IntegrationNotConfigured
+
+        if self.devops_client is None:
+            raise IntegrationNotConfigured("AZURE_DEVOPS_ORG_URL and AZURE_DEVOPS_PROJECT are not set")
+        return self.devops_client.get_service_endpoints()
+
     # ------------------------------------------------------------------ #
     # Identity / Authorization                                              #
     # ------------------------------------------------------------------ #

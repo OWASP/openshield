@@ -145,7 +145,7 @@ List methods return an empty list on failure. Single-resource methods return `No
 
 When a helper returns `None`, skip the resource and log a warning. Never create a finding from an unknown state.
 
-`azure_client.devops_client` is `None` whenever Azure DevOps is not configured for the scanned subscription — treat that the same as "not applicable" and return no findings, not as an indeterminate failure.
+`azure_client.devops_client` is `None` whenever Azure DevOps is not configured for the scanned subscription — treat that the same as "not applicable" and return no findings, not as an indeterminate failure. A rule on the `evaluate()` contract should call `azure_client.list_devops_service_endpoints()` instead: it raises `IntegrationNotConfigured` when Azure DevOps is not configured (report `NOT_APPLICABLE / INTEGRATION_NOT_CONFIGURED`) and returns `None` when it is configured but unreachable (report `ERROR / INVENTORY_UNAVAILABLE`); see `scanner/rules/_supply_chain_common.py`.
 
 ---
 

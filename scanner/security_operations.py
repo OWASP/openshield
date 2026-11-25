@@ -40,6 +40,24 @@ def workspace_scope_key(workspace: Any) -> str:
     return f"{resource_group}/{workspace_name}"
 
 
+def arm_resource_inventory(credential: Any, subscription_id: str) -> Callable[[], Sequence[Any]]:
+    """Build a resource_inventory callable backed by the generic ARM resource list.
+
+    ``SecurityOperationsCollector.critical_resource_ids`` needs a callable
+    returning every resource in the subscription (id + type only). No
+    AzureClient method returns a generic, subscription-wide inventory, so
+    this uses azure-mgmt-resource directly.
+    """
+
+    def _list() -> Sequence[Any]:
+        from azure.mgmt.resource import ResourceManagementClient
+
+        client = ResourceManagementClient(credential, subscription_id)
+        return list(client.resources.list())
+
+    return _list
+
+
 class CollectionStatus(str, Enum):
     """Whether a collector produced authoritative evidence.
 
