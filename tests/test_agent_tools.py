@@ -43,7 +43,16 @@ class _FakeCursor:
 
 
 class _FakeConn:
-    """Minimal psycopg2 connection stand-in."""
+    """Minimal psycopg2 connection stand-in.
+
+    ``rows`` is used for every query. When ``get_findings`` is used with the
+    new two-phase design (scan check + findings query), pass a non-empty rows
+    list so that ``fetchone()`` returns a truthy scan_id on the first call and
+    ``fetchall()`` returns findings on the second call.
+
+    For tests that only need the scan-check to pass without caring about the
+    finding rows, pass ``check_rows`` as a one-element list (e.g. ``[("scan-1",)]``).
+    """
 
     def __init__(self, rows=None):
         self._cursor = _FakeCursor(rows)
@@ -54,6 +63,9 @@ class _FakeConn:
 
     def commit(self):
         self.committed = True
+
+    def rollback(self):
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +172,11 @@ class TestGetFindings:
 
     def test_severity_filter_passes_correct_param(self):
         """get_findings with severity filter includes severity in the SQL params."""
-        conn = _FakeConn(rows=[])
+        # Provide a non-empty rows list so the scan-existence check (fetchone)
+        # returns a truthy scan_id; the same rows are reused for the findings
+        # query (fetchall), which is acceptable for this param-checking test.
+        scan_row = [("fake-scan-id",)]
+        conn = _FakeConn(rows=scan_row)
         get_findings(
             conn,
             subscription_id="sub-1",
@@ -170,13 +186,22 @@ class TestGetFindings:
         params = conn._cursor.executed_params
         assert "HIGH" in params
 
+    def test_no_completed_scan_returns_status_dict(self):
+        """get_findings returns a no_completed_scan dict when no scan exists for the subscription."""
+        conn = _FakeConn(rows=[])
+        result = get_findings(conn, subscription_id="sub-1", tenant_id="tenant-1")
+        assert isinstance(result, dict)
+        assert result["status"] == "no_completed_scan"
+        assert "message" in result
+
     def test_state_filter_is_silently_ignored(self):
         """get_findings accepts state= without error but ignores it.
 
         Without lifecycle tables all findings are 'open'; passing state is a
         no-op until PR #326 ships.
         """
-        conn = _FakeConn(rows=[])
+        # Provide a scan row so the check passes; the state filter is then applied.
+        conn = _FakeConn(rows=[("fake-scan-id",)])
         result = get_findings(
             conn,
             subscription_id="sub-1",
@@ -195,7 +220,7 @@ class TestGetCompliancePosture:
     def test_valid_framework_delegates_to_get_compliance_score(self):
         """get_compliance_posture calls DatabaseManager.get_compliance_score and returns its result."""
         expected = {
-            "framework": "mcsb",
+            "framework": "cis",
             "score_percent": 72.5,
             "passed": 29,
             "failed": 11,
@@ -204,12 +229,12 @@ class TestGetCompliancePosture:
         dm = _FakeDM(compliance_result=expected)
         result = get_compliance_posture(
             dm,
-            framework="mcsb",
+            framework="cis",
             subscription_id="sub-1",
             tenant_id="tenant-1",
         )
         assert result == expected
-        assert dm.compliance_calls == [("mcsb", "sub-1")]
+        assert dm.compliance_calls == [("cis", "sub-1")]
 
     def test_raises_value_error_for_unknown_framework(self):
         """get_compliance_posture raises ValueError for an unrecognised framework."""
@@ -239,12 +264,12 @@ class TestGetCompliancePosture:
         dm = _FakeDM(compliance_raises=RuntimeError("db down"))
         result = get_compliance_posture(
             dm,
-            framework="mcsb",
+            framework="cis",
             subscription_id="sub-1",
             tenant_id="tenant-1",
         )
         assert result.get("error") == "db_error"
-        assert result.get("framework") == "mcsb"
+        assert result.get("framework") == "cis"
         assert "score" not in result
 
     def test_missing_get_compliance_score_method_returns_error(self):
@@ -288,7 +313,7 @@ class TestExplainFinding:
     def test_returns_none_when_db_returns_no_row(self):
         """explain_finding returns None when the finding does not exist."""
         conn = _FakeConn(rows=[])
-        result = explain_finding(conn, finding_id=999, tenant_id="tenant-1")
+        result = explain_finding(conn, finding_id=999, subscription_id="sub-1", tenant_id="tenant-1")
         assert result is None
 
     def test_returns_dict_with_expected_keys_when_row_exists(self):
@@ -303,7 +328,7 @@ class TestExplainFinding:
             "OPEN",
         )
         conn = _FakeConn(rows=[row])
-        result = explain_finding(conn, finding_id=42, tenant_id="tenant-1")
+        result = explain_finding(conn, finding_id=42, subscription_id="sub-1", tenant_id="tenant-1")
         assert result is not None
         assert result["finding_id"] == 42
         assert result["rule_id"] == "AZ-STOR-001"
@@ -322,7 +347,7 @@ class TestSuggestRemediation:
     def test_returns_none_when_finding_not_found(self):
         """suggest_remediation returns None when the underlying finding is missing."""
         conn = _FakeConn(rows=[])
-        result = suggest_remediation(conn, finding_id=999, tenant_id="tenant-1")
+        result = suggest_remediation(conn, finding_id=999, subscription_id="sub-1", tenant_id="tenant-1")
         assert result is None
 
     def test_returns_dict_with_steps_key_when_finding_exists(self):
@@ -337,7 +362,7 @@ class TestSuggestRemediation:
             "OPEN",
         )
         conn = _FakeConn(rows=[row])
-        result = suggest_remediation(conn, finding_id=7, tenant_id="tenant-1")
+        result = suggest_remediation(conn, finding_id=7, subscription_id="sub-1", tenant_id="tenant-1")
         assert result is not None
         assert "steps" in result
         assert result["steps"] == "Assign a managed identity and remove inline credentials."

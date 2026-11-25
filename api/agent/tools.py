@@ -2,7 +2,7 @@
 
 Each function takes a psycopg2 connection as its first argument so callers
 can inject a real or fake connection. Tenant isolation is enforced through
-explicit tenant_id parameters — never trust user input for this.
+explicit tenant_id parameters -- never trust user input for this.
 
 No Flask imports: this module must be importable outside a Flask request
 context.
@@ -14,7 +14,22 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
-_VALID_FRAMEWORKS = {"mcsb", "cis", "iso27001"}
+
+def _get_valid_frameworks() -> frozenset:
+    """Derive valid framework keys from the canonical FRAMEWORK_FILE_MAP.
+
+    Falls back to a conservative set (without mcsb, which has no mapping file)
+    if the import fails.
+    """
+    try:
+        from api.models.finding import FRAMEWORK_FILE_MAP  # noqa: PLC0415
+
+        return frozenset(FRAMEWORK_FILE_MAP.keys())
+    except (ImportError, AttributeError):
+        return frozenset({"cis", "iso27001"})
+
+
+_VALID_FRAMEWORKS = _get_valid_frameworks()
 
 # Same env knob the REST scan route honours (api/routes/scans.py). Read here
 # directly so this module stays importable without Flask.
@@ -73,7 +88,7 @@ def get_findings(
     tenant_id: str,
     severity: str = None,
     state: str = None,
-) -> list:
+) -> list | dict:
     """Return findings from the most recent completed scan for the subscription.
 
     Queries the baseline ``findings`` and ``scans`` tables. ``state`` is not
@@ -83,8 +98,39 @@ def get_findings(
 
     Returns a list of dicts with keys:
         finding_id, rule_id, resource_id, severity, state
+
+    Returns a dict ``{"status": "no_completed_scan", "message": ...}`` when no
+    completed scan exists for the subscription, to prevent a false all-clear.
+    Callers must handle both return types.
     """
-    params: list = [subscription_id, subscription_id]
+    check_sql = (
+        "SELECT scan_id FROM scans"  # nosec B608
+        " WHERE subscription_id = %s AND status = 'completed'"
+        " ORDER BY started_at DESC LIMIT 1"
+    )
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute(check_sql, (subscription_id,))
+            scan_row = cur.fetchone()
+    except Exception:
+        try:
+            db_conn.rollback()
+        except Exception:
+            pass
+        logger.exception(
+            "get_findings scan lookup failed for subscription_id=%s",
+            subscription_id,
+        )
+        return [{"error": "db_error"}]
+
+    if scan_row is None:
+        return {
+            "status": "no_completed_scan",
+            "message": "No completed scan found for this subscription. Run a scan first.",
+        }
+
+    latest_scan_id = scan_row[0]
+    params: list = [subscription_id, latest_scan_id]
     extra = ""
     if severity is not None:
         extra += " AND UPPER(f.severity) = UPPER(%s)"
@@ -96,11 +142,7 @@ def get_findings(
         " JOIN scans s ON s.scan_id = f.scan_id"
         " WHERE s.subscription_id = %s"
         "   AND s.status = 'completed'"
-        "   AND s.scan_id = ("
-        "     SELECT scan_id FROM scans"
-        "     WHERE subscription_id = %s AND status = 'completed'"
-        "     ORDER BY started_at DESC LIMIT 1"
-        "   )" + extra + " LIMIT 200"
+        "   AND s.scan_id = %s" + extra + " LIMIT 200"
     )
     try:
         with db_conn.cursor() as cur:
@@ -136,7 +178,9 @@ def get_compliance_posture(db_manager, framework: str, subscription_id: str, ten
     framework mapping packs on disk) is used instead of the ``compliance_scores``
     aggregate table that is not yet present in the baseline schema.
 
-    Valid frameworks: "mcsb", "cis", "iso27001"
+    Valid frameworks are derived from FRAMEWORK_FILE_MAP in api.models.finding
+    (e.g. "cis", "nist", "iso27001", "soc2"). "mcsb" has no mapping file and
+    is NOT valid; passing it raises ValueError.
     Raises ValueError for unknown framework.
 
     A read FAILURE returns {"framework": ..., "error": "db_error"} instead of a
@@ -184,23 +228,31 @@ def get_attack_paths(db_conn, scan_id: str, tenant_id: str) -> dict:
     }
 
 
-def explain_finding(db_conn, finding_id: int, tenant_id: str) -> dict | None:
+def explain_finding(
+    db_conn, finding_id: int, subscription_id: str, tenant_id: str
+) -> dict | None:
     """Return full detail for a finding from the baseline ``findings`` table.
 
-    Returns None if the finding does not exist. ``tenant_id`` is kept in the
-    signature for future lifecycle-table integration (PR #326); isolation is
-    currently enforced at the route level via the subscription allow-list.
+    Joins ``scans`` and filters by ``subscription_id`` so a caller authorised
+    for subscription A cannot read subscription B's findings by guessing
+    sequential integer IDs. Returns None if the finding does not exist or
+    belongs to a different subscription.
+
+    ``tenant_id`` is accepted for audit-logging purposes; subscription-level
+    isolation is enforced in SQL via ``subscription_id``.
     """
     sql = (
-        "SELECT f.id, f.rule_id, f.resource_id, f.severity,"
+        "SELECT f.id, f.rule_id, f.resource_id, f.severity,"  # nosec B608
         "       f.description, f.remediation, 'open' AS state"
         " FROM findings f"
+        " JOIN scans s ON s.scan_id = f.scan_id"
         " WHERE f.id = %s"
+        "   AND s.subscription_id = %s"
         " LIMIT 1"
     )
     try:
         with db_conn.cursor() as cur:
-            cur.execute(sql, (finding_id,))
+            cur.execute(sql, (finding_id, subscription_id))
             row = cur.fetchone()
             if row is None:
                 return None
@@ -222,13 +274,15 @@ def explain_finding(db_conn, finding_id: int, tenant_id: str) -> dict | None:
         return {"error": "db_error"}
 
 
-def suggest_remediation(db_conn, finding_id: int, tenant_id: str) -> dict | None:
+def suggest_remediation(
+    db_conn, finding_id: int, subscription_id: str, tenant_id: str
+) -> dict | None:
     """Return step-by-step remediation for a finding.
 
     Reuses explain_finding internally. Returns None if finding not found or
-    belongs to a different tenant.
+    belongs to a different subscription.
     """
-    detail = explain_finding(db_conn, finding_id, tenant_id)
+    detail = explain_finding(db_conn, finding_id, subscription_id, tenant_id)
     if detail is None or "error" in detail:
         return None
     return {

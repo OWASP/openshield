@@ -11,7 +11,7 @@ The server makes the following tools available to connected LLM hosts:
 |------|-------------|
 | `scan_subscription` | Trigger an Azure subscription scan and return the scan_id |
 | `get_findings` | Return security findings, optionally filtered by severity or state |
-| `get_compliance_posture` | Return compliance score and gaps for mcsb, cis, or iso27001 |
+| `get_compliance_posture` | Return compliance score and gaps for cis, nist, iso27001, soc2, and other supported frameworks |
 | `get_attack_paths` | Return BFS attack paths for a completed scan |
 | `explain_finding` | Return full detail and risk context for a finding |
 | `suggest_remediation` | Return step-by-step remediation guidance for a finding |
@@ -32,7 +32,7 @@ tenant.
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string, e.g. `postgresql://user:pass@host/db` |
-| `OPENSHIELD_TENANT_ID` | Yes | Tenant identifier used for row-level isolation |
+| `OPENSHIELD_TENANT_ID` | Yes | Tenant identifier passed to tool functions for audit logging; subscription-level isolation is enforced via subscription_id from the allowlist |
 | `OPENSHIELD_MCP_ROLE` | No | `viewer` (default), `operator`, or `admin`. Write tools (`scan_subscription`) require `operator`/`admin` |
 | `OPENSHIELD_AUTHORIZED_SUBSCRIPTIONS` | No | Comma-separated allowlist of subscription IDs that may be scanned |
 

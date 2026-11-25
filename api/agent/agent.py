@@ -164,19 +164,19 @@ def _dispatch_tool(
                 state=args.get("state"),
             )
         if tool_name == "get_compliance_posture":
-            return _tools.get_compliance_posture(db_conn, args.get("framework", "mcsb"), subscription_id, tenant_id)
+            return _tools.get_compliance_posture(db_conn, args.get("framework", "cis"), subscription_id, tenant_id)
         if tool_name == "get_attack_paths":
             return _tools.get_attack_paths(read_conn, str(args.get("scan_id", "")), tenant_id)
         if tool_name == "explain_finding":
             finding_id = args.get("finding_id")
             if not isinstance(finding_id, int):
                 return {"error": "finding_id is required and must be an integer"}
-            return _tools.explain_finding(read_conn, finding_id, tenant_id)
+            return _tools.explain_finding(read_conn, finding_id, subscription_id, tenant_id)
         if tool_name == "suggest_remediation":
             finding_id = args.get("finding_id")
             if not isinstance(finding_id, int):
                 return {"error": "finding_id is required and must be an integer"}
-            return _tools.suggest_remediation(read_conn, finding_id, tenant_id)
+            return _tools.suggest_remediation(read_conn, finding_id, subscription_id, tenant_id)
         return {"error": "unknown_tool"}
     except Exception as exc:  # noqa: BLE001
         logger.warning("Tool %r raised an exception: %s", tool_name, exc)

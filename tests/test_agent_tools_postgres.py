@@ -178,10 +178,11 @@ class TestExplainFindingPostgres:
     def test_returns_expected_fields_for_existing_finding(self, scan_with_findings):
         conn, _scan_id, subscription_id, tenant_id = scan_with_findings
         findings = get_findings(conn, subscription_id, tenant_id)
+        assert isinstance(findings, list), "Prerequisite: at least one finding must exist"
         assert findings, "Prerequisite: at least one finding must exist"
         fid = findings[0]["finding_id"]
 
-        detail = explain_finding(conn, fid, tenant_id)
+        detail = explain_finding(conn, fid, subscription_id, tenant_id)
         assert detail is not None
         assert detail["finding_id"] == fid
         assert "rule_id" in detail
@@ -191,16 +192,32 @@ class TestExplainFindingPostgres:
         assert detail["state"] == "open"
 
     def test_returns_none_for_nonexistent_finding(self, scan_with_findings):
-        conn, _scan_id, _subscription_id, tenant_id = scan_with_findings
-        result = explain_finding(conn, 999_999_999, tenant_id)
+        conn, _scan_id, subscription_id, tenant_id = scan_with_findings
+        result = explain_finding(conn, 999_999_999, subscription_id, tenant_id)
         assert result is None
+
+    def test_cross_subscription_isolation(self, scan_with_findings):
+        """Finding belonging to subscription A must not be visible via subscription B."""
+        conn, _scan_id, subscription_a, tenant_id = scan_with_findings
+        findings = get_findings(conn, subscription_a, tenant_id)
+        assert isinstance(findings, list) and findings, "Prerequisite: findings for subscription A must exist"
+        fid = findings[0]["finding_id"]
+
+        # Query with a completely different subscription ID -- must return None.
+        subscription_b = str(uuid.uuid4())
+        result = explain_finding(conn, fid, subscription_b, tenant_id)
+        assert result is None, (
+            f"Cross-subscription isolation failure: finding {fid} from subscription A "
+            f"was returned when queried with subscription B ({subscription_b})"
+        )
 
     def test_suggest_remediation_returns_steps(self, scan_with_findings):
         conn, _scan_id, subscription_id, tenant_id = scan_with_findings
         findings = get_findings(conn, subscription_id, tenant_id)
+        assert isinstance(findings, list) and findings
         fid = findings[0]["finding_id"]
 
-        result = suggest_remediation(conn, fid, tenant_id)
+        result = suggest_remediation(conn, fid, subscription_id, tenant_id)
         assert result is not None
         assert "steps" in result
         assert isinstance(result["steps"], str)
@@ -214,19 +231,16 @@ class TestExplainFindingPostgres:
 
 class TestGetCompliancePosturePostgres:
     def test_returns_dict_with_framework_key_for_known_framework(self, db_manager, scan_with_findings):
-        """get_compliance_posture delegates to get_compliance_score and returns a dict."""
+        """get_compliance_posture delegates to get_compliance_score and returns a dict without error."""
         _conn, _scan_id, subscription_id, tenant_id = scan_with_findings
-        result = get_compliance_posture(db_manager, "mcsb", subscription_id, tenant_id)
+        result = get_compliance_posture(db_manager, "cis", subscription_id, tenant_id)
         assert isinstance(result, dict)
-        assert (
-            result.get("framework") == "mcsb"
-            or result.get("status")
-            in (
-                "NO_SCAN_DATA",
-                None,
-            )
-            or "error" not in result
-        )
+        assert "error" not in result, f"get_compliance_posture returned error: {result}"
+
+    def test_mcsb_raises_value_error(self, db_manager):
+        """mcsb has no mapping file and must be rejected as an unknown framework."""
+        with pytest.raises(ValueError, match="Unknown compliance framework"):
+            get_compliance_posture(db_manager, "mcsb", "sub-1", "tenant-1")
 
     def test_raises_for_unknown_framework(self, db_manager):
         with pytest.raises(ValueError, match="Unknown compliance framework"):
