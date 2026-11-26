@@ -47,6 +47,16 @@ az_func_002
 az_func_003
 az_func_004
 az_func_005
+az_gov_001
+az_gov_002
+az_gov_003
+az_gov_004
+az_gov_005
+az_gov_006
+az_gov_007
+az_gov_008
+az_gov_009
+az_gov_010
 az_idn_001
 az_idn_002
 az_idn_003
