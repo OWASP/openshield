@@ -71,7 +71,7 @@ TOOL_SCHEMAS: list[dict] = [
         "type": "function",
         "function": {
             "name": "get_compliance_posture",
-            "description": "Compliance posture for a framework (mcsb/cis/iso27001).",
+            "description": "Compliance posture for a framework (cis/nist/iso27001/soc2).",
             "parameters": {
                 "type": "object",
                 "properties": {"framework": {"type": "string"}},

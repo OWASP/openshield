@@ -137,10 +137,11 @@ class TestGetFindingsPostgres:
         result = get_findings(conn, subscription_id, tenant_id)
         assert all(r["state"] == "open" for r in result)
 
-    def test_unknown_subscription_returns_empty_list(self, scan_with_findings):
+    def test_unknown_subscription_returns_no_scan_status(self, scan_with_findings):
         conn, _scan_id, _subscription_id, tenant_id = scan_with_findings
         result = get_findings(conn, str(uuid.uuid4()), tenant_id)
-        assert result == []
+        assert isinstance(result, dict)
+        assert result["status"] == "no_completed_scan"
 
     def test_only_latest_completed_scan_is_returned(self, scan_with_findings):
         """An older completed scan for the same subscription is excluded."""
