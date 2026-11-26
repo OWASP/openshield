@@ -228,9 +228,7 @@ def get_attack_paths(db_conn, scan_id: str, tenant_id: str) -> dict:
     }
 
 
-def explain_finding(
-    db_conn, finding_id: int, subscription_id: str, tenant_id: str
-) -> dict | None:
+def explain_finding(db_conn, finding_id: int, subscription_id: str, tenant_id: str) -> dict | None:
     """Return full detail for a finding from the baseline ``findings`` table.
 
     Joins ``scans`` and filters by ``subscription_id`` so a caller authorised
@@ -274,9 +272,7 @@ def explain_finding(
         return {"error": "db_error"}
 
 
-def suggest_remediation(
-    db_conn, finding_id: int, subscription_id: str, tenant_id: str
-) -> dict | None:
+def suggest_remediation(db_conn, finding_id: int, subscription_id: str, tenant_id: str) -> dict | None:
     """Return step-by-step remediation for a finding.
 
     Reuses explain_finding internally. Returns None if finding not found or
